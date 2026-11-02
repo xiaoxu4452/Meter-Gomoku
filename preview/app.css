@@ -9,7 +9,7 @@
 
   --accent:#2f86d6; --accent-ink:#ffffff;
   --guide:#3aa0e8;
-  /* 卡片列与棋盘之间：滑动条两侧留白（两侧都 = --dock-gap，再 = 4px 的滚动条宽度） */
+  /* between the card dock and the board: the scrollbar keeps the same margin on both sides (= --dock-gap, plus the 4px scrollbar) */
   --dock-gap:.15rem;
   --dock-sb:4px;
 
@@ -36,8 +36,8 @@
 }
 
 *{box-sizing:border-box}
-/* 2026-11-01（用户）：软件里所有标题/标签不再能被鼠标选中或复制（拖选、双击选词都没了）；
-   只有真正用来输入/粘贴的地方（输入框、文本域、状态文本、局面代码）保留文本选择。 */
+/* 2026-11-01 (user): titles and labels are no longer selectable (no drag-select, no double-click select);
+   only real input/paste targets (inputs, textareas, status text, the position code) keep text selection. */
 body{-webkit-user-select:none; user-select:none}
 input, textarea, select, [contenteditable="true"],
 #lkStatus, #visInput, #visCode, #codeText, .copyable{-webkit-user-select:text; user-select:text}
@@ -153,29 +153,30 @@ button[hidden]{display:none !important}
 .hdr-actions{margin-left:auto; display:flex; gap:4px}
 
 /* app shell: board column + right dock */
-/* 2026-11-01（用户）：卡片列与棋盘之间的滑动条要更细，且滑动条两侧（离卡片 / 离棋盘）留白
-   更小并保持一致 —— 两侧都用 --dock-gap，改一处即可同时生效。 */
+/* 2026-11-01 (user): the scrollbar between the dock and the board should be thinner and keep the same
+   small margin on both sides - both use --dock-gap, so a single value controls the whole gap. */
 #stage{flex:1 1 auto; display:flex; gap:var(--dock-gap); padding:.4rem; min-height:0; overflow:hidden}
 /* docks */
-/* 2026-11-01（用户）：滑动条两侧留白必须**一样**且更细。
-   注意滚动条是**压在 padding 上**的：padding-right 只有超过滚动条宽度，卡片与滚动条之间才
-   真的有缝（实测 padding=4px 时 卡片→条 = 0px、条→棋盘 = 4px，看着就是偏一边）。
-   所以 padding = 目标间距 + 滚动条宽度；scrollbar-gutter:stable 让「有没有滚动条」不改变几何。 */
+/* 2026-11-01 (user): the gap on both sides of the scrollbar must be identical and thinner.
+   Note the scrollbar sits on top of the padding: padding-right only clears it once it exceeds
+   the scrollbar width (with padding=4px the measured gap is 0px on the card side and 4px on the
+   board side, which reads as lopsided). So padding = target gap + scrollbar width, and
+   scrollbar-gutter:stable keeps the geometry stable whether or not the bar is shown. */
 .dock{
   display:flex; flex-direction:column; gap:.7rem;
   overflow-y:auto; overflow-x:hidden; scrollbar-gutter:stable;
-  /* scrollbar-gutter 已经把滚动条位置单独预留出来了，这里只留「目标间距」本身 */
+  /* scrollbar-gutter already reserves the bar, so only the target gap is left here */
   padding-right:var(--dock-gap); min-height:0;
 }
-/* 细滚动条（4px）：默认 8px 在卡片列旁边太抢眼 */
+/* thin scrollbar (4px): the default 8px is too loud next to the card dock */
 .dock::-webkit-scrollbar{width:var(--dock-sb)}
 .dock::-webkit-scrollbar-thumb{border-radius:2px}
 
 .dock:not(.has){flex:0 0 0; width:0; min-width:0; padding:0; overflow:hidden}
 /* fixed px width: maximising the window must not grow the cards (font size / board scale only) */
 .dock.has{flex:0 0 var(--dock-w,272px); width:var(--dock-w,272px); min-width:0; max-width:none}
-/* ★ 2026-10-30（用户：卡片三级宽度）：最窄一档 189px（= 236 × 0.8），
-   主棋盘最小宽度取最窄卡片宽度的 2 倍（189 × 2 = 378px），保证棋盘始终是主角。 */
+/* * 2026-10-30 (user: three card widths): the narrowest step is 189px (= 236 x 0.8); the board keeps
+   a minimum of twice that (189 x 2 = 378px) so it always stays the main element. */
 #boardCol{flex:1 1 auto; display:flex; flex-direction:column; gap:.25rem; min-width:378px; min-height:0; overflow:hidden; position:relative}
 
 *::-webkit-scrollbar{width:8px; height:8px}
@@ -186,30 +187,30 @@ button[hidden]{display:none !important}
 
 /* responsive: three card width levels (272 / 236 / 189) */
 @media (max-width:1180px){
-  /* 第二级：与 JS 的 COMPACT_W 对齐；卡片合并到同一侧时用 236px，把横向空间让给棋盘。 */
+  /* second step: matches COMPACT_W in JS; 236px when the cards share one side, giving the width to the board. */
   body.compactDock{--dock-w:236px}
 }
 @media (max-width:900px){
-  /* 第三级：窗口更窄时再收一档 —— 当前最窄宽度的 0.8（236 × 0.8 ≈ 189px）。 */
+  /* third step: narrower windows drop one more notch - 0.8 of the current width (236 x 0.8 = 189px). */
   body.compactDock{--dock-w:189px}
 }
 @media (max-width:860px){
-  /* ★ 2026-11-01（用户：「界面缩小，棋盘/板块间的距离又会变大一点」）：
-     这里原来是 gap:.5rem / padding:.5rem —— 窄窗反而把间距放大到 6.75px，
-     和「滑动条两侧各 2px」的要求正好相反。间距统一由 --dock-gap 决定，不再按宽度改。 */
+  /* * 2026-11-01 (user: "shrinking the window makes the gaps between board and panels grow"):
+     this used to be gap:.5rem / padding:.5rem, which widened the gap to 6.75px in narrow windows -
+     the opposite of the "2px on each side" requirement. --dock-gap now owns the spacing at every width. */
   #stage{gap:var(--dock-gap); padding:.4rem}
 }
-/* 第三级卡片宽度下把卡片内边距 / 标签列一起收紧，控件不至于挤到换行或溢出 */
+/* at the third card width, tighten the card padding and the label column so controls do not wrap */
 @media (max-width:900px){
   body.compactDock .card{padding:.42rem .44rem .48rem}
   body.compactDock .card-h{font-size:.9rem; gap:.34rem}
   body.compactDock .card .row{gap:.36rem}
-  /* ★ 2026-10-31（用户：窄窗下「模式 / AI 执子」标题与按钮之间被拉出大段空白）：
-     .row.head 是 column 方向，这里的 flex-basis 会变成**标题的高度**（4.5rem ≈ 61px），
-     必须只作用于普通横向行；head 行的 label 保持 auto 高度。 */
+  /* * 2026-10-31 (user: in narrow windows a large gap appeared between the "Mode / AI side" title
+     and its buttons): .row.head is a column flex, so flex-basis there becomes the *height* of the
+     title (4.5rem = 61px); it must only apply to normal rows, and the head label keeps auto height. */
   body.compactDock .card .row:not(.head)>label{flex:0 0 4.5rem; font-size:.85rem}
   body.compactDock .card .row.head>label{flex:0 0 auto; font-size:.85rem}
-  /* 窄窗里 189px 卡片放不下 2 列「AI 执黑/执白」：把开关与内边距一起收窄，避免截成「AI …」。 */
+  /* a 189px card cannot fit two "AI black / AI white" columns: shrink the switch and padding so it is not clipped */
   body.compactDock #seg_side .tglbtn{gap:.2rem; padding:.3rem .12rem; font-size:.8rem}
   body.compactDock #seg_side .tgl{width:1.5rem; height:.9rem}
   body.compactDock #seg_side .tgl i{width:.68rem; height:.68rem; top:.05rem; left:.06rem}
@@ -308,38 +309,39 @@ body.rv :is(#hdr,#dockL,#dockR){display:none}
 #setPop .btn.on{color:var(--accent); border-color:var(--accent)}
 #aiSidePop .tglbtn .tgl-txt{font-size:.84rem}
 
-/* ★ 2026-11-01（用户）：AI 执子 / 局面平移 / 翻转 三个弹窗改为**按钮行内**的一块：
-   不再另起一行占高度 ⇒ 打开时棋盘尺寸完全不变；打开期间行内其它按键隐藏，
-   横向空间让给弹窗；整体高度压到原来的 ~0.8（平移/翻转的标题挪到左边一行）。 */
+/* * 2026-11-01 (user): the AI-side / shift / mirror popups became one block inside the button row -
+   no extra row, so opening one never changes the board size; while open the other keys hide and the
+   width goes to the popup; the whole thing is about 0.8 of the old height (titles moved to the left). */
 #boardFoot > #aiSidePop,
 #boardFoot > #shiftPop,
 #boardFoot > #mirrorPop{
   margin:0; width:auto; max-width:none; flex:0 1 auto; min-width:0;
   padding:0 .45rem; gap:.4rem; border-radius:10px;
-  /* ★ 2026-11-01（用户）：平移弹窗比 AI 弹窗矮一截，方向键几乎顶满、圆角被盖住。
-     三个弹窗统一最小高度，内部按键高度钉在 1.64rem，上下各留 ~1px 余量，高度完全一致。
-     ★ 2026-11-01 二次：用户要求与行内「三个移动方式」的虚线框（.bgroup = .18rem 内边距
-     + 1.6px 虚线框）等高 —— 由 syncFootPops() 直接写成与 footer 行高同一个像素值，
-     这里的 rem 值只是 JS 未生效时的兜底。 */
+  /* * 2026-11-01 (user): the shift popup was shorter than the AI one, so its arrow keys nearly filled
+     it and covered the rounded corners. All three popups share one min-height and keys are pinned to
+     1.64rem with about 1px of headroom, so the heights match exactly.
+     * second pass: the user wants the same height as the inline dashed .bgroup box (.18rem padding
+     plus a 1.6px dashed border) - syncFootPops() writes the footer row height in px, and the rem
+     values here are only the fallback for when JS has not run yet. */
   align-items:center; min-height:2.2rem;
 }
 #boardFoot > #shiftPop,
 #boardFoot > #mirrorPop{flex-direction:row; align-items:center; gap:.45rem}
-/* 高度必须 ≤ 按钮行自身高度，否则行会被撑高、棋盘被挤小（实测 41 vs 30 ⇒ 棋盘 -10px） */
+/* the height must not exceed the button row, or the row grows and the board shrinks (measured 41 vs 30 = -10px) */
 #boardFoot > #aiSidePop .ai-grp{padding:0 .34rem; gap:.32rem}
 #boardFoot > #aiSidePop .ai-turn{font-size:.78rem}
 #boardFoot > #aiSidePop .ainum{width:4.2rem}
 #boardFoot > #aiSidePop .tglbtn{padding:.06rem .3rem}
-/* AI 执子开关：尺寸对齐设置窗「窗口功能卡片展示」的小型开关（.sp-tgl .sw 1.55 x .88rem） */
+/* AI-side switches: sized like the small switches in the settings card (.sp-tgl .sw 1.55 x .88rem) */
 #boardFoot > #aiSidePop .tgl{width:1.55rem; height:.88rem; border-radius:999px}
 #boardFoot > #aiSidePop .tgl i{width:.64rem; height:.64rem; top:.08rem; left:.1rem}
 #boardFoot > #aiSidePop .tglbtn.on .tgl i{left:.73rem}
-/* 思考时间输入框：整数型数字框原本 .28rem 内边距 + .92rem 字号，实测 27.2px —— 比弹窗
-   还高，把整块撑起来。压到 ~20px，与左右按键同一视觉高度。 */
+/* think-time input: the number box was 27.2px (.28rem padding + .92rem font), taller than the popup
+   itself and pushing the whole block up. Clamped to about 20px so it matches the keys beside it. */
 #boardFoot > #aiSidePop .ainum input{
   padding:.14rem .4rem; font-size:.86rem; line-height:1.15;
 }
-/* 弹窗内按键统一高度（.ico 的简写 padding 优先级更高，这里只钉高度与垂直居中） */
+/* keys inside a popup share one height (.ico shorthand padding wins, so only pin height and vertical centring) */
 #boardFoot > #aiSidePop .btn,
 #boardFoot > #shiftPop .btn,
 #boardFoot > #mirrorPop .btn{
@@ -353,7 +355,7 @@ body.rv :is(#hdr,#dockL,#dockR){display:none}
 #boardFoot > #shiftPop .sp-ttl,
 #boardFoot > #mirrorPop .sp-ttl{white-space:nowrap}
 
-/* 弹窗打开时：除触发它的那个键，行内其它按键暂时消失（把横向空间让给弹窗） */
+/* while a popup is open the other keys in the row hide, giving the width to the popup */
 #boardFoot.pop-ai .bf-l,
 #boardFoot.pop-ai #boardBtns{display:none !important}
 #boardFoot.pop-shift .bf-l,
@@ -363,7 +365,7 @@ body.rv :is(#hdr,#dockL,#dockR){display:none}
 #boardFoot.pop-mirror #boardBtns > :not(.lay-group),
 #boardFoot.pop-mirror .lay-group > :not(#btn_mirror){display:none !important}
 
-/* 窄窗：底部按键平均折成上下两行（折点由 JS 量宽后插入 .bf-brk 决定） */
+/* narrow windows: the bottom keys wrap into two rows (JS inserts .bf-brk at the measured break point) */
 #boardFoot.bf-two{row-gap:.28rem}
 #boardFoot.bf-two > .bf-l,
 #boardFoot.bf-two > .bf-r,
@@ -933,7 +935,7 @@ button.sq2{flex:0 0 auto; padding:.22rem .52rem; font-size:.82rem; border-radius
 }
 .cp-themes button.on .cp-th-nm{font-weight:700}
 
-/* 「自定义」在 20 套主题下面；点开后整块内容换成调色板，未点开时不出现色板 */
+/* "Custom" sits under the 20 built-in themes; opening it swaps the block for a palette, closed it shows no swatches */
 .cp-custom{
   flex:0 0 auto; width:100%; height:2.1rem; margin-top:.15rem;
   border:1px dashed var(--border); border-radius:9px;
@@ -1012,7 +1014,7 @@ body.vis :is(#hdr,#dockL,#dockR,#openBar,#swapPop,#boardFoot,#rvBar){display:non
 .vis-view{flex:1 1 auto; display:flex; flex-direction:column; gap:.5rem; min-height:0;
   overflow-y:auto; overflow-x:hidden}
 .vis-imgbar{display:flex; align-items:center; gap:.28rem; flex:0 0 auto; flex-wrap:nowrap; min-width:0}
-/* 2026-11-01（用户）：识图窗变窄时这一行要收紧而不是换行（"下一张 >" 以前会被挤到第二行） */
+/* 2026-11-01 (user): when the vision window narrows this row must tighten instead of wrapping ("next >" used to drop to a second line) */
 .vis-imgbar .btn{flex:0 1 auto; min-width:0; padding:.14rem .38rem; white-space:nowrap; overflow:hidden}
 .vis-imgbar .pill{min-width:2.7rem; text-align:center}
 
@@ -1041,9 +1043,9 @@ body.vis :is(#hdr,#dockL,#dockR,#openBar,#swapPop,#boardFoot,#rvBar){display:non
 [data-lang="en"] .vis-acts .btn{font-size:.78rem}
 .vis-acts .btn[hidden]{display:none !important}
 
-/* ★ 2026-10-31（用户：识图窗里的按键都要小一点，和主棋盘下方按键同尺寸）：
-   识图窗沿用 .btn 基础（.42rem/.8rem + .95rem 字号），比 #boardFoot .btn 大一圈。
-   顶栏 / 编辑栏 / 裁剪 / 代码栏统一成 .16rem/.5rem + .86rem，胶囊「0 / 0」同步收小。 */
+/* * 2026-10-31 (user: every key in the vision window should be smaller, same size as under the board):
+   the vision window used the .btn base (.42rem/.8rem + .95rem), one size up from #boardFoot .btn.
+   Top bar / edit bar / crop / code bar all use .16rem/.5rem + .86rem, and the "0 / 0" pill shrinks too. */
 .vis-imgbar .btn,
 .vis-codebar .btn,
 .vis-del,
@@ -1321,7 +1323,7 @@ body.link{overflow:hidden}
   scrollbar-gutter:stable;
   overflow-wrap:anywhere; word-break:break-word;
 }
-/* 固定高度后，文字超出时显示细滚动条（WebView2/Chromium） */
+/* fixed height: overflowing text gets a thin scrollbar (WebView2 / Chromium) */
 .lk-status::-webkit-scrollbar{width:6px; height:6px}
 .lk-status::-webkit-scrollbar-track{background:transparent; border-radius:3px}
 .lk-status::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
@@ -1645,13 +1647,13 @@ body.setwin #cp_theme_presets{
 body.setwin .cp-themes button{padding:.26rem .26rem .22rem; gap:.2rem}
 body.setwin .cp-th-sw{height:auto; flex:1 1 auto; min-height:1.3rem}
 body.setwin .cp-th-nm{font-size:.66rem}
-/* the custom palette key moved into the page header, right of the 「主题」 title */
+/* the custom palette key moved into the page header, right of the "Theme" title */
 body.setwin .sp-color-h .sp-cust-key{
   margin:0 0 0 auto; flex:0 0 auto; width:auto; height:1.66rem;
   padding:0 .82rem; font-size:.76rem; border-radius:8px; border-style:solid;
 }
 body.setwin .cp-themes-view .cp-custom{display:none}
-/* the palette reuses the page header (title switches to 自定义), so its own back row is gone */
+/* the palette reuses the page header (the title switches to "Custom"), so its own back row is gone */
 body.setwin .cp-custom-view .cp-cush{display:none}
 /* settings embed: the section headers sit on their own tinted bar - the extra hairline under
    it (the body's top border) reads as a stray line, so drop it here only */
@@ -1666,7 +1668,7 @@ body.sp-fonting .sp-font{display:flex}
   flex:1 1 auto; min-height:0; overflow:hidden;
   padding:.45rem .55rem .6rem; display:flex; flex-direction:column; gap:.5rem;
 }
-/* 「字体大小」标题与三档按钮同一行；按钮文字本身按档位显示对应字号 */
+/* "Font size" title and the three step buttons share one row; each button shows its own size */
 .spf-size{flex:0 0 auto; display:flex; flex-direction:row; align-items:center; gap:.55rem}
 .spf-lbl{flex:0 0 auto; font-weight:600; font-size:.88rem; color:var(--ink); white-space:nowrap}
 .spf-seg{display:flex; flex:1 1 auto; gap:.36rem; min-width:0}
@@ -1722,13 +1724,13 @@ body.sp-fonting .sp-font{display:flex}
 .spf-row.on{border-color:rgba(58,160,232,.78); background:rgba(58,160,232,.14); color:var(--ink)}
 .spf-row-n{font-size:.67rem; color:var(--sub); letter-spacing:.02em; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .spf-row-s{font-size:.98rem; line-height:1.28; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-/* 只有每个页签最上面的「默认字体」那一行用天蓝色（暗色主题用更亮的同色） */
+/* only the top "default font" row of each tab is sky blue (a brighter tone in the dark theme) */
 .spf-row.spf-def .spf-row-s{color:#2f86d6}
 [data-theme="dark"] .spf-row.spf-def .spf-row-s{color:#7cc7ff}
 
-/* 字体页底部：列表占满剩余高度，底部只是设置行（不再固定 1/3）。
-   系统 / 提示：一行（粗细滑条 + 斜体 + 确定）；棋子：两行（上 = 粗细 + 斜体，
-   下 = 黑白子预览 + 小中大 + 仿真扁平 + 确定）。 */
+/* bottom of the font page: the list takes the remaining height and the footer is just the control row
+   (no longer a fixed third). System / hint: one row (weight slider + italic + OK); stones: two rows
+   (top = weight + italic, bottom = black/white preview + small/medium/large + flat/simulated + OK). */
 .spf-foot{
   flex:0 0 auto; display:flex; flex-direction:column; gap:.3rem;
   padding:.36rem .5rem .44rem; border-top:1px solid var(--border);
@@ -1737,9 +1739,9 @@ body.sp-fonting .sp-font{display:flex}
 .spf-fbar{display:flex; align-items:center; gap:.42rem; min-width:0}
 .spf-fbar[hidden]{display:none !important}
 .spf-fbar-stone{flex-wrap:nowrap; gap:5px; row-gap:0}
-/* 字体「较大」时 rem 整体放大，这一行会换行把「确定」挤下去。行内一律用 px 固定，
-   与根字号解耦；「小中大」「仿真/玉石/扁平」两组用 flex 等分剩余宽度，
-   正好把这一行填满（适中 / 较大 / 较小 三档都不换行、不溢出、不留空档）。 */
+/* at the "large" font step the rem scale grows and this row wraps, pushing "OK" out. Everything in the
+   row uses px so it is decoupled from the root size; "small/medium/large" and "simulated/jade/flat"
+   split the remaining width with flex, filling the row without wrapping or overflow at any step. */
 .spf-fbar-stone .spf-stones{gap:5px; flex:0 0 auto}
 .spf-fbar-stone .spf-stone{width:33px; height:33px}
 .spf-fbar-stone .spf-numseg{flex:1 1 0; display:flex; gap:2px; min-width:0}
@@ -1750,7 +1752,7 @@ body.sp-fonting .sp-font{display:flex}
 .spf-wlbl{flex:0 0 auto; display:flex; align-items:baseline; gap:.26rem; min-width:0}
 .spf-lbl2{font-size:.72rem; font-weight:600; color:var(--sub); letter-spacing:.02em}
 .spf-wname{font-size:.7rem; font-weight:600; color:var(--accent); white-space:nowrap}
-/* 粗细滑条：一条 1px 细线 + 每个档位一个圆点（共 5 档） */
+/* weight slider: a 1px track with one dot per step (five steps) */
 .spf-wsl{
   position:relative; flex:1 1 auto; min-width:4.6rem; height:1.5rem;
   display:flex; align-items:center; justify-content:space-between;
@@ -1783,7 +1785,7 @@ body.sp-fonting .sp-font{display:flex}
   width:2.5rem; height:2.5rem; border-radius:50%; flex:0 0 auto;
   display:flex; align-items:center; justify-content:center;
 }
-/* 扁平 = 系统原本的纯色棋子（默认）；仿真 = 径向渐变 + 左上高光 */
+/* flat = the system plain stones (default); simulated = radial gradient with a top-left highlight */
 .spf-stones.flat .spf-stone.blk{
   background:#191715; color:#f3efe4; border:1px solid #55504a; box-shadow:none;
 }
@@ -1824,9 +1826,9 @@ body.sp-fonting .sp-font{display:flex}
 .spf-ok{
   flex:0 0 auto; margin-left:auto; height:1.56rem; padding:0 .78rem;
   font-size:.8rem; font-weight:600;
-  /* ★ 2026-11-01（用户：点「确定」时按键变长，把旁边的键挤动）：
-     JS（spfOkFixWidth）按「确定 / 已应用」两者较宽者 + 本行 padding 设 minWidth，
-     宽度从此不再随文案变化；padding 保留，文字两侧仍有呼吸位。 */
+  /* * 2026-11-01 (user: pressing OK stretched the key and shifted its neighbour):
+     JS (spfOkFixWidth) sets minWidth from the wider of "OK / Applied" plus this row padding,
+     so the width never follows the label; padding stays, so the text keeps some air. */
   white-space:nowrap; box-sizing:border-box; text-align:center;
 }
 .spf-ok-done{border-color:rgba(58,160,232,.9); color:#0f5c8f; background:rgba(58,160,232,.16)}
@@ -1842,9 +1844,9 @@ body.sp-fonting .sp-font{display:flex}
   font-style:var(--logstyle, normal);
 }
 
-/* 2026-10-31 (user): option labels inside 设置 -> 对局设置 turn sky blue. JS (syncLabelAccent)
-   replaces --lbl-accent with black/white when the user's own page colour is close to it,
-   because blue-on-blue would be unreadable. */
+/* 2026-10-31 (user): option labels inside Settings -> Game settings turn sky blue. JS (syncLabelAccent)
+   replaces --lbl-accent with black/white when the user page colour is close to it,
+   because blue on blue would be unreadable. */
 body.setwin .sp-setup .row>label,
 body.setwin .sp-setup .ab-sys-t,
 body.setwin .si-k{color:var(--lbl-accent,#2f9ae0); opacity:.92}
