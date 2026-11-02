@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#eef2f7">
+<title>Meter Gomoku · 网页版计算器</title>
+<meta name="description" content="Meter Gomoku 网页版：Rapfi NNUE 引擎以 WebAssembly(SIMD) 在你的浏览器里本地计算，无需服务器，可离线使用。">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="phone">
+
+  <!-- 顶栏 -->
+  <div class="bar">
+    <div class="brand">Meter Gomoku<i>WEB</i></div>
+    <div class="grow"></div>
+    <button class="icobtn" id="btnRule" data-t="ruleShort">无禁手</button>
+    <button class="icobtn" id="btnLang">EN</button>
+    <button class="icobtn" id="btnSet" aria-label="settings">⚙︎</button>
+  </div>
+
+  <!-- 状态条 -->
+  <div class="turnbar">
+    <span class="dot b" id="turnDot"></span>
+    <span id="turnTxt" data-t="blackToMove">黑方落子</span>
+    <span id="moveCnt">· 0</span>
+    <span class="st" id="engSt">·</span>
+  </div>
+
+  <!-- 棋盘 -->
+  <div class="boardwrap">
+    <canvas id="bd"></canvas>
+    <div class="overlay" id="boot">
+      <h4 data-t="loadingTitle">正在加载引擎</h4>
+      <div class="pbar"><i id="pbar"></i></div>
+      <div class="pct" id="pct">0%</div>
+      <p data-t="loadingHint">首次加载约 41 MB 的引擎与神经网络，会缓存到本机；之后打开即用，可离线计算。</p>
+    </div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="tools">
+    <button class="tbtn primary" id="btnThink" data-t="analyze">分析</button>
+    <button class="tbtn" id="btnAi" data-t="aiMove">引擎落子</button>
+    <button class="tbtn" id="btnUndo" data-t="undo">悔棋</button>
+    <button class="tbtn" id="btnClear" data-t="clear">清空</button>
+  </div>
+
+  <!-- 仪表盘 -->
+  <div class="dash">
+    <div class="metrics">
+      <div class="m"><div class="k" data-t="depth">深度</div><div class="v" id="mDepth">—</div></div>
+      <div class="m"><div class="k" data-t="speed">速度</div><div class="v" id="mSpeed">—</div></div>
+      <div class="m"><div class="k" data-t="nodes">节点</div><div class="v" id="mNodes">—</div></div>
+      <div class="m"><div class="k" data-t="time">用时</div><div class="v" id="mTime">—</div></div>
+    </div>
+    <div class="barline">
+      <span id="mEval">—</span>
+      <div class="wbar"><i id="wFill"></i><span></span></div>
+      <span class="wtxt" id="mWr">50.0%</span>
+    </div>
+  </div>
+
+  <!-- 候选 -->
+  <div class="cands" id="cands"><div class="emptyc" data-t="noData">落子或摆盘后自动分析</div></div>
+
+  <div class="pvbox">
+    <div class="pvh"><span data-t="bestline">主变（引擎的最佳应对）</span><span class="pve" id="pvEval"></span></div>
+    <div class="pvl" id="pvline"><span class="pvempty" data-t="pvEmpty">分析后显示</span></div>
+  </div>
+
+  <div class="foot">
+    Rapfi · NNUE(mix9svq) · WASM SIMD ·
+    <a href="https://www.gomocalc.com/" target="_blank" rel="noopener">gomocalc</a> ·
+    <a href="NOTICE.md" target="_blank" rel="noopener" data-t="license">来源与许可</a>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="mask" id="mask"></div>
+<div class="sheet" id="sheet">
+  <header><h3 data-t="settings">设置</h3><button class="x" id="btnClose">✕</button></header>
+  <div class="body">
+    <div class="row"><div class="lab"><span data-t="rule">规则</span><small data-t="ruleHint">禁手由引擎判定</small></div>
+      <select id="selRule">
+        <option value="0" data-t="ruleFree">无禁手</option>
+        <option value="1" data-t="ruleStd">无禁长连不赢</option>
+        <option value="2" data-t="ruleRenju">连珠（有禁手）</option>
+      </select>
+    </div>
+    <div class="row"><div class="lab"><span data-t="think">每步思考</span><small data-t="thinkHint">分片推进，界面实时刷新</small></div>
+      <select id="selThink">
+        <option value="800">0.8 s</option><option value="1500">1.5 s</option>
+        <option value="2500">2.5 s</option><option value="5000">5 s</option>
+        <option value="10000">10 s</option><option value="20000">20 s</option>
+      </select>
+    </div>
+    <div class="row"><div class="lab"><span data-t="multi">多点分析</span><small data-t="multiHint">同时给出前 N 个候选点</small></div>
+      <select id="selNbest"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+    </div>
+    <div class="row"><div class="lab"><span data-t="range">选点范围</span><small data-t="rangeHint">越小越集中（CAUTION_FACTOR）</small></div>
+      <select id="selRange">
+        <option value="1" data-t="rangeO1">1 · 极窄</option><option value="2" data-t="rangeO2">2 · 窄</option>
+        <option value="3" data-t="rangeO3">3 · 标准</option><option value="4" data-t="rangeO4">4 · 宽</option>
+        <option value="5" data-t="rangeO5">5 · 极宽</option>
+      </select>
+    </div>
+    <div class="row"><div class="lab"><span data-t="hash">置换表</span><small data-t="hashHint">越大越吃内存</small></div>
+      <select id="selHash">
+        <option value="32">32 MB</option><option value="64">64 MB</option>
+        <option value="128">128 MB</option><option value="256">256 MB</option>
+      </select>
+    </div>
+    <div class="row"><div class="lab"><span data-t="pAuto">自动分析</span><small data-t="pAutoHint">每落一子立即重算</small></div>
+      <label class="sw"><input type="checkbox" id="cbAuto"><i></i></label>
+    </div>
+    <div class="row"><div class="lab"><span data-t="pCoord">坐标</span></div>
+      <label class="sw"><input type="checkbox" id="cbCoord"><i></i></label>
+    </div>
+    <div class="row"><div class="lab"><span data-t="pNum">手数</span></div>
+      <label class="sw"><input type="checkbox" id="cbNum"><i></i></label>
+    </div>
+    <div class="engbox" id="engbox">
+      <div><b data-t="engine">引擎</b> <span class="mono">Rapfi · WASM SIMD128 · mix9svq</span></div>
+      <div id="cacheSt" data-t="cacheChecking">正在检查本机缓存…</div>
+      <div style="margin-top:6px"><button class="mini" id="btnPurge" data-t="purge">清除引擎缓存</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
