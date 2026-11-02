@@ -176,7 +176,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 <body>
 
 <div class="lang">
-  <button id="lg-zh" class="on" type="button">中文</button>
+  <button id="lg-zh" class="on" type="button">ZH</button>
   <button id="lg-en" type="button">EN</button>
 </div>
 
@@ -216,7 +216,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     <a class="btnline primary" href="https://wwbbj.lanzn.com/b016l49aqj" target="_blank" rel="noopener">
       <span class="zh">下载 Meter Gomoku</span><span class="en">Download Meter Gomoku</span>
     </a>
-    <a class="btnline" href="calc/"><span class="zh">网页版计算器</span><span class="en">Web calculator</span></a>
+    <a class="btnline" href="https://www.gomocalc.com/#/" target="_blank" rel="noopener"><span class="zh">网页版计算器</span><span class="en">Web calculator</span></a>
     <a class="btnline" href="https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version" target="_blank" rel="noopener">GitHub</a>
   </div>
 
@@ -551,44 +551,27 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 <!-- ================================================================ 13 -->
 <section class="sheet" id="s13">
   <h2><span class="num">13</span><span class="zh">网页版计算器</span><span class="en">Web calculator</span></h2>
-  <p class="zh">同一颗 Rapfi 引擎被编译成 <b>WebAssembly（SIMD128）</b>，直接在浏览器里本地推理 NNUE —— 没有服务器、没有排队，断网也能算。打开 <code>calc/</code> 即可使用，手机上按 9:16 竖屏排版，桌面上是一条居中的手机宽度竖条。</p>
-  <p class="en">The same Rapfi engine is compiled to <b>WebAssembly (SIMD128)</b> and runs the NNUE locally in your browser — no server, no queue, and it keeps working offline. Open <code>calc/</code>; the layout is a 9:16 portrait strip on phones and a centred phone-width column on desktop.</p>
+  <p class="zh">不装软件也能算：<b>gomocalc</b> 是 Rapfi 作者维护的在线计算器，把同一颗引擎编译成 <b>WebAssembly</b> 跑在浏览器里，打开就能摆盘、分析、看候选与主变。手机与电脑都适配，不用注册，也不用上传局面。</p>
+  <p class="en">You can analyse without installing anything: <b>gomocalc</b> is the online calculator maintained by the Rapfi author. The same engine is compiled to <b>WebAssembly</b> and runs in your browser, so you can compose a position, analyse it and read the candidates and principal variation straight away. It works on phones and desktops, with no account and no upload.</p>
 
   <div class="grid3" style="margin-top:14px">
     <div class="card"><div class="k">Engine</div><div class="v">Rapfi · WASM</div>
-      <p class="zh">NNUE mix9svq 权重随引擎一起下发，SIMD 加速，纯本地计算</p>
-      <p class="en">NNUE mix9svq weights ship with the engine, SIMD-accelerated, fully local</p></div>
-    <div class="card"><div class="k">Offline</div><div class="v zh">断网可用</div><div class="v en">Works offline</div>
-      <p class="zh">首次约 41 MB 写入本机缓存，之后打开即用，坐飞机也能复盘</p>
-      <p class="en">~41 MB is cached on first visit, then it opens instantly — even on a plane</p></div>
-    <div class="card"><div class="k">Scope</div><div class="v zh">分析 · 仪表盘 · 设置</div><div class="v en">Analysis · dashboard · settings</div>
-      <p class="zh">只保留计算相关功能，没有连线、识图、复盘与历史</p>
-      <p class="en">Only the calculator parts — no Link, Vision, Review or History</p></div>
+      <p class="zh">与桌面版同源的 Rapfi 引擎，权重随页面下发，浏览器本地推理</p>
+      <p class="en">The same Rapfi engine family as the desktop app; weights ship with the page and inference runs locally</p></div>
+    <div class="card"><div class="k">Install</div><div class="v zh">无需安装</div><div class="v en">No install</div>
+      <p class="zh">一个网址就是全部，换设备不丢；手机浏览器直接打开</p>
+      <p class="en">One URL is all you need — switch devices freely, open it in a phone browser</p></div>
+    <div class="card"><div class="k">Scope</div><div class="v zh">纯分析</div><div class="v en">Analysis only</div>
+      <p class="zh">只有计算与对局设置；对弈、复盘、识图、连线属于桌面版</p>
+      <p class="en">Calculation and position settings only; play, review, vision and Link belong to the desktop app</p></div>
   </div>
 
   <div class="cta" style="margin-top:20px">
-    <a class="btnline primary" href="calc/"><span class="zh">打开网页版计算器</span><span class="en">Open the web calculator</span></a>
-    <a class="btnline" href="https://www.gomocalc.com/" target="_blank" rel="noopener"><span class="zh">参考站 gomocalc</span><span class="en">Reference: gomocalc</span></a>
+    <a class="btnline primary" href="https://www.gomocalc.com/#/" target="_blank" rel="noopener"><span class="zh">打开 gomocalc</span><span class="en">Open gomocalc</span></a>
   </div>
 
-  <h3><span class="zh">怎么用</span><span class="en">How to use</span></h3>
-  <ol class="zh">
-    <li>点棋盘交叉点落子（黑先）；点刚下的那颗棋子可以悔掉，右侧按钮也有「悔棋 / 清空」。</li>
-    <li>落子后自动分析：短促的第一段先把候选点画到盘上，再用剩下的时间做一次完整搜索。</li>
-    <li>棋盘上的圆圈是候选排名，仪表盘给出<b>深度 / 速度 / 节点 / 用时</b>，下面的「主变」是引擎认为的最佳应对顺序。</li>
-    <li>「引擎落子」让引擎替你走一手；「分析」可以随时重算或停止。</li>
-    <li>设置里可改规则（无禁手 / 无禁长连 / 连珠）、思考时间、多点分析数、选点范围与置换表大小。</li>
-  </ol>
-  <ol class="en">
-    <li>Tap an intersection to place a stone (Black first); tap the stone you just played to take it back — Undo and Clear are also in the toolbar.</li>
-    <li>Analysis starts automatically: a short first pass paints the candidates on the board, then the remaining time goes into one full search.</li>
-    <li>Circles on the board are the candidate ranking; the dashboard shows <b>depth / speed / nodes / time</b>, and the best line below lists the engine's expected continuation.</li>
-    <li>Engine move plays the top candidate for you; Analyse re-runs or stops at any time.</li>
-    <li>Settings cover the rule (freestyle / no-overline / renju), think time, Multi-PV, move range and hash size.</li>
-  </ol>
-
-  <div class="note zh"><b>和桌面版的差别</b>：网页版是单线程 WebAssembly（浏览器没有跨源隔离时用不了多线程），同样 2.5 秒的深度大约是桌面版的 1/3，适合随手看盘、手机复盘；要压榨棋力还是装桌面版。</div>
-  <div class="note en"><b>Differences from the desktop app</b>: the web build is single-threaded WebAssembly (multi-threading needs cross-origin isolation), so 2.5 s of thinking reaches roughly a third of the desktop depth. Great for quick checks and phone review; use the desktop app for maximum strength.</div>
+  <div class="note zh"><b>和桌面版怎么分工</b>：网页版胜在随手可用——不用安装，换台机器打开就能看盘；桌面版能把更多线程和更大的置换表交给引擎，同样时间里算得更深，还带着完整的对弈、复盘、识图与连线。随手看盘用网页版，认真拆棋回桌面版。</div>
+  <div class="note en"><b>Which one to use</b>: the web calculator wins on convenience — nothing to install, open it on any machine and start reading the board. The desktop app can give the engine more threads and a larger hash, so it searches deeper in the same time, and it brings the full set of play, review, vision and Link tools. Quick checks on the web, serious analysis on the desktop.</div>
 </section>
 
 <!-- ================================================================ footer -->
@@ -613,7 +596,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 
 <script>
 (function () {
-  /* ---------- 语言切换 ---------- */
+  /* ---------- language switch ---------- */
   var bZh = document.getElementById('lg-zh'), bEn = document.getElementById('lg-en');
   var TITLE = { zh: 'Meter Gomoku · 五子棋 AI 训练器', en: 'Meter Gomoku · Gomoku AI Trainer' };
 
@@ -637,7 +620,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   if (q) setLang(q);
   else if (saved === 'en' || (!saved && /^en/i.test(navigator.language || ''))) setLang('en');
 
-  /* ---------- 预览缩放（真实 DOM，无损缩放） ---------- */
+  /* ---------- preview scaling (real DOM, lossless) ---------- */
   function fit() {
     [].forEach.call(document.querySelectorAll('.shot-box'), function (box) {
       var f = box.querySelector('iframe'); if (!f) return;
@@ -653,7 +636,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   fit();
   setTimeout(fit, 400);
 
-  /* ---------- 目录高亮 ---------- */
+  /* ---------- TOC highlight ---------- */
   var links = [].slice.call(document.querySelectorAll('#toc a.nav'));
   var secs = links.map(function (a) { return document.querySelector(a.getAttribute('href')); });
   function onScroll() {
@@ -664,7 +647,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
-  /* ---------- 复制提取码 ---------- */
+  /* ---------- copy the access password ---------- */
   var cp = document.getElementById('copyPw');
   if (cp) cp.onclick = function () {
     var done = function () {
