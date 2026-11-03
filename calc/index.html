@@ -33,7 +33,7 @@
       </div>
     </div>
     <div class="top-right">
-      <button id="langBtn" class="lang-btn" type="button" title="中文 / English" aria-label="Language">EN</button>
+      <button id="langBtn" class="lang-btn" type="button" title="中文 / English" aria-label="Language">中 / EN</button>
       <button id="themeBtn" class="icon-btn" type="button" aria-label="主题" title="主题" aria-pressed="false">
         <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
         <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
@@ -43,7 +43,6 @@
       </button>
     </div>
   </header>
-  <div id="loadbar" class="loadbar" aria-hidden="true"><i></i></div>
 
   <section class="board-shell" aria-label="棋盘">
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
@@ -54,7 +53,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/></svg>
       <span data-i18n="undo">上一步</span>
     </button>
-    <span id="stepInfo" class="step-info">0</span>
+    <button id="btnStep" class="step-btn play" type="button" data-i18n-title="tipPlay">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.6 19 12 5 19.4Z"/></svg>
+      <span data-i18n="playOne">计算一手</span>
+    </button>
     <button id="btnRedo" class="step-btn" type="button" disabled data-i18n-title="tipRedo">
       <span data-i18n="redo">下一步</span>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 7 5 5-5 5"/><path d="M20 12H10a6 6 0 0 0-6 6"/></svg>
@@ -121,7 +123,6 @@
       <span id="analysisState" class="panel-hint">–</span>
     </div>
     <div id="routeRow" class="route-row empty">
-      <span class="rank">1</span>
       <span class="depth">d–</span>
       <span class="eval">–</span>
       <span class="route" data-i18n="routeEmpty">点击「计算分析」查看最佳路线</span>
@@ -129,16 +130,16 @@
     <div id="balanceRow" class="balance-row" hidden></div>
   </section>
 
-  <section class="panel chart-panel">
-    <div class="panel-head">
-      <span class="panel-title" data-i18n="curveTitle">评估曲线</span>
-      <span class="legend"><i class="lg-b"></i><span data-i18n="black">黑</span><i class="lg-w"></i><span data-i18n="white">白</span></span>
+  <section class="panel wr-panel">
+    <div class="wr-head">
+      <span class="panel-title" data-i18n="winTitle">胜率</span>
+      <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
+      <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
     </div>
     <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
-      <span class="wr-b" id="wrB"><em id="wrBTxt">50%</em></span>
-      <span class="wr-w" id="wrW"><em id="wrWTxt">50%</em></span>
+      <span class="wr-b" id="wrB"></span>
+      <span class="wr-w" id="wrW"></span>
     </div>
-    <canvas id="curve" class="curve" role="img" aria-label="评估曲线"></canvas>
   </section>
 
   <footer class="foot">
@@ -169,6 +170,12 @@
         <button type="button" data-v="20000">20s</button>
         <button type="button" data-v="30000">30s</button>
       </div>
+      <div class="custom-row">
+        <span class="custom-k" data-i18n="custom">自定义</span>
+        <input id="thinkInput" class="num-input" type="number" min="1" max="120" step="1" inputmode="numeric" value="3" data-i18n-title="think" aria-label="思考时间（秒）">
+        <span class="custom-u" data-i18n="secUnit">秒</span>
+        <button id="btnThinkApply" class="mini-btn" type="button" data-i18n="apply">应用</button>
+      </div>
     </div>
 
     <div class="set-row">
@@ -180,12 +187,11 @@
       </div>
     </div>
 
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="showNum">显示手数</b><span data-i18n="showNumHint">在棋子上标出第几手</span></div>
-      <div class="seg" id="segNum" role="group" aria-label="显示手数">
-        <button type="button" data-v="1" data-i18n="on">开</button>
-        <button type="button" data-v="0" data-i18n="off">关</button>
-      </div>
+    <div class="set-row switch-row">
+      <div class="set-label"><b data-i18n="showNum">显示手数</b><span data-i18n="showNumHint">在棋子上标出第几手，最后一手标红</span></div>
+      <button id="swNum" class="switch" type="button" role="switch" aria-checked="false" data-i18n-title="showNum" aria-label="显示手数">
+        <span class="knob"></span>
+      </button>
     </div>
 
     <div class="set-row">
@@ -221,10 +227,7 @@
 
     <div class="set-row">
       <div class="set-label"><b data-i18n="threads">线程数</b><span id="threadHint"></span></div>
-      <div class="range-wrap">
-        <input id="threadRange" type="range" min="1" max="8" step="1" value="4" aria-label="线程数">
-        <output id="threadVal" for="threadRange">4</output>
-      </div>
+      <div class="seg grid4" id="segThreads" role="group" aria-label="线程数"></div>
     </div>
 
     <div class="set-row">
@@ -253,6 +256,23 @@
     </div>
   </div>
 </dialog>
+
+<div id="loader" class="loader" role="dialog" aria-modal="true" aria-labelledby="loadTitle" aria-live="polite">
+  <div class="loader-card">
+    <div class="loader-top">
+      <img src="../assets/calc.png" alt="" width="40" height="40">
+      <div class="loader-titles">
+        <h2 id="loadTitle" data-i18n="loadTitle">正在加载引擎</h2>
+        <p id="loadMsg" data-i18n="loadFetch">下载引擎与权重（约 41 MB）…</p>
+      </div>
+    </div>
+    <div class="loader-bar"><i id="loadFill"></i></div>
+    <div class="loader-foot">
+      <span data-i18n="loadNote">Rapfi NNUE · WebAssembly</span>
+      <b id="loadPct">0%</b>
+    </div>
+  </div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="app.js"></script>

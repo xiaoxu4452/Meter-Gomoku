@@ -2,11 +2,26 @@
    cannot set response headers (GitHub Pages). Also keeps a versioned engine cache. */
 'use strict';
 
-const VERSION = '20261103h';
+const VERSION = '20261104a';
+/* The 41 MB engine package is cached under its own key so that shipping a new
+   UI never forces the browser to download the weights again. Only bump this
+   when the engine binaries themselves change. */
+const ENGINE_VERSION = '20261103h';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
-const ENGINE_CACHE = 'mgcalc-engine-' + VERSION;
+const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
 const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js'];
+
+/* GitHub Pages is often unreachable from mainland China, and the engine package
+   is 41 MB. If the origin does not answer quickly the files are pulled through
+   public GitHub mirrors instead, then cached under the origin URL so later
+   visits read them locally. */
+const MIRROR_BASE = [
+  'https://ghproxy.net/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://gh-proxy.com/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://ghfast.top/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
@@ -38,14 +53,38 @@ function withHeaders(res, nav) {
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
 }
 
+/* Try a list of URLs in order and return the first usable response. Each attempt
+   is capped so one dead route cannot hold the engine hostage. */
+async function fetchFirst(urls, timeoutMs) {
+  for (const url of urls) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), timeoutMs);
+    const cross = url.indexOf(self.location.origin + '/') !== 0;
+    try {
+      const r = await fetch(url, {
+        signal: ctl.signal,
+        mode: cross ? 'cors' : 'same-origin',
+        credentials: cross ? 'omit' : 'same-origin',
+        cache: cross ? 'no-store' : 'reload',
+      });
+      clearTimeout(timer);
+      if (r && r.ok) return r;
+    } catch (err) {
+      clearTimeout(timer);
+    }
+  }
+  return null;
+}
+
 async function engineFetch(req) {
   const cache = await caches.open(ENGINE_CACHE);
-  let res = await cache.match(req, { ignoreSearch: true });
-  if (!res) {
-    try {
-      res = await fetch(req, { cache: 'reload' });
-      if (res && res.ok) await cache.put(req, res.clone());
-    } catch (err) {}
+  const hit = await cache.match(req, { ignoreSearch: true });
+  if (hit) return withHeaders(hit, false);
+  const name = new URL(req.url).pathname.split('/').pop();
+  const urls = [req.url].concat(MIRROR_BASE.map((base) => base + name));
+  const res = await fetchFirst(urls, 9000);
+  if (res) {
+    try { await cache.put(req, res.clone()); } catch (err) {}
   }
   return withHeaders(res || Response.error(), false);
 }

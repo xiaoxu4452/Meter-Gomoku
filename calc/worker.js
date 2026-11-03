@@ -19,6 +19,48 @@ function post(msg) {
   self.postMessage(msg);
 }
 
+/* ---- boot progress -------------------------------------------------------
+   The weights package is ~41 MB, so the worker reports real download
+   percentages while it streams the files into memory. The page turns that
+   into the thin bar of the loading panel. */
+let loadPct = -1;
+let loadAt = 0;
+function postLoad(pct, key) {
+  const p = Math.max(0, Math.min(100, pct));
+  const now = Date.now();
+  if (p - loadPct < 0.8 && now - loadAt < 140 && p < 100) return;
+  if (p < loadPct) return;
+  loadPct = p;
+  loadAt = now;
+  post({ t: 'load', pct: p, key: key || null });
+}
+
+async function fetchWithProgress(url, from, to) {
+  const res = await fetch(url, { cache: 'force-cache' });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
+  const total = +res.headers.get('content-length') || 0;
+  if (!res.body) {
+    const buf = await res.arrayBuffer();
+    postLoad(to, null);
+    return buf;
+  }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let got = 0;
+  for (;;) {
+    const step = await reader.read();
+    if (step.done) break;
+    chunks.push(step.value);
+    got += step.value.length;
+    const frac = total ? Math.min(1, got / total) : 0;
+    postLoad(from + (to - from) * frac, null);
+  }
+  const out = new Uint8Array(got);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out.buffer;
+}
+
 function parseIntegerList(text) {
   const out = [];
   const re = /([0-9]+)\s*,\s*([0-9]+)/g;
@@ -178,13 +220,32 @@ function applyConfig(threads, hashMB, caution, rule, force) {
 
 async function boot(opts) {
   booting = true;
+  loadPct = -1;
+  loadAt = 0;
   try {
     const build = opts.build === 'multi' ? 'multi' : 'single';
+    let urls = opts.urls;
+    const blobs = [];
+    postLoad(2, 'loadFetch');
     importScripts(opts.urls.js);
+    postLoad(4, 'loadCached');
+    try {
+      // Stream both engine files once, keeping the bytes so Emscripten does not
+      // have to fetch them a second time (the 41 MB weights dominate the load).
+      const data = await fetchWithProgress(opts.urls.data, 4, 86);
+      const wasm = await fetchWithProgress(opts.urls.wasm, 86, 95);
+      const dataUrl = URL.createObjectURL(new Blob([data]));
+      const wasmUrl = URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' }));
+      blobs.push(dataUrl, wasmUrl);
+      urls = { js: opts.urls.js, wasm: wasmUrl, data: dataUrl };
+    } catch (err) {
+      urls = opts.urls;   // fall back to plain URLs; the module fetches them itself
+    }
+    postLoad(96, 'loadModule');
     const mod = await Rapfi({
       locateFile: (f) => {
-        if (/\.wasm$/.test(f)) return opts.urls.wasm;
-        if (/\.data$/.test(f)) return opts.urls.data;
+        if (/\.wasm$/.test(f)) return urls.wasm;
+        if (/\.data$/.test(f)) return urls.data;
         return new URL(f, opts.urls.js).href;
       },
       mainScriptUrlOrBlob: build === 'multi' ? opts.urls.js : undefined,
@@ -194,15 +255,18 @@ async function boot(opts) {
       setStatus: () => {},
     });
     Mod = mod;
+    blobs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
+    postLoad(97, 'loadStart');
     send('START 15');
-    // Emscripten pthread workers need a moment to come up before THREAD_NUM.
-    await new Promise((r) => setTimeout(r, 1600));
+    // Emscripten pthread workers need a moment before THREAD_NUM is accepted.
+    await new Promise((r) => setTimeout(r, 900));
     applyConfig(opts.threads, opts.hashMB, opts.caution, opts.rule, true);
     send('INFO SHOW_DETAIL 3');
     send('INFO PONDERING 0');
     send('INFO TIMEOUT_MATCH 6000000');
     send('INFO TIME_LEFT 6000000');
     booting = false;
+    postLoad(100, 'loadDone');
     post({ t: 'ready', build, threads: opts.threads, hashMB: opts.hashMB });
   } catch (err) {
     booting = false;

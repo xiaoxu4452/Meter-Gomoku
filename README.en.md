@@ -18,14 +18,27 @@ assets/calc-og.png    1200×630 social preview image
 - Download the latest release: <https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
 - Project / site source (Pages repository): <https://github.com/xiaoxu4452/Meter-Gomoku>
 
-## Web calculator
+## Two online calculators
 
-The site keeps a single link for online analysis: **gomocalc** (<https://www.gomocalc.com/#/>),
-maintained by the Rapfi author — mature, phone friendly, opens straight into the board.
+| Entry | What it is | URL |
+|---|---|---|
+| `/calc/` | **Meter Web** — this project's own web calculator: the desktop dashboard and win-rate bar, balance points, per-colour AI, board style and think time | <https://xiaoxu4452.github.io/Meter-Gomoku/calc/> |
+| External | **Rapfi official calculator** (gomocalc, maintained by the Rapfi author) | <https://www.gomocalc.com/#/> |
 
-The earlier in-house web calculator (`/calc/`, Rapfi compiled to WebAssembly and running locally in the
-browser) has been detached from this repository and paused; its source is kept on its own and no longer
-ships with the site.
+`/calc/` is plain static HTML + CSS + JS: `worker.js` loads the Rapfi WebAssembly build with
+`importScripts` and speaks the engine protocol directly; `sw.js` injects COOP/COEP (so the pthread
+build can use several threads) and caches the 41 MB engine package in Cache Storage; when the site
+itself is unreachable the files are pulled through public GitHub mirrors instead. It is calculation
+only — no play, review, vision or Link.
+
+```
+calc/index.html   UI (board above the dashboard in portrait, two columns in landscape)
+calc/app.js       board drawing, search scheduling, settings, ZH/EN switching
+calc/worker.js    engine bridge + asset preloading progress
+calc/sw.js        COOP/COEP injection, shell and engine caches, mirror fallback
+calc/engine/      Rapfi WASM and NNUE weights (~41 MB)
+calc/serve.py     local preview with COOP/COEP headers
+```
 
 ## Local preview
 

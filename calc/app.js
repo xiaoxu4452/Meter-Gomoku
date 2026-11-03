@@ -34,18 +34,21 @@ const I18N = {
     title: '五子棋计算器', subtitle: 'Meter Gomoku · Web',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
     aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止并落子', balance: '平衡点', points: '点',
+    playOne: '计算一手',
     depth: '深度', speed: '速度', nodes: '节点', time: '用时',
     codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标',
     codePlaceholder: '例如 h8h9g7f7 或 7,7 8,8',
     routeTitle: '分析路线', routeEmpty: '点击「计算分析」查看最佳路线', routeNone: '（无路线）',
+    winTitle: '胜率',
     curveTitle: '评估曲线', black: '黑', white: '白', curveEmpty: '开始分析后显示评估',
     foot: 'Rapfi NNUE 引擎 · 全部计算在本机浏览器完成',
     settings: '设置', close: '关闭', copy: '复制',
     rule0: '无禁手', rule1: '长连不赢', rule2: '连珠禁手',
     think: '思考时间', thinkHint: '每次计算分析的时长',
+    custom: '自定义', secUnit: '秒', apply: '应用',
     stoneStyle: '棋子样式', stoneStyleHint: '与桌面训练器一致的三档',
     stoneFlat: '扁平', stoneReal: '仿真', stoneJade: '玉石',
-    showNum: '显示手数', showNumHint: '在棋子上标出第几手', on: '开', off: '关',
+    showNum: '显示手数', showNumHint: '在棋子上标出第几手，最后一手标红', on: '开', off: '关',
     rule: '规则', hash: '哈希表大小', hashHint: '引擎置换表，越大越省重复计算',
     pointsLabel: '分析点数', pointsHint: '每个候选点的多 PV 路线数量',
     threads: '线程数', range: '选点范围', rangeHint: '引擎候选点筛选的谨慎程度',
@@ -54,7 +57,7 @@ const I18N = {
     reset: '恢复默认参数', done: '完成',
     engineLoading: '引擎加载中', engineReady: '引擎就绪', engineSingle: '单线程', engineErr: '引擎异常',
     engineMulti: '多线程 {n} 线程', engineExit: '引擎退出',
-    stIdle: '等待', stSearching: '搜索中', stBal: '平衡点搜索中', stAi: 'AI 思考中',
+    stIdle: '等待', stSearching: '搜索中', stBal: '平衡点搜索中', stAi: 'AI 思考中', stMove: '计算一手',
     stStopped: '已停止', stWinB: '黑方获胜', stWinW: '白方获胜',
     balSearching: '平衡点搜索中，深度增加后自动修正…', balNotFound: '本局面未找到平衡点',
     balEmpty: '引擎未返回平衡点（可能已分胜负）',
@@ -76,24 +79,34 @@ const I18N = {
     tipUndo: '上一步（棋盘右键 / 长按也可撤回）', tipRedo: '下一步', tipRestart: '清空棋盘并重置引擎',
     tipAiB: '让引擎执黑，可同时开启黑白', tipAiW: '让引擎执白，可同时开启黑白',
     tipAnalysis: '开始 / 停止计算分析', tipBalance: '第一次点：计算平衡点；再点一次：在平衡点落子',
-    tipBalCount: '平衡点要给出的点数', tipEngine: '计算引擎状态', tipCopy: '复制局面代码',
+    tipBalCount: '平衡点要给出的点数（1 或 2）', tipEngine: '计算引擎状态', tipCopy: '复制局面代码',
+    tipPlay: '让引擎计算一手并直接落子',
+    tOnePlayed: '引擎已落子 {p}', tBalPlayedPair: '已在两个平衡点同时落子 {a} / {b}',
+    tBalOnlyTwo: '点数只能是 1 或 2', tThinkingOne: '引擎正在计算一手…',
+    loadTitle: '正在加载引擎', loadFetch: '下载引擎与权重（约 41 MB）…',
+    loadModule: '初始化推理模块…', loadStart: '启动搜索线程…', loadDone: '引擎就绪',
+    loadCached: '读取本机缓存的引擎文件…', loadNote: 'Rapfi NNUE · WebAssembly',
+    loadCold: '首次打开：先准备好离线缓存…',
   },
   en: {
     title: 'Gomoku Calculator', subtitle: 'Meter Gomoku · Web',
     undo: 'Undo', redo: 'Redo', restart: 'New game', restartConfirm: 'Confirm',
     aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop & play', balance: 'Balance', points: 'pt',
+    playOne: 'Play one',
     depth: 'Depth', speed: 'Speed', nodes: 'Nodes', time: 'Time',
     codeTitle: 'Position code', codeHint: 'letters + number, or x,y',
     codePlaceholder: 'e.g. h8h9g7f7 or 7,7 8,8',
     routeTitle: 'Main line', routeEmpty: 'Press Analyse to see the best line', routeNone: '(no line)',
+    winTitle: 'Win rate',
     curveTitle: 'Eval curve', black: 'B', white: 'W', curveEmpty: 'Analysis will draw the curve here',
     foot: 'Rapfi NNUE engine · everything runs locally in this browser',
     settings: 'Settings', close: 'Close', copy: 'Copy',
     rule0: 'Freestyle', rule1: 'No overline win', rule2: 'Renju',
     think: 'Think time', thinkHint: 'Time budget for each search',
+    custom: 'Custom', secUnit: 's', apply: 'Apply',
     stoneStyle: 'Stone style', stoneStyleHint: 'The same three presets as the desktop trainer',
     stoneFlat: 'Flat', stoneReal: 'Realistic', stoneJade: 'Jade',
-    showNum: 'Move numbers', showNumHint: 'Print the move number on each stone', on: 'On', off: 'Off',
+    showNum: 'Move numbers', showNumHint: 'Print the move number on each stone; the last one turns red', on: 'On', off: 'Off',
     rule: 'Rule', hash: 'Hash size', hashHint: 'Transposition table — larger saves more re-search',
     pointsLabel: 'Multi-PV', pointsHint: 'How many lines per candidate point',
     threads: 'Threads', range: 'Move range', rangeHint: 'How cautious the candidate filter is',
@@ -102,7 +115,7 @@ const I18N = {
     reset: 'Reset defaults', done: 'Done',
     engineLoading: 'Loading engine', engineReady: 'Engine ready', engineSingle: 'single thread', engineErr: 'Engine error',
     engineMulti: '{n} threads', engineExit: 'Engine exited',
-    stIdle: 'Idle', stSearching: 'Searching', stBal: 'Balancing', stAi: 'AI thinking',
+    stIdle: 'Idle', stSearching: 'Searching', stBal: 'Balancing', stAi: 'AI thinking', stMove: 'Playing one',
     stStopped: 'Stopped', stWinB: 'Black wins', stWinW: 'White wins',
     balSearching: 'Scanning for balance points, refining as depth grows…', balNotFound: 'No balance point in this position',
     balEmpty: 'The engine returned no balance point (a win may be decided)',
@@ -125,7 +138,14 @@ const I18N = {
     tipUndo: 'Undo (right click / long press also works)', tipRedo: 'Redo', tipRestart: 'Clear the board and reset the engine',
     tipAiB: 'Let the engine play black; both sides can be on at once', tipAiW: 'Let the engine play white; both sides can be on at once',
     tipAnalysis: 'Start / stop the analysis', tipBalance: 'First press: compute balance points; second press: play one',
-    tipBalCount: 'How many balance points to request', tipEngine: 'Engine status', tipCopy: 'Copy the position code',
+    tipBalCount: 'How many balance points to ask for (1 or 2)', tipEngine: 'Engine status', tipCopy: 'Copy the position code',
+    tipPlay: 'Let the engine compute one move and play it',
+    tOnePlayed: 'The engine played {p}', tBalPlayedPair: 'Played both balance points: {a} / {b}',
+    tBalOnlyTwo: 'Balance points can only be 1 or 2', tThinkingOne: 'The engine is computing one move…',
+    loadTitle: 'Loading the engine', loadFetch: 'Downloading engine and weights (~41 MB)…',
+    loadModule: 'Starting the inference module…', loadStart: 'Starting search threads…', loadDone: 'Engine ready',
+    loadCached: 'Reading the cached engine files…', loadNote: 'Rapfi NNUE · WebAssembly',
+    loadCold: 'First visit: preparing the offline cache…',
   },
 };
 let LANG = 'zh';
@@ -205,8 +225,9 @@ const S = {
   forbidden: [],
   balanceMarks: [],
   balanceInfo: null,
-  curve: [],
-  curveMeta: { maxPly: 0 },
+  pv: [],                   // main line, used by the hover preview
+  preview: null,            // { i } — index in pv being previewed
+  oneShot: false,           // the "play one" button is computing a single move
   hover: null,
   anim: null,
   lastAiMove: null,
@@ -217,27 +238,51 @@ let geo = { css: 0, px: 0, cell: 0, pad: 0, fs: 0 };
 let DPR = 1;
 let C = THEME_COLORS.light;
 let bctx = null;
-let cctx = null;
 let toastTimer = 0;
-let curveRaf = 0;
-let lastCurvePush = 0;
 let restartConfirmTimer = 0;
 let suppressNextTap = false;
 
 /* ============================================================ DOM */
 const $ = (id) => document.getElementById(id);
 const board = $('board');
-const curve = $('curve');
 const codeInput = $('codeInput');
 const chip = $('engineChip');
-const loadbar = $('loadbar');
 const settingsDlg = $('settings');
+const loaderEl = $('loader');
+
+/* ============================================================ boot overlay */
+let loaderPct = 0;
+let loaderKey = 'loadFetch';
+let loaderDone = false;
+
+function paintLoader() {
+  if (!loaderEl) return;
+  const fill = $('loadFill');
+  const pct = $('loadPct');
+  if (fill) fill.style.width = Math.max(0, Math.min(100, loaderPct)).toFixed(1) + '%';
+  if (pct) pct.textContent = Math.round(loaderPct) + '%';
+  const msg = $('loadMsg');
+  if (msg && I18N[LANG][loaderKey]) msg.textContent = T(loaderKey);
+}
+
+function setLoader(pct, key) {
+  loaderPct = Math.max(loaderPct, Math.min(100, pct));
+  if (key) loaderKey = key;
+  paintLoader();
+}
+
+function hideLoader() {
+  if (loaderDone) return;
+  loaderDone = true;
+  setLoader(100, 'loadDone');
+  setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 320);
+}
 
 /* ============================================================ settings */
 function defaults() {
   return {
     hashMB: 128, points: 3, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
-    think: 2600, showNum: false, stone: 'real', balPoints: 1,
+    think: 3000, showNum: false, stone: 'real', balPoints: 1,
   };
 }
 function defaultThreads() {
@@ -257,7 +302,7 @@ function loadSettings() {
     if (Number.isFinite(raw.think) && raw.think >= 500 && raw.think <= 60000) d.think = raw.think;
     if (raw.showNum === true || raw.showNum === false) d.showNum = raw.showNum;
     if (raw.stone === 'flat' || raw.stone === 'real' || raw.stone === 'jade') d.stone = raw.stone;
-    if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 3) d.balPoints = raw.balPoints;
+    if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
   } catch (e) {}
   if (!isolated()) d.threads = 1;
   return d;
@@ -284,7 +329,6 @@ function applyTheme(mode, remember) {
   } catch (e) {}
   syncThemeSeg();
   drawBoard();
-  drawCurve();
 }
 function systemDark() {
   return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -334,7 +378,6 @@ function measureBoard() {
   const fs = Math.max(8.5 * DPR, cell * 0.40);
   geo = { css, px, cell, pad: cell * PAD_CELLS, fs };
   drawBoard();
-  drawCurve();
 }
 
 function snapDev(v) {
@@ -389,6 +432,7 @@ function drawBoard() {
   drawForbidden();
   drawMarks();
   drawGhost();
+  drawPreview();
 }
 
 function drawCoords(xs, ys, pad, cell) {
@@ -433,19 +477,19 @@ function drawStones() {
     const m = S.moves[i];
     const cx = snapDev(geo.pad + m.x * geo.cell);
     const cy = snapDev(geo.pad + m.y * geo.cell);
+    const isLast = i === S.moves.length - 1;
     paintStone(cx, cy, r, m.c);
 
     if (S.settings.showNum) {
+      // With numbers on, the red last-move dot is replaced by a red number.
       const label = String(i + 1);
       const fs = Math.max(7 * DPR, geo.cell * 0.42);
-      bctx.fillStyle = m.c === 1 ? '#f3efe4' : '#201d18';
+      bctx.fillStyle = isLast ? '#e5402f' : (m.c === 1 ? '#f3efe4' : '#201d18');
       bctx.font = '700 ' + fs + 'px "Cascadia Code",Consolas,monospace';
       bctx.textAlign = 'center';
       bctx.textBaseline = 'middle';
       bctx.fillText(label, cx, cy + fs * 0.04);
-    }
-
-    if (i === S.moves.length - 1) {
+    } else if (isLast) {
       bctx.beginPath();
       bctx.arc(cx, cy, Math.max(1.8 * DPR, geo.cell * 0.10), 0, Math.PI * 2);
       bctx.fillStyle = C.last;
@@ -490,10 +534,14 @@ function fitFont(text, maxW, want, min) {
 function drawMarks() {
   const marks = S.marks.concat(S.balanceMarks);
   if (!marks.length) return;
+  /* while a line preview is on, the candidate circles fade back so the
+     foreshadowed stones stay readable */
+  const baseAlpha = S.preview ? 0.32 : 1;
   const r = markerRadius();
   const ringW = Math.max(1.6 * DPR, geo.cell * 0.055);
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   marks.slice(0, 8).forEach((mk) => {
+    bctx.globalAlpha = baseAlpha;
     const cx = snapDev(geo.pad + mk.x * geo.cell);
     const cy = snapDev(geo.pad + mk.y * geo.cell);
     const palette = mk.kind === 'bal' ? BAL[mk.c === 1 ? 'black' : 'white'] : (ANA[mk.rank] || ANA[0]);
@@ -537,13 +585,13 @@ function drawMarks() {
 
     // divider between the two halves
     bctx.strokeStyle = palette.ring;
-    bctx.globalAlpha = 0.55;
+    bctx.globalAlpha = baseAlpha * 0.55;
     bctx.lineWidth = Math.max(1, DPR);
     bctx.beginPath();
     bctx.moveTo(cx - r * 0.64, cy + 1 * DPR);
     bctx.lineTo(cx + r * 0.64, cy + 1 * DPR);
     bctx.stroke();
-    bctx.globalAlpha = 1;
+    bctx.globalAlpha = baseAlpha;
 
     if (mk.kind === 'bal' && mk.rank != null) {
       const bx = cx - r * 0.80, by = cy - r * 0.80, br = Math.max(5.2 * DPR, r * 0.27);
@@ -556,6 +604,7 @@ function drawMarks() {
       bctx.fillText(String(mk.rank), bx, by + 0.4 * DPR);
     }
   });
+  bctx.globalAlpha = 1;
 }
 
 function drawGhost() {
@@ -569,6 +618,42 @@ function drawGhost() {
   bctx.globalAlpha = 0.38;
   paintStone(cx, cy, stoneRadius(), c);
   bctx.globalAlpha = 1;
+}
+
+/* Hovering a move in the analysed line foreshadows the stones that follow,
+   the way gomocalc previews the continuation. */
+function drawPreview() {
+  if (!S.preview || !S.pv.length) return;
+  const upto = Math.max(0, Math.min(S.preview.i, S.pv.length - 1));
+  const r = stoneRadius() * 0.94;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  for (let i = 0; i <= upto; i++) {
+    const p = S.pv[i];
+    if (stoneAt(p.x, p.y)) continue;
+    const cx = snapDev(geo.pad + p.x * geo.cell);
+    const cy = snapDev(geo.pad + p.y * geo.cell);
+    const hot = i === upto;
+    bctx.globalAlpha = hot ? 0.96 : 0.5;
+    paintStone(cx, cy, r, p.c);
+    bctx.globalAlpha = hot ? 1 : 0.8;
+    const fs = Math.max(6.5 * DPR, geo.cell * 0.36);
+    bctx.font = '700 ' + fs + 'px "Cascadia Code",Consolas,monospace';
+    bctx.textAlign = 'center';
+    bctx.textBaseline = 'middle';
+    bctx.fillStyle = p.c === 1 ? 'rgba(246,243,234,.96)' : 'rgba(30,27,22,.92)';
+    bctx.fillText(String(i + 1), cx, cy + fs * 0.04);
+    bctx.globalAlpha = 1;
+  }
+  const last = S.pv[upto];
+  const cx = snapDev(geo.pad + last.x * geo.cell);
+  const cy = snapDev(geo.pad + last.y * geo.cell);
+  bctx.setLineDash([3.2 * DPR, 2.4 * DPR]);
+  bctx.lineWidth = Math.max(1.6 * DPR, geo.cell * 0.05);
+  bctx.strokeStyle = dark ? 'rgba(255,255,255,.92)' : 'rgba(26,32,40,.9)';
+  bctx.beginPath();
+  bctx.arc(cx, cy, r + geo.cell * 0.12, 0, Math.PI * 2);
+  bctx.stroke();
+  bctx.setLineDash([]);
 }
 
 /* ============================================================ rules / board helpers */
@@ -796,6 +881,25 @@ function bootEngine() {
   });
 }
 
+/* On the very first visit the service worker has to take over and the page is
+   reloaded once (to get COOP/COEP), so downloading 41 MB beforehand would be
+   wasted. Every later visit starts the engine immediately. */
+let engineStarted = false;
+function startEngineWhenReady() {
+  if (engineStarted) return;
+  const sw = navigator.serviceWorker;
+  let reloaded = false;
+  try { reloaded = sessionStorage.getItem(RELOAD_KEY) === ENGINE_VERSION; } catch (e) {}
+  const go = () => {
+    if (engineStarted) return;
+    engineStarted = true;
+    bootEngine();
+  };
+  if (!sw || sw.controller || reloaded || isolated()) { go(); return; }
+  setLoader(1, 'loadCold');
+  setTimeout(go, 1600);
+}
+
 function retrySingle(reason) {
   if (S.fallback) return false;
   S.fallback = true;
@@ -814,6 +918,10 @@ function retrySingle(reason) {
 
 function onEngineMessage(ev) {
   const d = ev.data || {};
+  if (d.t === 'load') {
+    setLoader(d.pct, d.key);
+    return;
+  }
   if (d.t === 'ready') {
     S.engineReady = true;
     S.engineBuild = d.build;
@@ -822,8 +930,7 @@ function onEngineMessage(ev) {
     chip.textContent = d.build === 'multi' ? T('engineMulti', { n: d.threads }) : T('engineSingle');
     chip.className = 'chip ' + (d.build === 'multi' ? 'on' : 'warn');
     chip.title = T('engineReady') + (d.build === 'multi' ? ' · SharedArrayBuffer' : '');
-    loadbar.classList.remove('on');
-    loadbar.querySelector('i').style.width = '100%';
+    hideLoader();
     renderDebug();
     updateThreadUI();
     schedule(0);
@@ -833,7 +940,7 @@ function onEngineMessage(ev) {
     if (S.engineBuild === 'multi' && retrySingle(d.error)) return;
     chip.textContent = T('engineErr');
     chip.className = 'chip err';
-    loadbar.classList.remove('on');
+    hideLoader();
     toast(T('engineErr') + ': ' + (d.error || ''));
     return;
   }
@@ -868,7 +975,12 @@ function onEngineMessage(ev) {
       // AI (or a single-thread chunk) continues here
       const nowSide = sideToMove();
       const aiOn = nowSide === 1 ? S.aiB : S.aiW;
-      if (kind === 'ai' && aiOn && d.best) {
+      if (kind === 'move' && d.best) {
+        S.oneShot = false;
+        const mx = d.best[0], my = 14 - d.best[1];
+        commitMove(mx, my, { fromAi: true });
+        toast(T('tOnePlayed', { p: coordName(mx, my) }));
+      } else if (kind === 'ai' && aiOn && d.best) {
         commitMove(d.best[0], 14 - d.best[1], { fromAi: true });
       } else if (S.engineBuild !== 'multi' && kind === 'analysis' && S.analysis) {
         setTimeout(() => { if (S.analysis && !S.searching) launch('analysis'); }, 120);
@@ -890,7 +1002,6 @@ function applyStats(st) {
   S.stats = st;
   writeStats();
   updateState();
-  pushCurve(st);
   scheduleDebug();
 }
 
@@ -974,6 +1085,7 @@ function launch(kind) {
   if (kind !== 'balance' && S.searchKind === 'analysis' && !S.analysis) return;
   S.searching = true;
   S.searchKind = kind;
+  S.oneShot = kind === 'move';
   const job = {
     id: ++S.seq,
     gen: S.gen,
@@ -982,7 +1094,7 @@ function launch(kind) {
     hashMB: S.settings.hashMB,
     caution: S.settings.caution,
     rule: S.settings.rule,
-    infinite: S.engineBuild === 'multi' && kind !== 'ai',
+    infinite: S.engineBuild === 'multi' && kind !== 'ai' && kind !== 'move',
     timeMs: kind === 'ai' ? Math.min(S.settings.think, 4000) : S.settings.think,
     topN: S.settings.points,
     count: S.balance,
@@ -1009,6 +1121,7 @@ function haltSearch() {
   S.gen++;
   S.searching = false;
   S.searchKind = null;
+  S.oneShot = false;
   enginePost({ t: 'stop' });
 }
 
@@ -1022,12 +1135,10 @@ function boardChanged(options) {
   S.balanceHeld = false;
   S.balanceMarks = [];
   S.balanceInfo = null;
-  S.curve = S.curve.filter((p) => p.i <= S.moves.length);
-  S.curveMeta.maxPly = S.moves.length;
+  S.preview = null;
   recompute();
   writeStats();
   drawBoard();
-  drawCurve();
   updateAll();
   schedule(140);
 }
@@ -1118,13 +1229,11 @@ function restartGame(force) {
   S.balanceInfo = null;
   S.stats = null;
   S.statsShown = false;
-  S.curve = [];
-  S.curveMeta.maxPly = 0;
   S.anim = null;
   S.lastAiMove = null;
+  S.preview = null;
   enginePost({ t: 'reset', moves: [], rule: S.settings.rule });
   drawBoard();
-  drawCurve();
   writeStats();
   updateAll();
   schedule(320);
@@ -1142,26 +1251,30 @@ function toggleAI(side) {
   toast(on ? T('tAiOn', { n: who }) : T('tAiOff', { n: who }));
 }
 
-/* balance points: the first press computes, the second press plays the point */
+/* balance points: the first press computes, the second press plays them —
+   with two points both stones drop at once (the pair is Black + White) */
 function clickBalance() {
   if (S.winner) { toast(T('tGameOver')); return; }
   if (!S.engineReady) { toast(T('tNoEngine')); return; }
   if (!S.moves.length) { toast(T('tNoBalance')); return; }
   if (S.balanceMarks.length) {
-    const p = S.balanceMarks[0];
+    const pts = S.balanceMarks.map((m) => ({ x: m.x, y: m.y }));
     S.balance = 0;
     S.balanceHeld = false;
     S.balanceMarks = [];
     S.balanceInfo = null;
     haltSearch();
     updateAll();
-    if (p && canPlace(p.x, p.y)) {
-      commitMove(p.x, p.y, {});
-      toast(T('tBalPlayed', { p: coordName(p.x, p.y) }));
-    } else {
-      toast(T('tBalNone'));
-      drawBoard();
+    const played = [];
+    for (const p of pts) {
+      if (canPlace(p.x, p.y)) {
+        commitMove(p.x, p.y, {});
+        played.push(coordName(p.x, p.y));
+      }
     }
+    if (played.length > 1) toast(T('tBalPlayedPair', { a: played[0], b: played[1] }));
+    else if (played.length === 1) toast(T('tBalPlayed', { p: played[0] }));
+    else { toast(T('tBalNone')); drawBoard(); }
     return;
   }
   if (S.balance) {
@@ -1172,7 +1285,7 @@ function clickBalance() {
     toast(T('tBalOff'));
     return;
   }
-  const n = Math.max(1, Math.min(3, S.settings.balPoints || 1));
+  const n = S.settings.balPoints >= 2 ? 2 : 1;
   S.balance = n;
   S.analysis = false;
   S.balanceHeld = false;
@@ -1184,9 +1297,9 @@ function clickBalance() {
   toast(T('tBalOn', { n }));
 }
 
-/* the 1/3 column: cycle how many balance points are requested */
+/* the right column: only 1 or 2 points, the label updates on the spot */
 function cycleBalPoints() {
-  const next = ((S.settings.balPoints || 1) % 3) + 1;
+  const next = S.settings.balPoints >= 2 ? 1 : 2;
   setSetting('balPoints', next);
   toast(T('tBalPoints', { n: next }));
 }
@@ -1221,6 +1334,23 @@ function toggleAnalysis() {
   haltSearch();
   updateAll();
   schedule(120);
+}
+
+/* the middle key of the step row: compute one move and play it right away */
+function playOneMove() {
+  if (S.winner) { toast(T('tGameOver')); return; }
+  if (!S.engineReady) { toast(T('tNoEngine')); return; }
+  haltSearch();
+  S.analysis = false;
+  S.balance = 0;
+  S.balanceHeld = false;
+  S.balanceMarks = [];
+  S.balanceInfo = null;
+  S.marks = [];
+  S.preview = null;
+  updateAll();
+  launch('move');
+  toast(T('tThinkingOne'));
 }
 
 /* ============================================================ code */
@@ -1266,8 +1396,6 @@ function applyCode(text) {
   S.moves = moves;
   S.redo = [];
   S.winner = 0;
-  S.curve = [];
-  S.curveMeta.maxPly = 0;
   S.marks = [];
   S.balanceMarks = [];
   S.balanceInfo = null;
@@ -1275,160 +1403,10 @@ function applyCode(text) {
   S.statsShown = false;
   recompute();
   drawBoard();
-  drawCurve();
   writeStats();
   updateAll();
   schedule(160);
   toast(T('tLoaded', { n: moves.length }));
-}
-
-/* ============================================================ curve */
-function pushCurve(st) {
-  if (!st || st.depth <= 0) return;
-  const ev = parseEval(st.eval);
-  if (ev == null || !Number.isFinite(ev)) return;
-  const moverIsBlack = S.moves.length % 2 === 0;
-  let b = moverIsBlack ? ev : -ev;
-  if (Math.abs(b) > 6000) b = b > 0 ? 6000 : -6000;
-  const ply = S.moves.length;
-  const i = S.curve.findIndex((p) => p.i === ply);
-  if (i >= 0) S.curve[i].b = b;
-  else { S.curve.push({ i: ply, b }); S.curve.sort((a, b2) => a.i - b2.i); }
-  S.curveMeta.maxPly = Math.max(S.curveMeta.maxPly, ply);
-  if (S.curve.length > 400) S.curve = S.curve.slice(-400);
-  const now = performance.now();
-  if (now - lastCurvePush > 140) {
-    lastCurvePush = now;
-    if (!curveRaf) {
-      curveRaf = requestAnimationFrame(() => {
-        curveRaf = 0;
-        drawCurve();
-      });
-    }
-  }
-}
-
-function niceRange(peak) {
-  const steps = [10, 20, 50, 100, 200, 300, 500, 1000, 2000];
-  for (const s of steps) if (peak <= s) return s;
-  return 2000;
-}
-
-function drawCurve() {
-  if (!cctx || !curve) return;
-  const dpr = window.devicePixelRatio || 1;
-  const cssW = curve.getBoundingClientRect().width || 300;
-  const cssH = curve.getBoundingClientRect().height || 96;
-  const w = Math.round(cssW * dpr);
-  const h = Math.round(cssH * dpr);
-  if (curve.width !== w || curve.height !== h) { curve.width = w; curve.height = h; }
-  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const col = {
-    ink: dark ? '#d7e3f0' : '#28313a',
-    mute: dark ? '#7d8ea3' : '#8a95a2',
-    line: dark ? '#28323e' : '#e6ebf2',
-    zero: dark ? '#43536a' : '#b8c4d4',
-    grid: dark ? 'rgba(122,90,248,.14)' : 'rgba(122,90,248,.13)',
-    black: dark ? '#a58cff' : '#7a5af8',
-    white: dark ? '#79b6f2' : '#4f8fd6',
-  };
-  const padL = 34 * dpr, padR = 8 * dpr, padT = 8 * dpr, padB = 14 * dpr;
-  const plotW = w - padL - padR;
-  const plotH = h - padT - padB;
-  cctx.setTransform(1, 0, 0, 1, 0, 0);
-  cctx.clearRect(0, 0, w, h);
-
-  cctx.fillStyle = col.line;
-  cctx.lineWidth = 1 * dpr;
-  cctx.strokeStyle = col.line;
-  cctx.beginPath();
-  cctx.moveTo(padL, padT + plotH / 2);
-  cctx.lineTo(w - padR, padT + plotH / 2);
-  cctx.strokeStyle = col.zero;
-  cctx.lineWidth = 1.2 * dpr;
-  cctx.stroke();
-
-  // light grid on both sides of the zero line (same feel as the desktop trainer)
-  cctx.strokeStyle = col.grid;
-  cctx.lineWidth = 1 * dpr;
-  [-1, -0.5, 0.5, 1].forEach((k) => {
-    const y = padT + plotH / 2 - k * (plotH / 2 - 2 * dpr);
-    cctx.beginPath();
-    cctx.moveTo(padL, y);
-    cctx.lineTo(w - padR, y);
-    cctx.stroke();
-  });
-
-  const data = S.curve;
-  if (!data.length) {
-    cctx.fillStyle = col.mute;
-    cctx.font = '500 ' + 11 * dpr + 'px "Source Han Sans SC","Noto Sans SC",system-ui,sans-serif';
-    cctx.textAlign = 'center';
-    cctx.textBaseline = 'middle';
-    cctx.fillText(T('curveEmpty'), padL + plotW / 2, padT + plotH / 2);
-    return;
-  }
-  const maxPly = Math.max(2, S.curveMeta.maxPly, S.moves.length);
-  let peak = 0;
-  for (const p of data) {
-    if (Math.abs(p.b) < 6000) peak = Math.max(peak, Math.abs(p.b));
-  }
-  const amp = niceRange(peak);
-  const xOf = (i) => padL + (maxPly <= 1 ? 0 : (i / maxPly) * plotW);
-  const yOf = (v) => padT + plotH / 2 - (Math.max(-amp, Math.min(amp, v)) / amp) * (plotH / 2 - 2 * dpr);
-
-  // y labels
-  cctx.fillStyle = col.mute;
-  cctx.font = '600 ' + 9 * dpr + 'px "Cascadia Code",Consolas,monospace';
-  cctx.textAlign = 'right';
-  cctx.textBaseline = 'middle';
-  cctx.fillText('+' + amp, padL - 4 * dpr, padT + 6 * dpr);
-  cctx.fillText('0', padL - 4 * dpr, padT + plotH / 2);
-  cctx.fillText('-' + amp, padL - 4 * dpr, padT + plotH - 4 * dpr);
-
-  const drawLine = (fn, color, fill) => {
-    cctx.beginPath();
-    data.forEach((p, i) => {
-      const x = xOf(p.i), y = yOf(fn(p.b));
-      if (i === 0) cctx.moveTo(x, y);
-      else cctx.lineTo(x, y);
-    });
-    cctx.strokeStyle = color;
-    cctx.lineWidth = 1.7 * dpr;
-    cctx.lineJoin = 'round';
-    cctx.stroke();
-    if (fill) {
-      cctx.beginPath();
-      const y0 = padT + plotH / 2;
-      data.forEach((p, i) => {
-        const x = xOf(p.i), y = yOf(fn(p.b));
-        if (i === 0) { cctx.moveTo(x, y0); cctx.lineTo(x, y); }
-        else cctx.lineTo(x, y);
-      });
-      cctx.lineTo(xOf(data[data.length - 1].i), y0);
-      cctx.closePath();
-      cctx.fillStyle = fill;
-      cctx.fill();
-    }
-  };
-  drawLine((b) => b, col.black, dark ? 'rgba(232,238,247,.10)' : 'rgba(20,23,26,.08)');
-  drawLine((b) => -b, col.white, dark ? 'rgba(111,184,239,.10)' : 'rgba(47,111,176,.08)');
-
-  // current ply marker
-  const cur = data.find((p) => p.i === S.moves.length);
-  if (cur) {
-    cctx.beginPath();
-    cctx.arc(xOf(cur.i), yOf(cur.b), 2.6 * dpr, 0, Math.PI * 2);
-    cctx.fillStyle = col.black;
-    cctx.fill();
-  }
-  cctx.fillStyle = col.mute;
-  cctx.font = '600 ' + 9 * dpr + 'px "Cascadia Code",Consolas,monospace';
-  cctx.textAlign = 'left';
-  cctx.textBaseline = 'top';
-  cctx.fillText('0', padL, h - padB + 2 * dpr);
-  cctx.textAlign = 'right';
-  cctx.fillText(String(maxPly), w - padR, h - padB + 2 * dpr);
 }
 
 /* ============================================================ UI text */
@@ -1436,6 +1414,8 @@ function drawCurve() {
    comes from I18N, so the English build never shows Chinese */
 function applyLang(lang) {
   LANG = lang === 'en' ? 'en' : 'zh';
+  const tEl = $('toast');
+  if (tEl) { tEl.classList.remove('on'); tEl.textContent = ''; }
   try { localStorage.setItem(LANG_KEY, LANG); } catch (e) {}
   document.documentElement.lang = LANG === 'en' ? 'en' : 'zh-CN';
   document.title = LANG === 'en' ? 'Gomoku Calculator · Meter Gomoku' : '五子棋计算器 · Meter Gomoku';
@@ -1462,8 +1442,8 @@ function applyLang(lang) {
   $('btnRestart').textContent = T('restart');
   updateAll();
   writeStats();
-  drawCurve();
   drawBoard();
+  paintLoader();
 }
 
 /* the four search metrics stay on screen all the time: a finished search keeps
@@ -1471,16 +1451,15 @@ function applyLang(lang) {
 function writeStats() {
   const st = S.stats;
   const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
-  if (!st) {
-    if (S.statsShown) return;
+  if (st) {
+    S.statsShown = true;
+    set('stDepth', st.depth ? 'd' + st.depth : '–');
+    set('stSpeed', st.speed ? fmtNps(st.speed) : '–');
+    set('stNodes', st.nodes ? fmtBig(st.nodes) : '–');
+    set('stTime', st.time ? (st.time / 1000).toFixed(1) + 's' : '–');
+  } else if (!S.statsShown) {
     set('stDepth', '–'); set('stSpeed', '–'); set('stNodes', '–'); set('stTime', '–');
-    return;
   }
-  S.statsShown = true;
-  set('stDepth', st.depth ? 'd' + st.depth : '–');
-  set('stSpeed', st.speed ? fmtNps(st.speed) : '–');
-  set('stNodes', st.nodes ? fmtBig(st.nodes) : '–');
-  set('stTime', st.time ? (st.time / 1000).toFixed(1) + 's' : '–');
   updateWinBar();
 }
 function fmtNps(v) {
@@ -1502,6 +1481,7 @@ function updateState() {
   else if (S.searching && S.searchKind === 'balance') txt = T('stBal');
   else if (S.searching && S.searchKind === 'analysis') txt = T('stSearching') + (S.stats && S.stats.depth ? ' · d' + S.stats.depth : '');
   else if (S.searching && S.searchKind === 'ai') txt = T('stAi');
+  else if (S.searching && S.searchKind === 'move') txt = T('stMove');
   else if (S.analysis && S.stats) txt = T('stStopped') + ' · d' + S.stats.depth;
   else if (S.analysis) txt = T('stIdle');
   else if (S.balance) txt = T('stBal');
@@ -1515,21 +1495,35 @@ function updateRoute(top) {
   const st = S.stats;
   if (!top && !S.marks.length) {
     row.className = 'route-row empty';
-    row.innerHTML = '<span class="rank">1</span><span class="depth">d–</span><span class="eval">–</span>' +
+    row.innerHTML = '<span class="depth">d–</span><span class="eval">–</span>' +
       '<span class="route">' + T('routeEmpty') + '</span>';
+    S.pv = [];
+    S.preview = null;
     return;
   }
   const mk = S.marks[0];
   const line = top && top.line && top.line.length ? top.line : (mk ? [[mk.x, 14 - mk.y]] : []);
-  const route = line.slice(0, 12).map((p) => coordName(p[0], 14 - p[1])).join(' ');
+  // keep the whole line so hovering a coordinate can foreshadow it on the board
+  const first = sideToMove();
+  S.pv = line.slice(0, 16).map((p, i) => ({
+    x: p[0], y: 14 - p[1], c: i % 2 === 0 ? first : (first === 1 ? 2 : 1),
+  }));
+  const chips = S.pv.map((p, i) =>
+    '<b class="mv" data-i="' + i + '">' + coordName(p.x, p.y) + '</b>'
+  ).join('');
   const ev = mk && mk.ev != null ? mk.ev : null;
   const cls = ev == null ? '' : (ev >= 0 ? ' pos' : ' neg');
   row.className = 'route-row';
   row.innerHTML =
-    '<span class="rank">' + (mk ? mk.rank + 1 : 1) + '</span>' +
     '<span class="depth">d' + ((st && st.depth) || (mk && mk.depth) || 0) + '</span>' +
     '<span class="eval' + cls + '">' + (mk ? mk.evTxt : '–') + '</span>' +
-    '<span class="route">' + (route || T('routeNone')) + '</span>';
+    '<span class="route">' + (chips || T('routeNone')) + '</span>';
+  /* keep an active hover preview alive while the search keeps rewriting the row */
+  if (S.preview) {
+    const on = row.querySelector('.mv[data-i="' + S.preview.i + '"]');
+    if (on) on.classList.add('on');
+    else S.preview = null;
+  }
 }
 
 function updateBalanceRow() {
@@ -1568,9 +1562,11 @@ function updateAll() {
   if (num) num.textContent = String(S.settings.balPoints || 1);
   $('btnUndo').disabled = !S.moves.length;
   $('btnRedo').disabled = !S.redo.length;
-  $('stepInfo').textContent = LANG === 'en'
-    ? (S.moves.length ? String(S.moves.length) : '0')
-    : S.moves.length + ' 手';
+  const play = $('btnStep');
+  if (play) {
+    play.disabled = !S.engineReady || !!S.winner;
+    play.setAttribute('aria-pressed', String(!!(S.searching && S.searchKind === 'move')));
+  }
   if (document.activeElement !== codeInput) codeInput.value = formatCode();
   updateState();
   updateBalanceRow();
@@ -1593,7 +1589,8 @@ function blackWinRate() {
   return sideToMove() === 1 ? wr : 1 - wr;
 }
 
-/* the bar above the curve: black on the left, white on the right */
+/* the win-rate bar: black (violet) on the left, white (sky blue) on the right;
+   the percentages sit above it in the label row */
 function updateWinBar() {
   const b = $('wrB'), w = $('wrW');
   if (!b || !w) return;
@@ -1635,15 +1632,11 @@ function syncSettingsUI() {
   seg('segTheme', S.settings.theme || 'system');
   seg('segThink', S.settings.think);
   seg('segStone', S.settings.stone);
-  seg('segNum', S.settings.showNum ? 1 : 0);
-  const tr = $('threadRange');
-  if (tr) {
-    tr.max = String(maxThreads());
-    tr.value = String(Math.min(S.settings.threads, maxThreads()));
-    tr.disabled = maxThreads() <= 1;
-  }
-  const tv = $('threadVal');
-  if (tv) tv.textContent = String(Math.min(S.settings.threads, maxThreads())) + (maxThreads() <= 1 ? (LANG === 'en' ? ' (1)' : ' (单)') : '');
+  buildThreadSeg();
+  const sw = $('swNum');
+  if (sw) sw.setAttribute('aria-checked', String(!!S.settings.showNum));
+  const ti = $('thinkInput');
+  if (ti && document.activeElement !== ti) ti.value = String(Math.round(S.settings.think / 1000));
   const th = $('threadHint');
   if (th) {
     th.textContent = maxThreads() <= 1
@@ -1652,6 +1645,25 @@ function syncSettingsUI() {
   }
   const rh = $('ruleHint');
   if (rh) rh.textContent = ruleHint(S.settings.rule);
+}
+
+/* the thread count is a plain pick-list, rebuilt when the hardware allows more */
+let threadSegMax = -1;
+function buildThreadSeg() {
+  const box = $('segThreads');
+  if (!box) return;
+  const max = maxThreads();
+  if (threadSegMax !== max) {
+    threadSegMax = max;
+    let html = '';
+    for (let i = 1; i <= max; i++) html += '<button type="button" data-v="' + i + '">' + i + '</button>';
+    box.innerHTML = html;
+  }
+  const cur = Math.min(S.settings.threads, max);
+  [...box.querySelectorAll('button')].forEach((b) => {
+    b.classList.toggle('on', +b.dataset.v === cur);
+    b.disabled = max <= 1;
+  });
 }
 function syncThemeSeg() {
   const box = $('segTheme');
@@ -1670,6 +1682,7 @@ function setSetting(key, value, opts) {
     }
   }
   if (key === 'threads') value = Math.max(1, Math.min(maxThreads(), value));
+  if (key === 'balPoints') value = value >= 2 ? 2 : 1;
   S.settings[key] = value;
   saveSettings();
   syncSettingsUI();
@@ -1682,29 +1695,30 @@ function setSetting(key, value, opts) {
       return;
     }
     if (key === 'balPoints') {
+      const el = $('balCountNum');
+      if (el) el.textContent = String(value);
       if (S.balance) { S.balance = value; haltSearch(); schedule(120); }
       return;
     }
     haltSearch();
     if (key === 'rule') {
-      S.curve = [];
       S.marks = [];
       S.stats = null;
       S.balanceMarks = [];
       S.balanceInfo = null;
+      S.preview = null;
       recompute();
       enginePost({ t: 'reset', moves: engineMoves(), rule: S.settings.rule });
       drawBoard();
-      drawCurve();
       writeStats();
       updateAll();
       toast(T('tRuleSet', { n: ruleName(value) }));
-      } else if (key === 'threads' || key === 'hashMB') {
-        enginePost({ t: 'config', threads: S.settings.threads, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule });
-        toast(key === 'hashMB' ? T('tHashSet', { n: value }) : T('tThreadSet', { n: value }));
-      } else if (key === 'think') {
-        toast(T('tThinkSet', { n: Math.round(value / 1000) }));
-      }
+    } else if (key === 'threads' || key === 'hashMB') {
+      enginePost({ t: 'config', threads: S.settings.threads, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule });
+      toast(key === 'hashMB' ? T('tHashSet', { n: value }) : T('tThreadSet', { n: value }));
+    } else if (key === 'think') {
+      toast(T('tThinkSet', { n: Math.round(value / 1000) }));
+    }
     schedule(220);
   }
 }
@@ -1725,7 +1739,16 @@ function initSettingsEvents() {
   segClick('segRule', (v) => setSetting('rule', +v));
   segClick('segThink', (v) => setSetting('think', +v));
   segClick('segStone', (v) => setSetting('stone', v));
-  segClick('segNum', (v) => setSetting('showNum', v === '1'));
+  segClick('segThreads', (v) => setSetting('threads', +v));
+  $('swNum').addEventListener('click', () => setSetting('showNum', !S.settings.showNum));
+  const applyThink = () => {
+    const raw = Math.round(+($('thinkInput').value || 0));
+    const sec = Math.max(1, Math.min(120, raw || 3));
+    $('thinkInput').value = String(sec);
+    setSetting('think', sec * 1000);
+  };
+  $('btnThinkApply').addEventListener('click', applyThink);
+  $('thinkInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); applyThink(); } });
   segClick('segTheme', (v) => {
     if (v === 'system') {
       S.settings.theme = null;
@@ -1737,13 +1760,6 @@ function initSettingsEvents() {
       applyTheme(v, true);
     }
     syncThemeSeg();
-  });
-  $('threadRange').addEventListener('input', (e) => {
-    S.settings.threads = Math.max(1, Math.min(maxThreads(), +e.target.value));
-    $('threadVal').textContent = String(S.settings.threads);
-  });
-  $('threadRange').addEventListener('change', () => {
-    setSetting('threads', S.settings.threads);
   });
   $('btnCloseSet').addEventListener('click', () => settingsDlg.close());
   $('btnDone').addEventListener('click', () => settingsDlg.close());
@@ -1862,7 +1878,11 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('on');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('on');
+    /* clear the text so a stale message never shows up in the other language */
+    setTimeout(() => { if (!el.classList.contains('on')) el.textContent = ''; }, 240);
+  }, 2200);
 }
 
 function initServiceWorker() {
@@ -1889,7 +1909,6 @@ function initServiceWorker() {
 
 function initCanvas() {
   bctx = board.getContext('2d');
-  cctx = curve.getContext('2d');
   const ro = new ResizeObserver(() => {
     measureBoard();
   });
@@ -1903,6 +1922,35 @@ function initCanvas() {
   }
 }
 
+/* hovering a coordinate in the analysed line previews that continuation on the board */
+function initRoutePreview() {
+  const row = $('routeRow');
+  if (!row) return;
+  const show = (i) => {
+    if (!S.pv.length) return;
+    S.preview = { i };
+    [...row.querySelectorAll('.mv')].forEach((el) => el.classList.toggle('on', +el.dataset.i === i));
+    drawBoard();
+  };
+  const clear = () => {
+    if (!S.preview) return;
+    S.preview = null;
+    [...row.querySelectorAll('.mv')].forEach((el) => el.classList.remove('on'));
+    drawBoard();
+  };
+  row.addEventListener('pointerover', (e) => {
+    const b = e.target.closest && e.target.closest('.mv');
+    if (!b) return;
+    show(+b.dataset.i);
+  });
+  row.addEventListener('pointerleave', clear);
+  row.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('.mv');
+    if (!b) return;
+    if (S.preview && +b.dataset.i === S.preview.i) clear(); else show(+b.dataset.i);
+  });
+}
+
 function initHeaderEvents() {
   $('btnAIB').addEventListener('click', () => toggleAI(1));
   $('btnAIW').addEventListener('click', () => toggleAI(2));
@@ -1912,6 +1960,7 @@ function initHeaderEvents() {
   $('langBtn').addEventListener('click', () => applyLang(LANG === 'en' ? 'zh' : 'en'));
   $('btnUndo').addEventListener('click', undoMove);
   $('btnRedo').addEventListener('click', redoMove);
+  $('btnStep').addEventListener('click', playOneMove);
   $('btnRestart').addEventListener('click', () => restartGame(false));
   $('btnCopy').addEventListener('click', async () => {
     const txt = formatCode();
@@ -1943,34 +1992,24 @@ function initHeaderEvents() {
   });
 }
 
-function initLoadbar() {
-  loadbar.classList.add('on');
-  const i = loadbar.querySelector('i');
-  i.style.width = '12%';
-  let w = 12;
-  const timer = setInterval(() => {
-    if (!S.engineReady) { w = Math.min(90, w + 4); i.style.width = w + '%'; }
-    else clearInterval(timer);
-  }, 260);
-}
-
 function boot() {
   initTheme();
   let savedLang = '';
   try { savedLang = localStorage.getItem(LANG_KEY) || ''; } catch (e) {}
   applyLang(savedLang || (/^en/i.test(navigator.language || '') ? 'en' : 'zh'));
+  paintLoader();
+  initServiceWorker();
+  /* start fetching the 41 MB engine as soon as the shell is ready */
+  startEngineWhenReady();
   initCanvas();
   initSettingsEvents();
   initHeaderEvents();
+  initRoutePreview();
   initBoardEvents();
-  initServiceWorker();
-  initLoadbar();
   recompute();
   measureBoard();
-  drawCurve();
   writeStats();
   updateAll();
-  bootEngine();
   // surface isolation state for QA / debugging
   window.MG = {
     S, geo,
