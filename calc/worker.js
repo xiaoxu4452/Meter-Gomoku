@@ -590,7 +590,13 @@ self.onmessage = (e) => {
 /* never fail silently: an uncaught error inside the worker used to leave the
    page waiting for a search that would never answer */
 self.onerror = (e) => {
-  post({ t: 'stderr', msg: 'worker ' + ((e && e.message) || e) });
+  const bits = [];
+  if (e) {
+    if (e.message) bits.push(e.message);
+    if (e.filename) bits.push(e.filename.split('/').pop() + ':' + e.lineno + ':' + e.colno);
+    if (e.error) bits.push(String((e.error && (e.error.stack || e.error.message)) || e.error).slice(0, 200));
+  }
+  post({ t: 'stderr', msg: 'worker ' + (bits.join(' | ') || 'unknown') });
 };
 self.addEventListener('unhandledrejection', (e) => {
   post({ t: 'stderr', msg: 'promise ' + ((e.reason && e.reason.message) || e.reason) });

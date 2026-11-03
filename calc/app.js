@@ -1015,7 +1015,13 @@ function onEngineMessage(ev) {
     toast(T('engineErr') + ': ' + (d.error || ''));
     return;
   }
-  if (d.t === 'stderr') { if (window.console) console.warn('[engine]', d.msg); return; }
+  if (d.t === 'stderr') {
+    const msg = String(d.msg || '');
+    if (window.console) console.warn('[engine]', msg);
+    /* a crashed pthread pool leaves the engine deaf — fall back to one thread */
+    if (S.engineBuild === 'multi' && msg.indexOf('worker ') === 0 && retrySingle(msg)) return;
+    return;
+  }
   if (d.t === 'exit') {
     chip.textContent = T('engineExit');
     chip.className = 'chip err';
