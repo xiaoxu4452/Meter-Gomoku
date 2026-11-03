@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
+<meta name="theme-color" content="#edf1f6">
+<title>五子棋计算器 · Meter Gomoku</title>
+<link rel="icon" href="../assets/calc.png">
+<script>
+/* apply the stored theme before first paint (no flash) */
+(function () {
+  var t = '';
+  try { t = localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
+  if (t !== 'light' && t !== 'dark') {
+    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.style.colorScheme = t;
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0a0f15' : '#edf1f6');
+})();
+</script>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <img class="logo" src="../assets/calc.png" alt="" width="30" height="30">
+      <div class="brand-txt">
+        <h1 data-i18n="title">五子棋计算器</h1>
+        <p data-i18n="subtitle">Meter Gomoku · Web</p>
+      </div>
+    </div>
+    <div class="top-right">
+      <button id="langBtn" class="lang-btn" type="button" title="中文 / English" aria-label="Language">EN</button>
+      <button id="themeBtn" class="icon-btn" type="button" aria-label="主题" title="主题" aria-pressed="false">
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+      </button>
+      <button id="btnSettings" class="icon-btn" type="button" aria-label="设置" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15.4a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 11a2 2 0 1 1 0 4Z"/></svg>
+      </button>
+    </div>
+  </header>
+  <div id="loadbar" class="loadbar" aria-hidden="true"><i></i></div>
+
+  <section class="board-shell" aria-label="棋盘">
+    <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
+  </section>
+
+  <div class="stepbar" role="group" aria-label="行棋步数">
+    <button id="btnUndo" class="step-btn" type="button" disabled data-i18n-title="tipUndo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/></svg>
+      <span data-i18n="undo">上一步</span>
+    </button>
+    <span id="stepInfo" class="step-info">0</span>
+    <button id="btnRedo" class="step-btn" type="button" disabled data-i18n-title="tipRedo">
+      <span data-i18n="redo">下一步</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 7 5 5-5 5"/><path d="M20 12H10a6 6 0 0 0-6 6"/></svg>
+    </button>
+    <button id="btnRestart" class="step-btn danger" type="button" data-i18n-title="tipRestart" data-i18n="restart">重开一局</button>
+  </div>
+
+  <nav class="tools" aria-label="功能键">
+    <button id="btnAIB" class="tool" type="button" aria-pressed="false" data-i18n-title="tipAiB">
+      <span class="tool-ico">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="#14171a" stroke="currentColor" stroke-width="1.7"/></svg>
+      </span>
+      <span class="tool-txt" data-i18n="aiB">AI执黑</span>
+    </button>
+    <button id="btnAIW" class="tool" type="button" aria-pressed="false" data-i18n-title="tipAiW">
+      <span class="tool-ico">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="#faf9f5" stroke="currentColor" stroke-width="1.7"/></svg>
+      </span>
+      <span class="tool-txt" data-i18n="aiW">AI执白</span>
+    </button>
+    <button id="btnAnalysis" class="tool" type="button" aria-pressed="false" data-i18n-title="tipAnalysis">
+      <span class="tool-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 13h3l2-6 3 12 3-9 2 3h4"/></svg>
+      </span>
+      <span class="tool-txt" data-i18n="analysis">计算分析</span>
+    </button>
+    <div class="tool-group">
+      <button id="btnBalance" class="tool bal-main" type="button" aria-pressed="false" data-i18n-title="tipBalance">
+        <span class="tool-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M4 7h16M7 7l-3.5 8h7L7 7ZM17 7l-3.5 8h7L17 7Z"/></svg>
+        </span>
+        <span class="tool-txt" data-i18n="balance">平衡点</span>
+      </button>
+      <button id="balCount" class="bal-count" type="button" data-i18n-title="tipBalCount">
+        <b id="balCountNum">1</b><span data-i18n="points">点</span>
+      </button>
+    </div>
+  </nav>
+
+  <section class="stats" aria-label="搜索统计">
+    <div class="stat"><span class="k" data-i18n="depth">深度</span><b id="stDepth" class="v">–</b></div>
+    <div class="stat"><span class="k" data-i18n="speed">速度</span><b id="stSpeed" class="v">–</b></div>
+    <div class="stat"><span class="k" data-i18n="nodes">节点</span><b id="stNodes" class="v">–</b></div>
+    <div class="stat"><span class="k" data-i18n="time">用时</span><b id="stTime" class="v">–</b></div>
+  </section>
+
+  <section class="panel code-panel">
+    <div class="panel-head">
+      <span class="panel-title" data-i18n="codeTitle">局面代码</span>
+      <span class="panel-hint" data-i18n="codeHint">列字母+行号 / 坐标</span>
+    </div>
+    <div class="code-row">
+      <textarea id="codeInput" class="code-input" rows="2" spellcheck="false" autocomplete="off"
+                data-i18n-ph="codePlaceholder" aria-label="局面代码"></textarea>
+      <button id="btnCopy" class="icon-btn copy" type="button" data-i18n-title="copy" aria-label="复制">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="panel analysis-panel">
+    <div class="panel-head">
+      <span class="panel-title" data-i18n="routeTitle">分析路线</span>
+      <span id="analysisState" class="panel-hint">–</span>
+    </div>
+    <div id="routeRow" class="route-row empty">
+      <span class="rank">1</span>
+      <span class="depth">d–</span>
+      <span class="eval">–</span>
+      <span class="route" data-i18n="routeEmpty">点击「计算分析」查看最佳路线</span>
+    </div>
+    <div id="balanceRow" class="balance-row" hidden></div>
+  </section>
+
+  <section class="panel chart-panel">
+    <div class="panel-head">
+      <span class="panel-title" data-i18n="curveTitle">评估曲线</span>
+      <span class="legend"><i class="lg-b"></i><span data-i18n="black">黑</span><i class="lg-w"></i><span data-i18n="white">白</span></span>
+    </div>
+    <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
+      <span class="wr-b" id="wrB"><em id="wrBTxt">50%</em></span>
+      <span class="wr-w" id="wrW"><em id="wrWTxt">50%</em></span>
+    </div>
+    <canvas id="curve" class="curve" role="img" aria-label="评估曲线"></canvas>
+  </section>
+
+  <footer class="foot">
+    <span id="engineChip" class="chip" data-i18n-title="tipEngine">引擎加载中</span>
+    <span class="foot-note" data-i18n="foot">Rapfi NNUE 引擎 · 全部计算在本机浏览器完成</span>
+  </footer>
+</div>
+
+<dialog id="settings" class="dialog" aria-labelledby="setTitle">
+  <div class="dialog-head">
+    <h2 id="setTitle" data-i18n="settings">设置</h2>
+    <button id="btnCloseSet" class="icon-btn" type="button" data-i18n-title="close" aria-label="关闭">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="dialog-body">
+    <div class="debug" id="debugBox"></div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="think">思考时间</b><span data-i18n="thinkHint">每次计算分析的时长</span></div>
+      <div class="seg four" id="segThink" role="group" aria-label="思考时间">
+        <button type="button" data-v="1000">1s</button>
+        <button type="button" data-v="2000">2s</button>
+        <button type="button" data-v="3000">3s</button>
+        <button type="button" data-v="5000">5s</button>
+        <button type="button" data-v="8000">8s</button>
+        <button type="button" data-v="12000">12s</button>
+        <button type="button" data-v="20000">20s</button>
+        <button type="button" data-v="30000">30s</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="stoneStyle">棋子样式</b><span data-i18n="stoneStyleHint">与桌面训练器一致的三档</span></div>
+      <div class="seg" id="segStone" role="group" aria-label="棋子样式">
+        <button type="button" data-v="flat" data-i18n="stoneFlat">扁平</button>
+        <button type="button" data-v="real" data-i18n="stoneReal">仿真</button>
+        <button type="button" data-v="jade" data-i18n="stoneJade">玉石</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="showNum">显示手数</b><span data-i18n="showNumHint">在棋子上标出第几手</span></div>
+      <div class="seg" id="segNum" role="group" aria-label="显示手数">
+        <button type="button" data-v="1" data-i18n="on">开</button>
+        <button type="button" data-v="0" data-i18n="off">关</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="rule">规则</b><span id="ruleHint"></span></div>
+      <div class="seg" id="segRule" role="group" aria-label="五子棋规则">
+        <button type="button" data-v="0" data-i18n="rule0">无禁手</button>
+        <button type="button" data-v="1" data-i18n="rule1">长连不赢</button>
+        <button type="button" data-v="2" data-i18n="rule2">连珠禁手</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="hash">哈希表大小</b><span data-i18n="hashHint">引擎置换表，越大越省重复计算</span></div>
+      <div class="seg five" id="segHash" role="group" aria-label="哈希表大小">
+        <button type="button" data-v="64">64</button>
+        <button type="button" data-v="128">128</button>
+        <button type="button" data-v="256">256</button>
+        <button type="button" data-v="512">512</button>
+        <button type="button" data-v="1024">1024</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="pointsLabel">分析点数</b><span data-i18n="pointsHint">每个候选点的多 PV 路线数量</span></div>
+      <div class="seg" id="segPoints" role="group" aria-label="分析点数">
+        <button type="button" data-v="1">1</button>
+        <button type="button" data-v="2">2</button>
+        <button type="button" data-v="3">3</button>
+        <button type="button" data-v="4">4</button>
+        <button type="button" data-v="5">5</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="threads">线程数</b><span id="threadHint"></span></div>
+      <div class="range-wrap">
+        <input id="threadRange" type="range" min="1" max="8" step="1" value="4" aria-label="线程数">
+        <output id="threadVal" for="threadRange">4</output>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="range">选点范围</b><span data-i18n="rangeHint">引擎候选点筛选的谨慎程度</span></div>
+      <div class="seg" id="segRange" role="group" aria-label="选点范围">
+        <button type="button" data-v="1">1</button>
+        <button type="button" data-v="2">2</button>
+        <button type="button" data-v="3">3</button>
+        <button type="button" data-v="4">4</button>
+        <button type="button" data-v="5">5</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="theme">主题</b><span data-i18n="themeHint">也可跟随系统自动切换</span></div>
+      <div class="seg" id="segTheme" role="group" aria-label="主题">
+        <button type="button" data-v="light" data-i18n="themeLight">浅色</button>
+        <button type="button" data-v="dark" data-i18n="themeDark">深色</button>
+        <button type="button" data-v="system" data-i18n="themeSystem">跟随系统</button>
+      </div>
+    </div>
+
+    <div class="dialog-foot">
+      <button id="btnReset" class="btn text" type="button" data-i18n="reset">恢复默认参数</button>
+      <button id="btnDone" class="btn primary" type="button" data-i18n="done">完成</button>
+    </div>
+  </div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
