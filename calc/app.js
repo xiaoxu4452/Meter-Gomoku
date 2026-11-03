@@ -7,7 +7,8 @@ const ENGINE_VERSION = '20261103d';
 const SETTINGS_KEY = 'mgcalc.settings.v1';
 const THEME_KEY = 'mgcalc.theme';
 const RELOAD_KEY = 'mgcalc.isolation.reload';
-const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
+/* keeps the 41 MB package across UI releases — must match sw.js */
+const ENGINE_CACHE = 'mgcalc-engine-20261105a';
 const ENGINE_FILES = {
   multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm', data: 'engine/rapfi.data' },
   single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm', data: 'engine/rapfi.data' },
@@ -46,11 +47,12 @@ const I18N = {
     rule0: '无禁手', rule1: '长连不赢', rule2: '连珠禁手',
     think: '思考时间', thinkHint: '每次计算分析的时长',
     custom: '自定义', secUnit: '秒', apply: '应用',
-    stoneStyle: '棋子样式', stoneStyleHint: '与桌面训练器一致的三档',
-    stoneFlat: '扁平', stoneReal: '仿真', stoneJade: '玉石',
+    stoneStyle: '棋子样式', stoneStyleHint: '仿真 / 扁平两档，与桌面训练器一致',
+    stoneFlat: '扁平', stoneReal: '仿真',
+    boardColor: '棋盘颜色', boardColorHint: '15 种预置色调，盘线随底色自动配深',
     showNum: '显示手数', showNumHint: '在棋子上标出第几手，最后一手标红', on: '开', off: '关',
     rule: '规则', hash: '哈希表大小', hashHint: '引擎置换表，越大越省重复计算',
-    pointsLabel: '分析点数', pointsHint: '每个候选点的多 PV 路线数量',
+    pointsLabel: '分析点数', pointsHint: '最多显示几个候选（1–8），相邻点只留较强的一个',
     threads: '线程数', range: '选点范围', rangeHint: '引擎候选点筛选的谨慎程度',
     threadSingle: '未隔离，仅单线程可用', threadHintT: '硬件 {hc} 线程，可用上限 {max}',
     theme: '主题', themeLight: '浅色', themeDark: '深色', themeSystem: '跟随系统', themeHint: '也可跟随系统自动切换',
@@ -72,6 +74,7 @@ const I18N = {
     tThinking: 'AI 执{n}思考中', tThinkSet: '思考时间已设为 {n} 秒',
     tHashSet: '哈希表已设为 {n} MB', tThreadSet: '线程数已设为 {n}', tRuleSet: '规则已切换为「{n}」',
     tReset: '已恢复默认参数', tStoneSet: '棋子样式：{n}', tNumOn: '已显示手数', tNumOff: '已隐藏手数',
+    tBoardSet: '棋盘颜色：{n}',
     tBalPoints: '平衡点点数：{n}', tBalanceNoResult: '还没有平衡点结果',
     tHashClamp: '哈希表超过引擎上限 {n} MB，已自动收敛',
     tFallback: '多线程不可用，已降级为单线程模式',
@@ -87,6 +90,9 @@ const I18N = {
     loadModule: '初始化推理模块…', loadStart: '启动搜索线程…', loadDone: '引擎就绪',
     loadCached: '读取本机缓存的引擎文件…', loadNote: 'Rapfi NNUE · WebAssembly',
     loadCold: '首次打开：先准备好离线缓存…',
+    retry: '重试', altCalc: '用官方计算器',
+    loadFail: '引擎加载失败', loadSlow: '下载卡住了',
+    loadFailMsg: '所有线路都没连上，可以重试，或先用官方计算器',
   },
   en: {
     title: 'Gomoku Calculator', subtitle: 'Meter Gomoku · Web',
@@ -104,11 +110,12 @@ const I18N = {
     rule0: 'Freestyle', rule1: 'No overline win', rule2: 'Renju',
     think: 'Think time', thinkHint: 'Time budget for each search',
     custom: 'Custom', secUnit: 's', apply: 'Apply',
-    stoneStyle: 'Stone style', stoneStyleHint: 'The same three presets as the desktop trainer',
-    stoneFlat: 'Flat', stoneReal: 'Realistic', stoneJade: 'Jade',
+    stoneStyle: 'Stone style', stoneStyleHint: 'Realistic or flat, matching the desktop trainer',
+    stoneFlat: 'Flat', stoneReal: 'Realistic',
+    boardColor: 'Board colour', boardColorHint: '15 presets — the grid darkens to suit each tone',
     showNum: 'Move numbers', showNumHint: 'Print the move number on each stone; the last one turns red', on: 'On', off: 'Off',
     rule: 'Rule', hash: 'Hash size', hashHint: 'Transposition table — larger saves more re-search',
-    pointsLabel: 'Multi-PV', pointsHint: 'How many lines per candidate point',
+    pointsLabel: 'Multi-PV', pointsHint: 'Up to 1–8 candidates; of two neighbouring points only the stronger is drawn',
     threads: 'Threads', range: 'Move range', rangeHint: 'How cautious the candidate filter is',
     threadSingle: 'Not isolated — single thread only', threadHintT: 'Hardware {hc} threads, up to {max}',
     theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeSystem: 'System', themeHint: 'Or follow the system setting',
@@ -131,6 +138,7 @@ const I18N = {
     tThinking: 'AI is thinking as {n}', tThinkSet: 'Think time set to {n} s',
     tHashSet: 'Hash table set to {n} MB', tThreadSet: 'Threads set to {n}', tRuleSet: 'Rule switched to "{n}"',
     tReset: 'Defaults restored', tStoneSet: 'Stone style: {n}', tNumOn: 'Move numbers on', tNumOff: 'Move numbers off',
+    tBoardSet: 'Board colour: {n}',
     tBalPoints: 'Balance points: {n}', tBalanceNoResult: 'No balance result yet',
     tHashClamp: 'Hash clamped to the engine limit of {n} MB',
     tFallback: 'Multi-threading unavailable — running single-threaded',
@@ -146,6 +154,9 @@ const I18N = {
     loadModule: 'Starting the inference module…', loadStart: 'Starting search threads…', loadDone: 'Engine ready',
     loadCached: 'Reading the cached engine files…', loadNote: 'Rapfi NNUE · WebAssembly',
     loadCold: 'First visit: preparing the offline cache…',
+    retry: 'Retry', altCalc: 'Official calculator',
+    loadFail: 'The engine failed to load', loadSlow: 'The download stalled',
+    loadFailMsg: 'No route answered — retry, or use the official calculator for now',
   },
 };
 let LANG = 'zh';
@@ -159,12 +170,34 @@ const ruleHint = (id) => (LANG === 'en' ? RULES[id].hintEn : RULES[id].hint);
 const sideName = (c) => (c === 1 ? T('tBlack') : T('tWhite'));
 
 
-const THEME_COLORS = {
-  light: { board: '#e9d6b0', line: '#4a4438', coord: '#5c5140', star: '#5b5143', last: '#d94b3f', black: '#14171a', white: '#faf9f5', whiteEdge: 'rgba(0,0,0,.18)' },
-  dark: { board: '#bda87f', line: '#332e26', coord: '#40382b', star: '#463c2f', last: '#e2685b', black: '#101215', white: '#f4f2ea', whiteEdge: 'rgba(0,0,0,.24)' },
-};
-/* stone presets, mirroring the desktop trainer's three styles (flat / real / jade);
-   the flat white stone keeps a black hairline, as requested */
+/* 15 ready-made board palettes: wood tones first, then three neutral ones.
+   `line` is the grid colour and `coord` the label colour, both picked so the
+   grid stays readable on its own wood tone. */
+const BOARD_SKINS = [
+  { id: 'classic',  zh: '原木', en: 'Classic wood', board: '#e9d6b0', line: '#4a4438', coord: '#5c5140' },
+  { id: 'oak',      zh: '浅栎', en: 'Pale oak',     board: '#eddfc0', line: '#4f4a3a', coord: '#625b47' },
+  { id: 'cream',    zh: '米白', en: 'Cream',        board: '#f3e8cf', line: '#55503f', coord: '#6a6350' },
+  { id: 'bamboo',   zh: '竹青', en: 'Bamboo',       board: '#dcd8b2', line: '#4b5240', coord: '#5d654e' },
+  { id: 'beech',    zh: '榉木', en: 'Beech',        board: '#e5c99e', line: '#51422c', coord: '#66543a' },
+  { id: 'honey',    zh: '蜜蜡', en: 'Honey',        board: '#e2bb7d', line: '#55401f', coord: '#6b5330' },
+  { id: 'amber',    zh: '琥珀', en: 'Amber',        board: '#d8a768', line: '#4f3717', coord: '#684a25' },
+  { id: 'walnut',   zh: '胡桃', en: 'Walnut',       board: '#c69a6a', line: '#4a321a', coord: '#614227' },
+  { id: 'teak',     zh: '柚木', en: 'Teak',         board: '#b07a52', line: '#3f2715', coord: '#573820' },
+  { id: 'rosewood', zh: '红木', en: 'Rosewood',     board: '#a9694a', line: '#3c1f14', coord: '#522e1e' },
+  { id: 'espresso', zh: '深棕', en: 'Espresso',     board: '#8a5c3e', line: '#2f1a10', coord: '#45291a' },
+  { id: 'forest',   zh: '墨绿', en: 'Forest',       board: '#7f8f6d', line: '#26301f', coord: '#3a4630' },
+  { id: 'slate',    zh: '石板', en: 'Slate',        board: '#8d99a3', line: '#22292f', coord: '#333c44' },
+  { id: 'celadon',  zh: '青瓷', en: 'Celadon',      board: '#b7cfc0', line: '#35483b', coord: '#48604f' },
+  { id: 'indigo',   zh: '黛蓝', en: 'Indigo',       board: '#8b9dc0', line: '#232c3f', coord: '#35405a' },
+];
+const boardSkin = (id) => BOARD_SKINS.find((s) => s.id === (id || S.settings.board)) || BOARD_SKINS[0];
+function hexLum(hex) {
+  const v = hex.replace('#', '');
+  const r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+/* stone presets: realistic and flat, mirroring the desktop trainer; the flat
+   white stone keeps a black hairline, as requested */
 const STONES = {
   flat: {
     black: { fill: '#191715', edge: 'rgba(96,90,82,.65)' },
@@ -173,10 +206,6 @@ const STONES = {
   real: {
     black: { grad: ['#726d67', '#4a4540', '#241f1b', '#080706'], edge: 'rgba(255,255,255,.18)' },
     white: { grad: ['#ffffff', '#f8f3e7', '#e0d9c7', '#b8b1a0'], edge: 'rgba(120,112,98,.6)' },
-  },
-  jade: {
-    black: { grad: ['#5f6a63', '#39403c', '#1e2422', '#0b0e0c'], edge: 'rgba(210,226,214,.26)' },
-    white: { grad: ['#fffdf7', '#f7f2e4', '#e6dfc9', '#cfc7ae'], edge: 'rgba(96,88,68,.42)' },
   },
 };
 const ANA = [
@@ -236,7 +265,8 @@ const S = {
 
 let geo = { css: 0, px: 0, cell: 0, pad: 0, fs: 0 };
 let DPR = 1;
-let C = THEME_COLORS.light;
+let C = { board: '#e9d6b0', line: '#4a4438', coord: '#5c5140', star: '#4a4438', last: '#d94b3f',
+  black: '#14171a', white: '#faf9f5', whiteEdge: 'rgba(0,0,0,.18)' };
 let bctx = null;
 let toastTimer = 0;
 let restartConfirmTimer = 0;
@@ -254,6 +284,8 @@ const loaderEl = $('loader');
 let loaderPct = 0;
 let loaderKey = 'loadFetch';
 let loaderDone = false;
+let loaderError = false;
+let loadTick = Date.now();
 
 function paintLoader() {
   if (!loaderEl) return;
@@ -268,6 +300,7 @@ function paintLoader() {
 function setLoader(pct, key) {
   loaderPct = Math.max(loaderPct, Math.min(100, pct));
   if (key) loaderKey = key;
+  loadTick = Date.now();
   paintLoader();
 }
 
@@ -278,30 +311,66 @@ function hideLoader() {
   setTimeout(() => { if (loaderEl) loaderEl.classList.add('hidden'); }, 320);
 }
 
+/* every route failed (or the download stalled): offer a retry instead of a dead page */
+function showLoadError(key, detail) {
+  if (loaderDone) return;
+  loaderError = true;
+  loaderKey = key || 'loadFail';
+  paintLoader();
+  const msg = $('loadMsg');
+  if (msg) msg.textContent = T(loaderKey) + (detail ? ' · ' + detail : '');
+  loaderEl.classList.add('error');
+  const acts = $('loadActions');
+  if (acts) acts.hidden = false;
+  chip.textContent = T('engineErr');
+  chip.className = 'chip err';
+}
+
+function retryLoad() {
+  if (S.worker) {
+    try { S.worker.terminate(); } catch (e) {}
+    S.worker = null;
+  }
+  loaderError = false;
+  loaderDone = false;
+  loaderPct = 0;
+  loaderKey = 'loadFetch';
+  loadTick = Date.now();
+  S.engineReady = false;
+  S.fallback = false;
+  loaderEl.classList.remove('hidden', 'error');
+  const acts = $('loadActions');
+  if (acts) acts.hidden = true;
+  paintLoader();
+  engineStarted = true;
+  bootEngine();
+}
+
 /* ============================================================ settings */
 function defaults() {
   return {
-    hashMB: 128, points: 3, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
-    think: 3000, showNum: false, stone: 'real', balPoints: 1,
+    hashMB: 256, points: 3, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
+    think: 3000, showNum: false, stone: 'real', balPoints: 1, board: 'classic',
   };
 }
 function defaultThreads() {
   if (!isolated()) return 1;
-  return Math.max(2, Math.min(maxThreads(), Math.round(hc / 2)));
+  return maxThreads();          // give the engine every thread the browser allows
 }
 function loadSettings() {
   const d = defaults();
   try {
     const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     if (HASH_OPTIONS.includes(raw.hashMB)) d.hashMB = raw.hashMB;
-    if (Number.isFinite(raw.points) && raw.points >= 1 && raw.points <= 5) d.points = raw.points;
+    if (Number.isFinite(raw.points) && raw.points >= 1 && raw.points <= 8) d.points = raw.points;
     if (Number.isFinite(raw.threads)) d.threads = Math.max(1, Math.min(maxThreads(), raw.threads));
     if (Number.isFinite(raw.caution) && raw.caution >= 1 && raw.caution <= 5) d.caution = raw.caution;
     if (raw.rule === 0 || raw.rule === 1 || raw.rule === 2) d.rule = raw.rule;
     if (raw.theme === 'light' || raw.theme === 'dark') d.theme = raw.theme;
     if (Number.isFinite(raw.think) && raw.think >= 500 && raw.think <= 60000) d.think = raw.think;
     if (raw.showNum === true || raw.showNum === false) d.showNum = raw.showNum;
-    if (raw.stone === 'flat' || raw.stone === 'real' || raw.stone === 'jade') d.stone = raw.stone;
+    if (raw.stone === 'flat' || raw.stone === 'real') d.stone = raw.stone;
+    if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
   } catch (e) {}
   if (!isolated()) d.threads = 1;
@@ -323,7 +392,7 @@ function applyTheme(mode, remember) {
     btn.setAttribute('aria-pressed', String(dark));
     btn.setAttribute('aria-label', dark ? T('toLight') : T('toDark'));
   }
-  C = dark ? THEME_COLORS.dark : THEME_COLORS.light;
+  C = themeColor();
   try {
     if (remember) localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
   } catch (e) {}
@@ -357,11 +426,19 @@ function initTheme() {
 }
 
 /* ============================================================ geometry / board */
-const PAD_CELLS = 1.30;
+/* The coordinate ring is only 0.46 cell wide, so the grid itself gets the rest
+   of the canvas and looks a size larger than before. */
+const PAD_CELLS = 0.92;
 const BOARD_SPAN = SIZE - 1 + PAD_CELLS * 2;
 
 function themeColor() {
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? THEME_COLORS.dark : THEME_COLORS.light;
+  const sk = boardSkin();
+  return {
+    board: sk.board, line: sk.line, coord: sk.coord, star: sk.line,
+    /* the last-move dot flips to a brighter red on dark wood so it stays visible */
+    last: hexLum(sk.board) < 0.55 ? '#ff7a68' : '#d94b3f',
+    black: '#14171a', white: '#faf9f5', whiteEdge: 'rgba(0,0,0,.18)',
+  };
 }
 
 function measureBoard() {
@@ -375,7 +452,7 @@ function measureBoard() {
   }
   DPR = px / css;
   const cell = px / BOARD_SPAN;
-  const fs = Math.max(8.5 * DPR, cell * 0.40);
+  const fs = Math.max(8 * DPR, cell * 0.32);
   geo = { css, px, cell, pad: cell * PAD_CELLS, fs };
   drawBoard();
 }
@@ -390,7 +467,7 @@ function drawBoard() {
   const W = geo.px;
   const cell = geo.cell;
   const pad = geo.pad;
-  const lwDev = Math.max(2, Math.round(DPR) + (Math.round(DPR) % 2));
+  const lwDev = Math.max(1, DPR * 0.62);      // hairline grid, thinner than before
   const xs = [];
   const ys = [];
   for (let i = 0; i < SIZE; i++) {
@@ -403,6 +480,9 @@ function drawBoard() {
   bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.fillStyle = C.board;
   bctx.fillRect(0, 0, W, W);
+  /* keep the element background in step with the chosen skin so the rounded
+     corners and any sub-pixel gap show the same colour */
+  if (board) board.style.background = C.board;
 
   bctx.strokeStyle = C.line;
   bctx.lineWidth = lwDev;
@@ -437,7 +517,7 @@ function drawBoard() {
 
 function drawCoords(xs, ys, pad, cell) {
   // The column letters sit under the board, the row numbers keep to the left edge.
-  const gap = cell * 0.7;
+  const gap = cell * 0.40;
   bctx.fillStyle = C.coord;
   bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
   bctx.textAlign = 'center';
@@ -448,7 +528,7 @@ function drawCoords(xs, ys, pad, cell) {
   bctx.textBaseline = 'middle';
   for (let i = 0; i < SIZE; i++) bctx.fillText(String(SIZE - i), pad - gap, ys[i]);
 }
-function stoneRadius() { return geo.cell * 0.46; }
+function stoneRadius() { return geo.cell * 0.485; }
 
 /* paint one stone with the style picked in the settings */
 function paintStone(cx, cy, r, c) {
@@ -517,8 +597,8 @@ function drawForbidden() {
 }
 
 function markerRadius() {
-  const cell = geo.cell;
-  return cell < 30 * DPR ? Math.max(8 * DPR, cell * 0.44) : Math.max(9 * DPR, cell * 0.47);
+  /* one full cell across, as requested — the ring now spans the intersection */
+  return geo.cell * 0.5;
 }
 
 function fitFont(text, maxW, want, min) {
@@ -556,7 +636,7 @@ function drawMarks() {
     bctx.stroke();
     bctx.setLineDash([]);
 
-    // upper half = winrate, lower half = score
+    // upper half = winrate, lower half = score; both fill the ring edge to edge
     const pct = Math.round((mk.wr == null ? 0.5 : mk.wr) * 100);
     const top = String(Math.max(0, Math.min(100, pct))) + '%';
     const bottom = mk.evTxt || (mk.ev == null ? '–' : (mk.ev >= 0 ? '+' : '') + Math.round(mk.ev));
@@ -565,8 +645,8 @@ function drawMarks() {
     const ink = dark ? '#f4f9ff' : '#0d2028';
     const halo = dark ? 'rgba(6,16,26,.80)' : 'rgba(255,255,255,.90)';
 
-    const hip = cy - r * 0.23;
-    const sizeTop = fitFont(top, r * 1.72, r * 0.68, 6 * DPR);
+    const hip = cy - r * 0.32;
+    const sizeTop = fitFont(top, r * 1.74, r * 0.76, 6 * DPR);
     bctx.font = '700 ' + sizeTop + 'px "Cascadia Code",Consolas,monospace';
     bctx.lineWidth = Math.max(1 * DPR, sizeTop * 0.16);
     bctx.strokeStyle = halo;
@@ -574,24 +654,14 @@ function drawMarks() {
     bctx.fillStyle = ink;
     bctx.fillText(top, cx, hip);
 
-    const lop = cy + r * 0.31;
-    const sizeBot = fitFont(bottom, r * 1.72, r * 0.58, 5.5 * DPR);
+    const lop = cy + r * 0.32;
+    const sizeBot = fitFont(bottom, r * 1.74, r * 0.70, 5.5 * DPR);
     bctx.font = '700 ' + sizeBot + 'px "Cascadia Code",Consolas,monospace';
     bctx.lineWidth = Math.max(1 * DPR, sizeBot * 0.16);
     bctx.strokeStyle = halo;
     bctx.strokeText(bottom, cx, lop);
     bctx.fillStyle = ink;
     bctx.fillText(bottom, cx, lop);
-
-    // divider between the two halves
-    bctx.strokeStyle = palette.ring;
-    bctx.globalAlpha = baseAlpha * 0.55;
-    bctx.lineWidth = Math.max(1, DPR);
-    bctx.beginPath();
-    bctx.moveTo(cx - r * 0.64, cy + 1 * DPR);
-    bctx.lineTo(cx + r * 0.64, cy + 1 * DPR);
-    bctx.stroke();
-    bctx.globalAlpha = baseAlpha;
 
     if (mk.kind === 'bal' && mk.rank != null) {
       const bx = cx - r * 0.80, by = cy - r * 0.80, br = Math.max(5.2 * DPR, r * 0.27);
@@ -878,6 +948,7 @@ function bootEngine() {
     hashMB: S.settings.hashMB,
     caution: S.settings.caution,
     rule: S.settings.rule,
+    cacheName: ENGINE_CACHE,
   });
 }
 
@@ -911,7 +982,7 @@ function retrySingle(reason) {
   try { S.worker = new Worker('worker.js'); S.worker.onmessage = onEngineMessage; } catch (e) { return false; }
   enginePost({
     t: 'init', build: 'single', urls: ENGINE_FILES.single,
-    threads: 1, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule,
+    threads: 1, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule, cacheName: ENGINE_CACHE,
   });
   return true;
 }
@@ -940,7 +1011,7 @@ function onEngineMessage(ev) {
     if (S.engineBuild === 'multi' && retrySingle(d.error)) return;
     chip.textContent = T('engineErr');
     chip.className = 'chip err';
-    hideLoader();
+    showLoadError('loadFail', d.error ? String(d.error).slice(0, 80) : '');
     toast(T('engineErr') + ': ' + (d.error || ''));
     return;
   }
@@ -1012,8 +1083,11 @@ function scheduleDebug() {
 }
 
 function applyCandidates(cands) {
-  const max = Math.max(1, S.settings.points);
-  S.marks = cands.slice(0, 8).slice(0, max).map((c, i) => {
+  const max = Math.max(1, Math.min(8, S.settings.points || 3));
+  /* Marks that touch each other overlap on the board, so keep the stronger point
+     and drop its neighbours — the desktop trainer filters the same way. That also
+     means a larger point count does not always paint that many circles. */
+  const pool = cands.slice(0, 12).map((c, i) => {
     const x = c.move[0], yUi = 14 - c.move[1];
     const ev = parseEval(c.eval);
     return {
@@ -1022,6 +1096,16 @@ function applyCandidates(cands) {
       ev, evTxt: fmtEval(ev),
     };
   });
+  const marks = [];
+  for (const m of pool) {
+    if (marks.length >= max) break;
+    let clash = false;
+    for (const k of marks) {
+      if (Math.abs(k.x - m.x) <= 1 && Math.abs(k.y - m.y) <= 1) { clash = true; break; }
+    }
+    if (!clash) marks.push(m);
+  }
+  S.marks = marks;
   drawBoard();
   updateRoute(cands[0]);
 }
@@ -1096,7 +1180,9 @@ function launch(kind) {
     rule: S.settings.rule,
     infinite: S.engineBuild === 'multi' && kind !== 'ai' && kind !== 'move',
     timeMs: kind === 'ai' ? Math.min(S.settings.think, 4000) : S.settings.think,
-    topN: S.settings.points,
+    /* Multi-PV only pays off while analysing: playing with several lines splits
+       the effort and makes the chosen move weaker. */
+    topN: kind === 'analysis' ? S.settings.points : 1,
     count: S.balance,
   };
   if (kind === 'balance') enginePost({ t: 'balance', job });
@@ -1632,6 +1718,7 @@ function syncSettingsUI() {
   seg('segTheme', S.settings.theme || 'system');
   seg('segThink', S.settings.think);
   seg('segStone', S.settings.stone);
+  refreshSkinTitles();
   buildThreadSeg();
   const sw = $('swNum');
   if (sw) sw.setAttribute('aria-checked', String(!!S.settings.showNum));
@@ -1688,6 +1775,11 @@ function setSetting(key, value, opts) {
   syncSettingsUI();
   renderDebug();
   if (prev !== value) {
+    if (key === 'board') {
+      drawBoard();
+      toast(T('tBoardSet', { n: LANG === 'en' ? boardSkin(value).en : boardSkin(value).zh }));
+      return;
+    }
     if (key === 'stone' || key === 'showNum') {
       drawBoard();
       if (key === 'stone') toast(T('tStoneSet', { n: T('stone' + value.charAt(0).toUpperCase() + value.slice(1)) }));
@@ -1723,6 +1815,35 @@ function setSetting(key, value, opts) {
   }
 }
 
+/* fifteen colour chips; each shows its wood tone with a hairline cross in the
+   grid colour it will actually be drawn with */
+function buildBoardSwatches() {
+  const box = $('swBoard');
+  if (!box) return;
+  if (!box.childElementCount) {
+    box.innerHTML = BOARD_SKINS.map((s) =>
+      '<button type="button" class="swatch" data-v="' + s.id + '" style="--sw:' + s.board + ';--swl:' + s.line + '"></button>'
+    ).join('');
+    box.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (b) setSetting('board', b.dataset.v);
+    });
+  }
+  refreshSkinTitles();
+}
+
+function refreshSkinTitles() {
+  const box = $('swBoard');
+  if (!box) return;
+  [...box.querySelectorAll('.swatch')].forEach((b) => {
+    const s = boardSkin(b.dataset.v);
+    const name = LANG === 'en' ? s.en : s.zh;
+    b.setAttribute('title', name);
+    b.setAttribute('aria-label', name);
+    b.setAttribute('aria-pressed', String(s.id === S.settings.board));
+  });
+}
+
 function initSettingsEvents() {
   const segClick = (id, fn) => {
     const box = $(id);
@@ -1740,6 +1861,7 @@ function initSettingsEvents() {
   segClick('segThink', (v) => setSetting('think', +v));
   segClick('segStone', (v) => setSetting('stone', v));
   segClick('segThreads', (v) => setSetting('threads', +v));
+  buildBoardSwatches();
   $('swNum').addEventListener('click', () => setSetting('showNum', !S.settings.showNum));
   const applyThink = () => {
     const raw = Math.round(+($('thinkInput').value || 0));
@@ -1992,15 +2114,69 @@ function initHeaderEvents() {
   });
 }
 
+/* ============================================================ viewport
+   The on-screen keyboard shrinks the layout viewport on phones, which used to
+   squash the board and the key rows into a mess. We remember the height seen
+   while nothing is focused and freeze it in --vh, so opening the keyboard only
+   scrolls the page instead of re-flowing it. */
+let stableH = 0;
+function typingNow() {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
+}
+function syncViewport() {
+  const root = document.documentElement;
+  if (!stableH) stableH = Math.round(window.innerHeight || root.clientHeight);
+  if (!typingNow()) {
+    const h = Math.round(window.innerHeight || root.clientHeight);
+    if (h > 0) stableH = h;
+  }
+  root.style.setProperty('--vh', stableH + 'px');
+  root.classList.toggle('short', stableH < 720 && window.innerWidth < 900);
+}
+/* keep the focused box above the on-screen keyboard (the layout viewport is
+   taller than the visual one while the keyboard is up) */
+function ensureCaretVisible() {
+  const a = document.activeElement;
+  if (!a || !a.getBoundingClientRect) return;
+  const vv = window.visualViewport;
+  const bottom = (vv ? vv.height + (vv.offsetTop || 0) : window.innerHeight) - 10;
+  const r = a.getBoundingClientRect();
+  if (r.bottom > bottom) window.scrollBy(0, Math.ceil(r.bottom - bottom + 8));
+}
+function initViewport() {
+  syncViewport();
+  window.addEventListener('resize', syncViewport);
+  window.addEventListener('orientationchange', () => setTimeout(syncViewport, 260));
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      if (typingNow()) { ensureCaretVisible(); return; }
+      syncViewport();
+    });
+    window.visualViewport.addEventListener('scroll', () => { if (typingNow()) ensureCaretVisible(); });
+  }
+  document.addEventListener('focusout', () => setTimeout(syncViewport, 320));
+  /* keep the code box visible above the keyboard once it slides up */
+  const ci = $('codeInput');
+  if (ci) ci.addEventListener('focus', () => setTimeout(ensureCaretVisible, 340));
+}
+
 function boot() {
   initTheme();
+  initViewport();
   let savedLang = '';
   try { savedLang = localStorage.getItem(LANG_KEY) || ''; } catch (e) {}
   applyLang(savedLang || (/^en/i.test(navigator.language || '') ? 'en' : 'zh'));
   paintLoader();
+  $('btnRetryLoad').addEventListener('click', retryLoad);
   initServiceWorker();
   /* start fetching the 41 MB engine as soon as the shell is ready */
   startEngineWhenReady();
+  /* if nothing moves for over a minute, offer a retry instead of waiting forever */
+  setInterval(() => {
+    if (S.engineReady || loaderDone || loaderError) return;
+    if (Date.now() - loadTick > 75000) showLoadError('loadSlow');
+  }, 5000);
   initCanvas();
   initSettingsEvents();
   initHeaderEvents();

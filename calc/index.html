@@ -103,6 +103,18 @@
     <div class="stat"><span class="k" data-i18n="time">用时</span><b id="stTime" class="v">–</b></div>
   </section>
 
+  <section class="panel wr-panel">
+    <div class="wr-head">
+      <span class="panel-title" data-i18n="winTitle">胜率</span>
+      <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
+      <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
+    </div>
+    <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
+      <span class="wr-b" id="wrB"></span>
+      <span class="wr-w" id="wrW"></span>
+    </div>
+  </section>
+
   <section class="panel code-panel">
     <div class="panel-head">
       <span class="panel-title" data-i18n="codeTitle">局面代码</span>
@@ -128,18 +140,6 @@
       <span class="route" data-i18n="routeEmpty">点击「计算分析」查看最佳路线</span>
     </div>
     <div id="balanceRow" class="balance-row" hidden></div>
-  </section>
-
-  <section class="panel wr-panel">
-    <div class="wr-head">
-      <span class="panel-title" data-i18n="winTitle">胜率</span>
-      <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
-      <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
-    </div>
-    <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
-      <span class="wr-b" id="wrB"></span>
-      <span class="wr-w" id="wrW"></span>
-    </div>
   </section>
 
   <footer class="foot">
@@ -183,8 +183,12 @@
       <div class="seg" id="segStone" role="group" aria-label="棋子样式">
         <button type="button" data-v="flat" data-i18n="stoneFlat">扁平</button>
         <button type="button" data-v="real" data-i18n="stoneReal">仿真</button>
-        <button type="button" data-v="jade" data-i18n="stoneJade">玉石</button>
       </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="boardColor">棋盘颜色</b><span data-i18n="boardColorHint">15 种预置色调，盘线随底色自动配深</span></div>
+      <div class="swatches" id="swBoard" role="group" aria-label="棋盘颜色"></div>
     </div>
 
     <div class="set-row switch-row">
@@ -216,12 +220,15 @@
 
     <div class="set-row">
       <div class="set-label"><b data-i18n="pointsLabel">分析点数</b><span data-i18n="pointsHint">每个候选点的多 PV 路线数量</span></div>
-      <div class="seg" id="segPoints" role="group" aria-label="分析点数">
+      <div class="seg grid4" id="segPoints" role="group" aria-label="分析点数">
         <button type="button" data-v="1">1</button>
         <button type="button" data-v="2">2</button>
         <button type="button" data-v="3">3</button>
         <button type="button" data-v="4">4</button>
         <button type="button" data-v="5">5</button>
+        <button type="button" data-v="6">6</button>
+        <button type="button" data-v="7">7</button>
+        <button type="button" data-v="8">8</button>
       </div>
     </div>
 
@@ -270,6 +277,10 @@
     <div class="loader-foot">
       <span data-i18n="loadNote">Rapfi NNUE · WebAssembly</span>
       <b id="loadPct">0%</b>
+    </div>
+    <div class="loader-actions" id="loadActions" hidden>
+      <button id="btnRetryLoad" class="mini-btn" type="button" data-i18n="retry">重试</button>
+      <a class="mini-btn ghost" href="https://www.gomocalc.com/#/" target="_blank" rel="noopener" data-i18n="altCalc">用官方计算器</a>
     </div>
   </div>
 </div>

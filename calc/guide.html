@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meter Web 使用说明 · Meter Gomoku</title>
+<meta name="description" content="Meter Gomoku 网页版计算器（Meter Web）的界面说明、按键含义、设置项、加载与离线、常见问题。">
+<link rel="icon" href="../assets/calc.png">
+<style>
+*{box-sizing:border-box}
+:root{
+  --ink:#171b21; --sub:#5c6774; --mute:#8792a0; --body:#2b333c;
+  --line:#e3e8ef; --line2:#eef2f7; --paper:#fff; --bg:#f3f5f8;
+  --accent:#2f6fb0; --accent-d:#1e4e80; --accent-l:#eaf3fc; --border-ac:#cfe1f2;
+  --sans:"Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Code",Consolas,monospace;
+}
+html[data-theme="dark"]{
+  --ink:#e8eef7; --sub:#b6c2d1; --mute:#94a3b5; --body:#d7dfe9;
+  --line:#2b3745; --line2:#232e3a; --paper:#141c26; --bg:#0a0f15;
+  --accent:#79b8ef; --accent-d:#a8d2f6; --accent-l:#17283a; --border-ac:#2d4b68;
+}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--body);font-family:var(--sans);
+  font-size:15px;line-height:1.78;-webkit-text-size-adjust:100%}
+a{color:var(--accent-d);text-decoration:none}
+a:hover{text-decoration:underline}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
+  padding:10px 16px;background:var(--paper);border-bottom:1px solid var(--line)}
+.top img{width:28px;height:28px;border-radius:8px;display:block}
+.top b{font-size:14.5px;color:var(--ink);font-weight:800;letter-spacing:.01em}
+.top .sp{flex:1 1 auto}
+.top .btn{height:30px;padding:0 11px;border:1px solid var(--line);border-radius:999px;background:transparent;
+  color:var(--sub);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}
+.top .btn:hover{color:var(--accent-d);border-color:var(--border-ac)}
+.top .btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+html[data-theme="dark"] .top .btn.on{color:#0d1a26}
+main{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:26px;line-height:1.25;margin:6px 0 4px;color:var(--ink);letter-spacing:-.01em}
+.sub{color:var(--mute);font-size:12.5px;letter-spacing:.06em;margin-bottom:18px}
+h2{font-size:17px;margin:26px 0 8px;color:var(--ink)}
+h3{font-size:14.5px;margin:16px 0 6px;color:var(--ink)}
+p{margin:8px 0}
+ul,ol{margin:8px 0;padding-left:20px}
+li{margin:4px 0}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:12px 0}
+.tbl{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.8px;background:var(--paper);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.tbl th,.tbl td{padding:9px 12px;border-bottom:1px solid var(--line2);text-align:left;vertical-align:top}
+.tbl th{background:var(--line2);font-weight:700;color:var(--ink);font-size:12.5px;letter-spacing:.04em}
+.tbl tr:last-child td{border-bottom:0}
+.tbl code{font-family:var(--mono);font-size:12.5px}
+.note{border-left:3px solid var(--accent);background:var(--accent-l);border-radius:0 10px 10px 0;
+  padding:10px 14px;margin:12px 0;font-size:13.6px}
+.cta{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+.cta a{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 15px;
+  border:1px solid var(--border-ac);border-radius:10px;background:var(--paper);font-size:13px;font-weight:700;color:var(--accent-d)}
+.cta a.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+html[data-theme="dark"] .cta a.primary{color:#0d1a26}
+.cta a:hover{text-decoration:none;filter:brightness(1.03)}
+.foot{max-width:760px;margin:0 auto;padding:0 16px 40px;color:var(--mute);font-size:12px;text-align:center}
+.en{display:none}
+body.lang-en .zh{display:none}
+body.lang-en .en{display:revert}
+body.lang-en{--sans:"Source Han Sans SC","Noto Sans SC",system-ui,sans-serif}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <img src="../assets/calc.png" alt="">
+  <b>Meter Web</b>
+  <span class="sp"></span>
+  <button id="lg-zh" class="btn on" type="button">ZH</button>
+  <button id="lg-en" class="btn" type="button">EN</button>
+  <button id="themeBtn" class="btn" type="button" aria-label="主题 / Theme">◐</button>
+</div>
+
+<main>
+  <h1><span class="zh">Meter Web 使用说明</span><span class="en">Meter Web — user guide</span></h1>
+  <div class="sub">METER GOMOKU · WEB · RAPFI NNUE WASM</div>
+
+  <p class="zh">Meter Web 是把桌面版 Meter Gomoku 的「计算部分」搬到浏览器里的版本：同一颗 Rapfi 引擎、同一套 NNUE 权重，用 WebAssembly 在你的设备上本地推理。没有服务器、没有排队，摆好局面就能算。</p>
+  <p class="en">Meter Web brings the analysis half of the desktop Meter Gomoku into the browser: the same Rapfi engine and NNUE weights compiled to WebAssembly, running locally on your device. No server, no queue — compose a position and analyse it.</p>
+
+  <div class="cta">
+    <a class="primary" href="./"><span class="zh">打开 Meter Web</span><span class="en">Open Meter Web</span></a>
+    <a href="../"><span class="zh">返回官网</span><span class="en">Back to the site</span></a>
+  </div>
+
+  <h2><span class="zh">一、界面结构</span><span class="en">1. Layout</span></h2>
+  <p class="zh">一套界面、两种排版，由屏幕方向决定：</p>
+  <p class="en">One interface, two layouts — the screen orientation decides.</p>
+  <table class="tbl">
+    <tr>
+      <th><span class="zh">竖屏（手机）</span><span class="en">Portrait (phone)</span></th>
+      <th><span class="zh">横屏（平板 / 桌面）</span><span class="en">Landscape (tablet / desktop)</span></th>
+    </tr>
+    <tr>
+      <td><span class="zh">棋盘在上、仪表盘在下并铺满整宽；设置从底部向上弹出抽屉</span><span class="en">Board on top, full-width dashboard below; settings slide up as a bottom sheet</span></td>
+      <td><span class="zh">两栏：左边是引擎仪表盘与候选，右边是棋盘、工具按钮与分析路线；设置从右侧滑出</span><span class="en">Two columns: dashboard and candidates on the left, board with tools and the line on the right; settings slide in from the right</span></td>
+    </tr>
+  </table>
+  <p class="zh">顶栏从左到右：图标、标题、<b>中 / EN</b> 语言切换、主题切换、设置（齿轮）。</p>
+  <p class="en">Top bar, left to right: icon, title, <b>中 / EN</b> language switch, theme switch, settings (gear).</p>
+
+  <h2><span class="zh">二、棋盘操作</span><span class="en">2. Playing on the board</span></h2>
+  <ul class="zh">
+    <li>点交叉点落子，黑先；点刚下的那颗棋子可以撤回，<b>上一步 / 下一步</b> 也能前后翻。</li>
+    <li>桌面端可以右键撤回，手机长按棋盘同样撤回。</li>
+    <li>开启「显示手数」后，每颗棋子上写着第几手；<b>最后一手的数字是红色</b>。</li>
+    <li>候选点上会画一个圆：上半是胜率，下半是评分；颜色越靠前（青 → 绿 → 黄）排名越低。</li>
+  </ul>
+  <ul class="en">
+    <li>Tap an intersection to play; Black moves first. Tap the stone you just played to take it back, or use <b>Undo / Redo</b>.</li>
+    <li>Right-click on desktop, long-press on a phone — both undo.</li>
+    <li>With “Move numbers” on, every stone shows its move number; <b>the last one is red</b>.</li>
+    <li>Candidate circles show the win rate on the upper half and the score on the lower half; the colour order (cyan → green → yellow) follows the ranking.</li>
+  </ul>
+
+  <h2><span class="zh">三、按键说明</span><span class="en">3. The keys</span></h2>
+  <table class="tbl">
+    <tr><th><span class="zh">按键</span><span class="en">Key</span></th><th><span class="zh">作用</span><span class="en">What it does</span></th></tr>
+    <tr><td><b class="zh">AI执黑</b><b class="en">AI black</b></td><td><span class="zh">让引擎执黑（开启时按钮变浅紫）。黑白可以同时开，等于引擎自己跟自己下</span><span class="en">The engine plays Black (the key turns violet). Both sides can be on at once — the engine then plays itself</span></td></tr>
+    <tr><td><b class="zh">AI执白</b><b class="en">AI white</b></td><td><span class="zh">让引擎执白（开启时按钮变蓝）</span><span class="en">The engine plays White (the key turns blue)</span></td></tr>
+    <tr><td><b class="zh">计算分析</b><b class="en">Analyse</b></td><td><span class="zh">开始持续分析，盘上出现候选与主变；再点一次＝停止分析并直接在最佳点落子</span><span class="en">Start a continuous search: candidates and the main line appear. Press again to stop and play the best point</span></td></tr>
+    <tr><td><b class="zh">平衡点</b><b class="en">Balance</b></td><td><span class="zh">第一次点：搜索双方都能接受的开局平衡点；再点一次：<b>直接在平衡点落子</b>。右边数字是点数，选 2 时两个点会同时落下</span><span class="en">First press: search for a balanced opening point both sides accept. Second press: <b>play it</b>. The number beside it is how many points to ask for — with 2, both stones drop together</span></td></tr>
+    <tr><td><b class="zh">计算一手</b><b class="en">Play one</b></td><td><span class="zh">让引擎按「思考时间」算一手，算完立刻落子（不会持续分析）</span><span class="en">The engine thinks for the configured time and plays that one move — no ongoing analysis</span></td></tr>
+    <tr><td><b class="zh">重开一局</b><b class="en">New game</b></td><td><span class="zh">清空棋盘并重置引擎；再点一次确认</span><span class="en">Clear the board and reset the engine; press twice to confirm</span></td></tr>
+  </table>
+
+  <h2><span class="zh">四、仪表盘与胜率</span><span class="en">4. Dashboard and win rate</span></h2>
+  <ul class="zh">
+    <li><b>深度 / 速度 / 节点 / 用时</b>：搜索结束后保留最后一次的数值，不会被清空；只有重开或载入新局才归零。</li>
+    <li><b>胜率</b>：上面一行是「黑 xx% / 白 xx%」，下面是荧光细条——开局左右各一半，谁的优势大谁那一侧变长。</li>
+    <li><b>分析路线</b>：`d24 +37 H8 G7 ...` 依次是深度、评分、主变坐标。<b>把鼠标移到某个坐标上（手机点一下），棋盘会把这个点之后的走法半透明地摆出来</b>，虚线圈标出当前悬停的那一手，再点一次收起。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Depth / speed / nodes / time</b> keep their last values after a search stops; only a new game or a loaded position clears them.</li>
+    <li><b>Win rate</b>: the row above reads “Black xx% / White xx%”, the neon bar below splits in that ratio — even at the start, longer on the side that is winning.</li>
+    <li><b>Main line</b>: `d24 +37 H8 G7 ...` is depth, score, then the moves. <b>Hover a move (tap on a phone) and the board previews the continuation in translucent stones</b>, with a dashed ring on the hovered move; tap again to hide.</li>
+  </ul>
+
+  <h2><span class="zh">五、设置项</span><span class="en">5. Settings</span></h2>
+  <table class="tbl">
+    <tr><th><span class="zh">项目</span><span class="en">Item</span></th><th><span class="zh">说明</span><span class="en">Notes</span></th></tr>
+    <tr><td><b class="zh">思考时间</b><b class="en">Think time</b></td><td><span class="zh">1/2/3/5/8/12/20/30 秒，或自己填 1–120 秒；作用于分析、平衡点与「计算一手」</span><span class="en">1/2/3/5/8/12/20/30 s, or type your own 1–120 s; applies to analysis, balance points and “Play one”</span></td></tr>
+    <tr><td><b class="zh">棋子样式</b><b class="en">Stone style</b></td><td><span class="zh">仿真 / 扁平两档（扁平的白子带黑色细边）</span><span class="en">Realistic or flat (the flat white stone keeps a black hairline)</span></td></tr>
+    <tr><td><b class="zh">棋盘颜色</b><b class="en">Board colour</b></td><td><span class="zh">15 种预置色调（原木、蜜蜡、红木、墨绿、石板……），盘线与坐标随底色自动配深</span><span class="en">15 presets (classic wood, honey, rosewood, forest, slate and more); the grid and labels darken to suit each tone</span></td></tr>
+    <tr><td><b class="zh">显示手数</b><b class="en">Move numbers</b></td><td><span class="zh">开关。打开后棋子上标序号，最后一手标红，红点自动取消</span><span class="en">A switch. On: every stone shows its number, the last one in red, and the red dot disappears</span></td></tr>
+    <tr><td><b class="zh">规则</b><b class="en">Rule</b></td><td><span class="zh">无禁手 / 长连不赢 / 连珠禁手。换规则会清空置换表并重置棋盘状态</span><span class="en">Freestyle / no overline win / Renju. Switching clears the hash table and resets the position</span></td></tr>
+    <tr><td><b class="zh">哈希表大小</b><b class="en">Hash size</b></td><td><span class="zh">64–1024 MB。越大越省重复计算，长时间拆棋建议 256 以上</span><span class="en">64–1024 MB. Larger means less re-searching; 256+ is worth it for long sessions</span></td></tr>
+    <tr><td><b class="zh">分析点数</b><b class="en">Multi-PV</b></td><td><span class="zh">最多显示几个候选（1–8）。<b>相邻的候选会重叠，所以只保留较强的那个</b>，因此实际画出来的数量可能少于设定值</span><span class="en">How many candidates to show (1–8). <b>Neighbouring points would overlap, so only the stronger one is kept</b> — you may see fewer circles than the setting</span></td></tr>
+    <tr><td><b class="zh">线程数</b><b class="en">Threads</b></td><td><span class="zh">1 到浏览器允许的上限（需要跨源隔离，本站已用 Service Worker 注入）；默认给满</span><span class="en">1 up to what the browser allows (needs cross-origin isolation, which this site injects via its service worker); defaults to the maximum</span></td></tr>
+    <tr><td><b class="zh">选点范围</b><b class="en">Move range</b></td><td><span class="zh">引擎候选点筛选的谨慎程度，1–5，越大越保守</span><span class="en">How cautious the candidate filter is, 1–5; higher is more conservative</span></td></tr>
+    <tr><td><b class="zh">主题</b><b class="en">Theme</b></td><td><span class="zh">浅色 / 深色 / 跟随系统</span><span class="en">Light / dark / follow the system</span></td></tr>
+  </table>
+
+  <h2><span class="zh">六、加载与离线</span><span class="en">6. Loading and offline use</span></h2>
+  <ul class="zh">
+    <li>引擎与权重约 <b>41 MB</b>，第一次打开会有一个毛玻璃弹窗显示真实的下载进度；下载完会写进本机缓存，之后打开几乎是瞬时的。</li>
+    <li>站点本身走 GitHub Pages，国内可能不通，此时会自动改走公共加速镜像，界面上的百分比照常走。</li>
+    <li>缓存是分层的：更新界面不会重新下载 41 MB 的引擎；需要强制重来时，在设置里清除站点数据即可。</li>
+    <li>断网也能用——本地推理，不依赖服务器。</li>
+  </ul>
+  <ul class="en">
+    <li>The engine and weights are about <b>41 MB</b>. The first visit shows a frosted panel with the real download progress; afterwards it is cached locally and opens almost instantly.</li>
+    <li>The site is served from GitHub Pages, which is slow or blocked in some networks, so the engine files fall back to public mirrors automatically — the percentage keeps moving either way.</li>
+    <li>Caching is layered: shipping a new UI does not re-download the 41 MB engine. Clear the site data if you ever need a clean slate.</li>
+    <li>It works offline: inference is local, no server involved.</li>
+  </ul>
+
+  <h2><span class="zh">七、和桌面版、官方计算器怎么分工</span><span class="en">7. How it relates to the desktop app and the official calculator</span></h2>
+  <ul class="zh">
+    <li><b>Meter Web（这里）</b>：手机随时打开，界面与桌面版同源，只有计算相关功能。</li>
+    <li><b>桌面版 Meter Gomoku</b>：能拿到更多线程与更大的置换表，同样时间算得更深，另有对弈、复盘、识图、连线。</li>
+    <li><b>Rapfi 官方计算器（gomocalc）</b>：Rapfi 作者维护，界面更朴素，胜在权威与稳定。</li>
+  </ul>
+  <ul class="en">
+    <li><b>Meter Web (here)</b>: open it on a phone any time; the interface mirrors the desktop build and keeps only the calculation parts.</li>
+    <li><b>Desktop Meter Gomoku</b>: more threads and a larger hash, so it searches deeper in the same time, plus play, review, vision and Link.</li>
+    <li><b>Rapfi official calculator (gomocalc)</b>: maintained by the Rapfi author, plainer but authoritative.</li>
+  </ul>
+
+  <h2><span class="zh">八、常见问题</span><span class="en">8. FAQ</span></h2>
+  <h3><span class="zh">为什么线程数只有 1？</span><span class="en">Why is the thread count stuck at 1?</span></h3>
+  <p class="zh">多线程需要页面处于「跨源隔离」状态。本站在正常访问时由 Service Worker 注入所需响应头；如果被浏览器禁用（隐私模式、拦截扩展），引擎会自动降级为单线程，功能不受影响，只是慢一些。</p>
+  <p class="en">Multi-threading needs the page to be cross-origin isolated. The service worker injects the required headers on normal visits; if that is blocked (private mode, aggressive extensions) the engine falls back to a single thread — everything still works, just slower.</p>
+  <h3><span class="zh">设了 4 个点，为什么只看到 2 个圆？</span><span class="en">I asked for 4 points but only see 2 circles</span></h3>
+  <p class="zh">相邻的候选点图画在一起会互相遮挡，所以只保留评分更高的那个。想要更多候选，可以调大「分析点数」，或换一个更开阔的局面。</p>
+  <p class="en">Neighbouring candidates would overlap, so the stronger one is kept. Ask for more points, or look at a more open position.</p>
+  <h3><span class="zh">局面代码怎么用？</span><span class="en">How does the position code work?</span></h3>
+  <p class="zh">与 gomocalc 同格式：每手两个字符，列字母 + 行号，例如 <code>h8h9g7f7i8</code>。粘贴进「局面代码」框会立刻载入，点右边的按钮可以复制当前局面。</p>
+  <p class="en">Same format as gomocalc: two characters per move, column letter plus row number, e.g. <code>h8h9g7f7i8</code>. Paste it into the position box to load immediately; the button beside it copies the current position.</p>
+
+  <h3><span class="zh">手机上点局面代码框，界面会不会被键盘挤变形？</span><span class="en">Does the keyboard squash the layout on a phone?</span></h3>
+  <p class="zh">不会。页面会记住键盘收起时的高度，键盘弹出时只把输入框滚到键盘上方，棋盘和按钮保持原尺寸；收起键盘后自动恢复。</p>
+  <p class="en">No. The page remembers the height it had before the keyboard opened, so the board and the keys keep their size; it only scrolls the box above the keyboard and restores itself when you are done.</p>
+
+  <div class="note zh">计算全部发生在你的设备上，局面不会上传到任何服务器。</div>
+  <div class="note en">Everything is computed on your device; positions are never uploaded.</div>
+
+  <div class="cta">
+    <a class="primary" href="./"><span class="zh">打开 Meter Web</span><span class="en">Open Meter Web</span></a>
+    <a href="../"><span class="zh">官网</span><span class="en">Website</span></a>
+    <a href="https://www.gomocalc.com/#/" target="_blank" rel="noopener"><span class="zh">Rapfi 官方计算器</span><span class="en">Rapfi official calculator</span></a>
+  </div>
+</main>
+
+<div class="foot">Meter Gomoku · Meter Web · Rapfi NNUE / WebAssembly</div>
+
+<script>
+(function () {
+  var KEY = 'mgcalc.guide.lang';
+  var THEME = 'mgcalc.guide.theme';
+  function setLang(en) {
+    document.body.classList.toggle('lang-en', en);
+    document.documentElement.lang = en ? 'en' : 'zh-CN';
+    document.getElementById('lg-zh').classList.toggle('on', !en);
+    document.getElementById('lg-en').classList.toggle('on', en);
+    try { localStorage.setItem(KEY, en ? 'en' : 'zh'); } catch (e) {}
+  }
+  function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.style.colorScheme = t;
+    try { localStorage.setItem(THEME, t); } catch (e) {}
+  }
+  document.getElementById('lg-zh').addEventListener('click', function () { setLang(false); });
+  document.getElementById('lg-en').addEventListener('click', function () { setLang(true); });
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  var lang = '', theme = '';
+  try { lang = localStorage.getItem(KEY) || ''; theme = localStorage.getItem(THEME) || ''; } catch (e) {}
+  if (!lang) lang = /^en/i.test(navigator.language || '') ? 'en' : 'zh';
+  setLang(lang === 'en');
+  setTheme(theme === 'dark' || (!theme && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light');
+})();
+</script>
+</body>
+</html>

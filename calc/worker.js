@@ -19,10 +19,23 @@ function post(msg) {
   self.postMessage(msg);
 }
 
-/* ---- boot progress -------------------------------------------------------
-   The weights package is ~41 MB, so the worker reports real download
-   percentages while it streams the files into memory. The page turns that
-   into the thin bar of the loading panel. */
+/* ---- engine assets -------------------------------------------------------
+   The weights package is ~41 MB and GitHub Pages is unreliable from mainland
+   China, so every file is fetched from a list of routes: the site itself first,
+   then public GitHub mirrors (several of them terminate in China). Each route is
+   probed with a one-byte range request, the quickest one wins, and the download
+   is split into 4 MB ranges so a single stalled chunk can be retried on another
+   route instead of throwing the whole download away. */
+const MIRROR_ROOT = [
+  'https://ghproxy.net/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://gh-proxy.com/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://ghfast.top/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+  'https://cdn.jsdelivr.net/gh/xiaoxu4452/Meter-Gomoku@main/calc/engine/',
+  'https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
+];
+const CHUNK = 4 * 1024 * 1024;
+const LANES = 3;
+
 let loadPct = -1;
 let loadAt = 0;
 function postLoad(pct, key) {
@@ -35,30 +48,182 @@ function postLoad(pct, key) {
   post({ t: 'load', pct: p, key: key || null });
 }
 
-async function fetchWithProgress(url, from, to) {
-  const res = await fetch(url, { cache: 'force-cache' });
-  if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
-  const total = +res.headers.get('content-length') || 0;
-  if (!res.body) {
-    const buf = await res.arrayBuffer();
-    postLoad(to, null);
+function isCross(url) {
+  return url.indexOf(self.location.origin + '/') !== 0;
+}
+
+function reqOpts(url, extra) {
+  const o = {
+    mode: isCross(url) ? 'cors' : 'same-origin',
+    credentials: isCross(url) ? 'omit' : 'same-origin',
+    cache: 'no-store',
+    signal: extra && extra.signal,
+  };
+  if (extra && extra.headers) o.headers = extra.headers;
+  return o;
+}
+
+/* one-byte range probe: cheap, and it also tells us whether ranges are honoured */
+async function probeRoute(url) {
+  const t0 = Date.now();
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=0-0' } }));
+    if (!res.ok) return null;
+    const cr = res.headers.get('content-range') || '';
+    const total = cr ? (+cr.split('/')[1] || 0) : (+res.headers.get('content-length') || 0);
+    const ranged = res.status === 206;
+    try { ctl.abort(); } catch (e) {}
+    return { url, ms: Date.now() - t0, total, ranged };
+  } catch (err) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchRange(url, start, end) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 90000);
+  try {
+    const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=' + start + '-' + end } }));
+    if (res.status !== 206) throw new Error('range not honoured: ' + res.status);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.length !== end - start + 1) throw new Error('short chunk');
     return buf;
+  } finally {
+    clearTimeout(timer);
   }
-  const reader = res.body.getReader();
-  const chunks = [];
-  let got = 0;
-  for (;;) {
-    const step = await reader.read();
-    if (step.done) break;
-    chunks.push(step.value);
-    got += step.value.length;
-    const frac = total ? Math.min(1, got / total) : 0;
-    postLoad(from + (to - from) * frac, null);
+}
+
+async function fetchWhole(route, from, to) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 240000);
+  try {
+    const res = await fetch(route.url, reqOpts(route.url, { signal: ctl.signal }));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const total = +res.headers.get('content-length') || route.total || 0;
+    const reader = res.body && res.body.getReader();
+    if (!reader) {
+      const buf = await res.arrayBuffer();
+      postLoad(to, null);
+      return buf;
+    }
+    const chunks = [];
+    let got = 0;
+    for (;;) {
+      const step = await reader.read();
+      if (step.done) break;
+      chunks.push(step.value);
+      got += step.value.length;
+      postLoad(from + (to - from) * (total ? Math.min(1, got / total) : 0), null);
+    }
+    const out = new Uint8Array(got);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out.buffer;
+  } finally {
+    clearTimeout(timer);
   }
-  const out = new Uint8Array(got);
-  let off = 0;
-  for (const c of chunks) { out.set(c, off); off += c.length; }
+}
+
+/* pick the routes that answer, quickest first */
+async function rankRoutes(urls) {
+  const hits = (await Promise.all(urls.map(probeRoute))).filter(Boolean);
+  hits.sort((a, b) => a.ms - b.ms);
+  return hits;
+}
+
+async function downloadRanged(routes, total, from, to) {
+  const out = new Uint8Array(total);
+  const parts = [];
+  for (let s = 0; s < total; s += CHUNK) parts.push([s, Math.min(total - 1, s + CHUNK - 1)]);
+  let next = 0;
+  let done = 0;
+  let failed = 0;
+  async function lane() {
+    for (;;) {
+      const i = next++;
+      if (i >= parts.length) return;
+      const s = parts[i][0], e = parts[i][1];
+      let ok = false;
+      for (const route of routes) {
+        try {
+          const buf = await fetchRange(route.url, s, e);
+          out.set(buf, s);
+          done += buf.length;
+          postLoad(from + (to - from) * (done / total), null);
+          ok = true;
+          break;
+        } catch (err) { /* try the next route for this same chunk */ }
+      }
+      if (!ok) { failed++; throw new Error('chunk failed'); }
+    }
+  }
+  const lanes = [];
+  for (let i = 0; i < Math.min(LANES, parts.length); i++) lanes.push(lane());
+  await Promise.all(lanes);
   return out.buffer;
+}
+
+async function downloadFrom(urls, from, to) {
+  const routes = await rankRoutes(urls);
+  if (!routes.length) throw new Error('no route');
+  const best = routes[0];
+  /* Only split into ranges when the quickest route honours them; otherwise one
+     full stream from that same route is faster than reading 10 chunks. */
+  if (best.ranged && best.total > 0) {
+    const ranged = routes.filter((r) => r.ranged && r.total === best.total);
+    return downloadRanged(ranged, best.total, from, to);
+  }
+  let last = null;
+  for (const route of routes) {
+    try { return await fetchWhole(route, from, to); } catch (err) { last = err; }
+  }
+  throw last || new Error('download failed');
+}
+
+/* cached bytes are only trusted when the size marker and the wasm header agree —
+   a truncated entry used to make every later visit fail at instantiate() */
+function looksValid(name, buf, res) {
+  const size = +(res.headers.get('X-Size') || 0);
+  if (!size || buf.byteLength !== size) return false;
+  if (/\.wasm$/.test(name)) {
+    const b = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
+    if (!(b[0] === 0 && b[1] === 0x61 && b[2] === 0x73 && b[3] === 0x6d)) return false;
+  }
+  if (/\.data$/.test(name) && buf.byteLength < 1024 * 1024) return false;
+  return true;
+}
+
+async function loadAsset(url, cache, from, to) {
+  const abs = new URL(url, self.location.href).href;
+  const name = abs.split('/').pop();
+  if (cache) {
+    try {
+      const hit = await cache.match(abs, { ignoreSearch: true });
+      if (hit) {
+        const buf = await hit.arrayBuffer();
+        if (looksValid(name, buf, hit)) {
+          postLoad(to, 'loadCached');
+          return buf;
+        }
+        await cache.delete(abs, { ignoreSearch: true });
+      }
+    } catch (err) {}
+  }
+  const urls = [abs].concat(MIRROR_ROOT.map((base) => base + name));
+  const buf = await downloadFrom(urls, from, to);
+  if (!buf || !buf.byteLength) throw new Error('empty download');
+  if (cache) {
+    try {
+      await cache.put(abs, new Response(buf, {
+        headers: { 'Content-Type': 'application/octet-stream', 'X-Size': String(buf.byteLength) },
+      }));
+    } catch (err) {}
+  }
+  return buf;
 }
 
 function parseIntegerList(text) {
@@ -229,17 +394,21 @@ async function boot(opts) {
     postLoad(2, 'loadFetch');
     importScripts(opts.urls.js);
     postLoad(4, 'loadCached');
+    let cache = null;
+    try { cache = await caches.open(opts.cacheName || 'mgcalc-engine'); } catch (err) {}
     try {
-      // Stream both engine files once, keeping the bytes so Emscripten does not
-      // have to fetch them a second time (the 41 MB weights dominate the load).
-      const data = await fetchWithProgress(opts.urls.data, 4, 86);
-      const wasm = await fetchWithProgress(opts.urls.wasm, 86, 95);
+      // Load both files through the route picker and hand the bytes to Emscripten,
+      // so nothing is fetched twice and a dead route cannot stall the start.
+      const data = await loadAsset(opts.urls.data, cache, 4, 88);
+      const wasm = await loadAsset(opts.urls.wasm, cache, 88, 96);
       const dataUrl = URL.createObjectURL(new Blob([data]));
       const wasmUrl = URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' }));
       blobs.push(dataUrl, wasmUrl);
       urls = { js: opts.urls.js, wasm: wasmUrl, data: dataUrl };
     } catch (err) {
-      urls = opts.urls;   // fall back to plain URLs; the module fetches them itself
+      // last resort: let the module fetch the plain URLs itself
+      post({ t: 'stderr', msg: 'asset load failed: ' + String((err && err.message) || err) });
+      urls = opts.urls;
     }
     postLoad(96, 'loadModule');
     const mod = await Rapfi({

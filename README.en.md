@@ -22,7 +22,7 @@ assets/calc-og.png    1200×630 social preview image
 
 | Entry | What it is | URL |
 |---|---|---|
-| `/calc/` | **Meter Web** — this project's own web calculator: the desktop dashboard and win-rate bar, balance points, per-colour AI, board style and think time | <https://xiaoxu4452.github.io/Meter-Gomoku/calc/> |
+| `/calc/` | **Meter Web** — this project's own web calculator: the desktop dashboard and win-rate bar, balance points, per-colour AI, 15 board palettes, stone style and think time | <https://xiaoxu4452.github.io/Meter-Gomoku/calc/> |
 | External | **Rapfi official calculator** (gomocalc, maintained by the Rapfi author) | <https://www.gomocalc.com/#/> |
 
 `/calc/` is plain static HTML + CSS + JS: `worker.js` loads the Rapfi WebAssembly build with
@@ -33,6 +33,7 @@ only — no play, review, vision or Link.
 
 ```
 calc/index.html   UI (board above the dashboard in portrait, two columns in landscape)
+calc/guide.html   printable guide page (Chinese + English)
 calc/app.js       board drawing, search scheduling, settings, ZH/EN switching
 calc/worker.js    engine bridge + asset preloading progress
 calc/sw.js        COOP/COEP injection, shell and engine caches, mirror fallback

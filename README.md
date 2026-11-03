@@ -21,7 +21,7 @@ assets/calc-og.png    1200×630 社交分享缩略图
 
 | 入口 | 是什么 | 地址 |
 |---|---|---|
-| `/calc/` | **Meter Web**，本站自研的网页版计算器：桌面版同款仪表盘与胜率条、平衡点、双色 AI、棋盘样式与思考时间可调 | <https://xiaoxu4452.github.io/Meter-Gomoku/calc/> |
+| `/calc/` | **Meter Web**，本站自研的网页版计算器：桌面版同款仪表盘与胜率条、平衡点、双色 AI、15 种棋盘配色、棋子样式与思考时间可调 | <https://xiaoxu4452.github.io/Meter-Gomoku/calc/> |
 | 外链 | **Rapfi 官方计算器**（gomocalc，Rapfi 作者维护） | <https://www.gomocalc.com/#/> |
 
 `/calc/` 是纯静态的 HTML + CSS + JS：`worker.js` 用 `importScripts` 加载 Rapfi 的
@@ -31,6 +31,7 @@ WebAssembly 构建并直接跑引擎协议，`sw.js` 注入 COOP/COEP（让 pthr
 
 ```
 calc/index.html   界面（竖屏棋盘在上、仪表盘在下；横屏两栏）
+calc/guide.html   使用说明小网页（中英对照）
 calc/app.js       棋盘绘制、分析调度、设置与中英切换
 calc/worker.js    引擎桥接 + 资源预加载进度
 calc/sw.js        COOP/COEP 注入、外壳与引擎缓存、镜像回退
