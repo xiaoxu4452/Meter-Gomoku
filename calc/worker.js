@@ -33,8 +33,6 @@ const MIRROR_ROOT = [
   'https://cdn.jsdelivr.net/gh/xiaoxu4452/Meter-Gomoku@main/calc/engine/',
   'https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
 ];
-const CHUNK = 4 * 1024 * 1024;
-const LANES = 3;
 
 let loadPct = -1;
 let loadAt = 0;
@@ -83,46 +81,43 @@ async function probeRoute(url) {
   }
 }
 
-async function fetchRange(url, start, end) {
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 90000);
-  try {
-    const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=' + start + '-' + end } }));
-    if (res.status !== 206) throw new Error('range not honoured: ' + res.status);
-    const buf = new Uint8Array(await res.arrayBuffer());
-    if (buf.length !== end - start + 1) throw new Error('short chunk');
-    return buf;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function fetchWhole(route, from, to) {
+/* stream one route into memory, with progress and hard sanity checks: a proxy
+   that answers with an HTML error page used to be cached as if it were the
+   wasm binary, which then failed at instantiate() on every later visit */
+async function fetchWhole(url, from, to, meta) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 240000);
   try {
-    const res = await fetch(route.url, reqOpts(route.url, { signal: ctl.signal }));
+    const res = await fetch(url, reqOpts(url, { signal: ctl.signal }));
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const total = +res.headers.get('content-length') || route.total || 0;
+    const declared = +res.headers.get('content-length') || 0;
+    if (meta.min && declared && declared < meta.min) throw new Error('too small: ' + declared);
     const reader = res.body && res.body.getReader();
+    let buf;
     if (!reader) {
-      const buf = await res.arrayBuffer();
+      buf = await res.arrayBuffer();
       postLoad(to, null);
-      return buf;
+    } else {
+      const chunks = [];
+      let got = 0;
+      for (;;) {
+        const step = await reader.read();
+        if (step.done) break;
+        chunks.push(step.value);
+        got += step.value.length;
+        postLoad(from + (to - from) * (declared ? Math.min(1, got / declared) : 0), null);
+      }
+      const out = new Uint8Array(got);
+      let off = 0;
+      for (const c of chunks) { out.set(c, off); off += c.length; }
+      buf = out.buffer;
     }
-    const chunks = [];
-    let got = 0;
-    for (;;) {
-      const step = await reader.read();
-      if (step.done) break;
-      chunks.push(step.value);
-      got += step.value.length;
-      postLoad(from + (to - from) * (total ? Math.min(1, got / total) : 0), null);
+    if (meta.min && buf.byteLength < meta.min) throw new Error('short read: ' + buf.byteLength);
+    if (meta.wasm) {
+      const m = new Uint8Array(buf, 0, 4);
+      if (!(m[0] === 0 && m[1] === 0x61 && m[2] === 0x73 && m[3] === 0x6d)) throw new Error('not wasm');
     }
-    const out = new Uint8Array(got);
-    let off = 0;
-    for (const c of chunks) { out.set(c, off); off += c.length; }
-    return out.buffer;
+    return buf;
   } finally {
     clearTimeout(timer);
   }
@@ -135,57 +130,26 @@ async function rankRoutes(urls) {
   return hits;
 }
 
-async function downloadRanged(routes, total, from, to) {
-  const out = new Uint8Array(total);
-  const parts = [];
-  for (let s = 0; s < total; s += CHUNK) parts.push([s, Math.min(total - 1, s + CHUNK - 1)]);
-  let next = 0;
-  let done = 0;
-  let failed = 0;
-  async function lane() {
-    for (;;) {
-      const i = next++;
-      if (i >= parts.length) return;
-      const s = parts[i][0], e = parts[i][1];
-      let ok = false;
-      for (const route of routes) {
-        try {
-          const buf = await fetchRange(route.url, s, e);
-          out.set(buf, s);
-          done += buf.length;
-          postLoad(from + (to - from) * (done / total), null);
-          ok = true;
-          break;
-        } catch (err) { /* try the next route for this same chunk */ }
-      }
-      if (!ok) { failed++; throw new Error('chunk failed'); }
-    }
-  }
-  const lanes = [];
-  for (let i = 0; i < Math.min(LANES, parts.length); i++) lanes.push(lane());
-  await Promise.all(lanes);
-  return out.buffer;
-}
-
-async function downloadFrom(urls, from, to) {
-  const routes = await rankRoutes(urls);
-  if (!routes.length) throw new Error('no route');
-  const best = routes[0];
-  /* Only split into ranges when the quickest route honours them; otherwise one
-     full stream from that same route is faster than reading 10 chunks. */
-  if (best.ranged && best.total > 0) {
-    const ranged = routes.filter((r) => r.ranged && r.total === best.total);
-    return downloadRanged(ranged, best.total, from, to);
-  }
+/* The site itself is tried first and trusted only when the bytes pass the size
+   and magic checks; public mirrors are the fallback for networks where GitHub
+   Pages is unreachable. Sequential on purpose: one good stream beats several
+   half-broken chunk streams from proxies. */
+async function downloadFrom(urls, meta, from, to) {
+  const list = urls.slice();
+  const first = list.shift();
   let last = null;
+  try {
+    return await fetchWhole(first, from, to, meta);
+  } catch (err) {
+    last = err;
+  }
+  const routes = await rankRoutes(list);
   for (const route of routes) {
-    try { return await fetchWhole(route, from, to); } catch (err) { last = err; }
+    try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
   }
   throw last || new Error('download failed');
 }
 
-/* cached bytes are only trusted when the size marker and the wasm header agree —
-   a truncated entry used to make every later visit fail at instantiate() */
 function looksValid(name, buf, res) {
   const size = +(res.headers.get('X-Size') || 0);
   if (!size || buf.byteLength !== size) return false;
@@ -200,6 +164,7 @@ function looksValid(name, buf, res) {
 async function loadAsset(url, cache, from, to) {
   const abs = new URL(url, self.location.href).href;
   const name = abs.split('/').pop();
+  const meta = /.wasm$/.test(name) ? { min: 100000, wasm: true } : { min: 200000 };
   if (cache) {
     try {
       const hit = await cache.match(abs, { ignoreSearch: true });
@@ -214,7 +179,7 @@ async function loadAsset(url, cache, from, to) {
     } catch (err) {}
   }
   const urls = [abs].concat(MIRROR_ROOT.map((base) => base + name));
-  const buf = await downloadFrom(urls, from, to);
+  const buf = await downloadFrom(urls, meta, from, to);
   if (!buf || !buf.byteLength) throw new Error('empty download');
   if (cache) {
     try {

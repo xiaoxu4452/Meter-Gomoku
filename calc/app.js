@@ -8,7 +8,7 @@ const SETTINGS_KEY = 'mgcalc.settings.v1';
 const THEME_KEY = 'mgcalc.theme';
 const RELOAD_KEY = 'mgcalc.isolation.reload';
 /* keeps the 41 MB package across UI releases — must match sw.js */
-const ENGINE_CACHE = 'mgcalc-engine-20261105a';
+const ENGINE_CACHE = 'mgcalc-engine-20261105b';
 const ENGINE_FILES = {
   multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm', data: 'engine/rapfi.data' },
   single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm', data: 'engine/rapfi.data' },

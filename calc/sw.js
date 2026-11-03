@@ -6,10 +6,10 @@
    make sure the engine cache survives shell updates. */
 'use strict';
 
-const VERSION = '20261105e';
+const VERSION = '20261105f';
 /* Keep the engine cache name stable across UI releases: worker.js stores the
    weights under this name, and a new shell must not throw 41 MB away. */
-const ENGINE_VERSION = '20261105a';
+const ENGINE_VERSION = '20261105b';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
 const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
@@ -70,8 +70,16 @@ self.addEventListener('fetch', (e) => {
   let url;
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;
-  /* engine assets are downloaded by worker.js over several routes — hands off */
-  if (url.pathname.indexOf('/engine/') >= 0) return;
+  /* engine assets are downloaded by worker.js as plain streams — hands off.
+     The one exception is the pthread worker Emscripten spawns from the engine
+     script: it is a subresource of a COEP: require-corp page, so without the
+     CORP header Chrome refuses it and the multi-threaded engine goes deaf. */
+  if (url.pathname.indexOf('/engine/') >= 0) {
+    if (req.destination === 'worker' || req.destination === 'sharedworker') {
+      e.respondWith(fetch(req).then((r) => withHeaders(r, false)).catch(() => Response.error()));
+    }
+    return;
+  }
 
   if (req.mode === 'navigate') {
     e.respondWith(networkFirst(req, true));
