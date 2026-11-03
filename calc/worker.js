@@ -295,7 +295,15 @@ function emitBalanceTick() {
   post({ t: 'balance-tick', id: bal.id, gen: bal.gen, points: pts, stats });
 }
 
+/* any exception inside the parser kills the whole output stream, so trap it and
+   report it to the page instead of going silent */
 function onLine(raw) {
+  try { handleLine(raw); } catch (err) {
+    post({ t: 'stderr', msg: 'parse ' + ((err && err.message) || err) + ' | ' + String(raw).slice(0, 70) });
+  }
+}
+
+function handleLine(raw) {
   const line = String(raw).replace(/\r/g, '').trim();
   if (!line) return;
 
@@ -566,11 +574,24 @@ function resetEngine(moves, rule) {
 
 self.onmessage = (e) => {
   const d = e.data || {};
-  if (d.t === 'init') boot(d);
-  else if (d.t === 'search') search(d.job);
-  else if (d.t === 'stop') { if (bal) stopBalance(); else stopSearch(); }
-  else if (d.t === 'balance') balance(d.job);
-  else if (d.t === 'config') applyConfig(d.threads, d.hashMB, d.caution, d.rule, false);
-  else if (d.t === 'reset') resetEngine(d.moves, d.rule);
-  else if (d.t === 'shutdown') self.close();
+  try {
+    if (d.t === 'init') boot(d);
+    else if (d.t === 'search') search(d.job);
+    else if (d.t === 'stop') { if (bal) stopBalance(); else stopSearch(); }
+    else if (d.t === 'balance') balance(d.job);
+    else if (d.t === 'config') applyConfig(d.threads, d.hashMB, d.caution, d.rule, false);
+    else if (d.t === 'reset') resetEngine(d.moves, d.rule);
+    else if (d.t === 'shutdown') self.close();
+  } catch (err) {
+    post({ t: 'stderr', msg: 'handler ' + d.t + ': ' + ((err && err.message) || err) });
+  }
 };
+
+/* never fail silently: an uncaught error inside the worker used to leave the
+   page waiting for a search that would never answer */
+self.onerror = (e) => {
+  post({ t: 'stderr', msg: 'worker ' + ((e && e.message) || e) });
+};
+self.addEventListener('unhandledrejection', (e) => {
+  post({ t: 'stderr', msg: 'promise ' + ((e.reason && e.reason.message) || e.reason) });
+});

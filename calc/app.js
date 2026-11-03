@@ -1015,7 +1015,7 @@ function onEngineMessage(ev) {
     toast(T('engineErr') + ': ' + (d.error || ''));
     return;
   }
-  if (d.t === 'stderr') return;
+  if (d.t === 'stderr') { if (window.console) console.warn('[engine]', d.msg); return; }
   if (d.t === 'exit') {
     chip.textContent = T('engineExit');
     chip.className = 'chip err';
