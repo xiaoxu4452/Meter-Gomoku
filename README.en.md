@@ -1,20 +1,22 @@
 # Meter Gomoku — Website
 
-Static site and documentation for Meter Gomoku, a Gomoku AI trainer for Windows. Every UI preview is
-frozen from the running app's own DOM (real elements, flat PNG canvases), so the screenshots are
-pixel-accurate but purely read-only.
-
-Chinese version: [README.md](README.md).
+Static site and usage guide for Meter Gomoku, a Gomoku AI trainer for Windows. It covers the main
+window, analysis tools and engine settings, plus a full walkthrough from starting a game to the
+three-state pause key. Chinese version: [README.md](README.md).
 
 ```
-index.html            main page (single file)
-preview/app-*.html    static snapshots captured from the running app
+index.html            main page (single file, ZH/EN toggle, light/dark theme)
+preview/app-*.html    main / analysis / settings interface pages in both languages
 preview/app.css       the app's own stylesheet
-preview/assets/*.png  canvas bitmaps exported while freezing
+preview/assets/*.png  board and static bitmaps used by the interface
+assets/calc.png       site icon / favicon
+assets/calc-og.png    1200×630 social preview image
 ```
 
-- Site: <https://xiaoxu4452.github.io/Meter-Gomoku-AI-trainer-Line-Version/>
-- English build: `index.html?lang=en`
+- Site: <https://xiaoxu4452.github.io/Meter-Gomoku/>
+- English build: `?lang=en`
+- Download the latest release: <https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
+- Project / site source (Pages repository): <https://github.com/xiaoxu4452/Meter-Gomoku>
 
 ## Web calculator
 
@@ -30,9 +32,9 @@ ships with the site.
 Any static server works, for example `python -m http.server 8000` and then open <http://localhost:8000/>.
 Opening the file directly mostly works too, though some browsers block `file://` iframes.
 
-## Capturing the previews
+## Updating the interface pages
 
-The capture scripts are not part of this repository (they need the app's debug port). Start
+The export scripts are not part of this repository (they need the app's debug port). Start
 `Desktop GomokuTrainer.exe` with `GB_WV2_ARGS_EXTRA=--remote-debugging-port=9222`, drive the UI into the
-target state over CDP, serialise `document.body`, and flatten visible canvases to PNG injected back as
+target state, export `document.body`, and convert visible canvases to PNG injected back as
 `background-image`.

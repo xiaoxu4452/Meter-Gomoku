@@ -1,19 +1,21 @@
 # Meter Gomoku — 官网 / 文档站
 
-Meter Gomoku（五子棋 AI 训练器）的静态官网与说明。界面预览由软件自身运行时的 DOM 冻结生成
-（真实元素 + canvas 转 PNG），只做静态展示、不可交互。
-
-英文说明见 [README.en.md](README.en.md)。
+Meter Gomoku（五子棋 AI 训练器）的静态官网与使用说明，包含主界面、计算分析、引擎设置等界面，
+以及从开局到暂停键的完整操作指南。英文说明见 [README.en.md](README.en.md)。
 
 ```
-index.html            主站（单文件）
-preview/app-*.html    从运行中的软件抓取的静态界面快照
+index.html            主站（单文件，中英切换、浅色/深色主题）
+preview/app-*.html    主界面 / 分析 / 设置的中英文界面页
 preview/app.css       软件本体样式
-preview/assets/*.png  冻结时转出的 canvas 位图
+preview/assets/*.png  界面用的棋盘与静态位图
+assets/calc.png       站点图标 / favicon
+assets/calc-og.png    1200×630 社交分享缩略图
 ```
 
-- 访问：<https://xiaoxu4452.github.io/Meter-Gomoku-AI-trainer-Line-Version/>
-- 英文直达：`index.html?lang=en`
+- 访问：<https://xiaoxu4452.github.io/Meter-Gomoku/>
+- 英文直达：`?lang=en`
+- 下载最新版本：<https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
+- 本项目 / 站点源码（Pages 部署仓库）：<https://github.com/xiaoxu4452/Meter-Gomoku>
 
 ## 网页版计算器
 
@@ -28,8 +30,8 @@ preview/assets/*.png  冻结时转出的 canvas 位图
 任意静态服务器，例如 `python -m http.server 8000` 后打开 <http://localhost:8000/>。直接双击也能看，
 但部分浏览器会限制 iframe 对 `file://` 的访问。
 
-## 生成快照
+## 更新界面页
 
-快照脚本不在本仓库里（依赖软件的调试端口）。流程：以 `GB_WV2_ARGS_EXTRA=--remote-debugging-port=9222`
-启动 `Desktop GomokuTrainer.exe`，用 CDP 把界面切到目标状态后序列化 `document.body`，可见 `canvas`
-转 PNG 并以 `background-image` 回填。
+界面页的更新脚本不在本仓库里（依赖软件的调试端口）。流程：以 `GB_WV2_ARGS_EXTRA=--remote-debugging-port=9222`
+启动 `Desktop GomokuTrainer.exe`，把界面切到目标状态后导出 `document.body`，并把可见 `canvas`
+转成 PNG、以 `background-image` 回填。
