@@ -210,10 +210,11 @@ function hexLum(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 /* stone presets: realistic and flat, mirroring the desktop trainer.
-   Both stones now carry a matching outer ring — white a fine black one, black a
-   fine white one — at 0.4× the old stroke, so the pair reads evenly on any wood
-   tone without turning into heavy 3-D. The realistic preset adds one restrained
-   right-bottom sheen (drawn in paintStone); flat stays completely clean. */
+   Both stones carry a matching outer ring — white a fine black one, black a
+   fine white one — and the flat ring is drawn at half the former weight, so the
+   pair reads evenly on any wood tone without turning into heavy 3-D. The
+   realistic preset adds one restrained right-bottom sheen (drawn in
+   paintStone); flat stays completely clean. */
 const STONES = {
   flat: {
     black: { fill: '#191715', edge: 'rgba(248,246,238,.95)' },
@@ -554,7 +555,7 @@ function stoneRadius() { return geo.cell * 0.485; }
 
 /* paint one stone with the style picked in the settings.
    Both presets are copied from the desktop trainer (#spf-stones):
-     flat  solid disc + 1 px hairline (white gets black, black gets white)
+     flat  solid disc + half-pixel hairline (white gets black, black gets white)
      real  radial-gradient(circle at 32% 28%) with the desktop 4-stop body,
            one inset top light and a small drop shadow                    */
 function paintStone(cx, cy, r, c) {
@@ -599,7 +600,9 @@ function paintStone(cx, cy, r, c) {
 
   bctx.beginPath();
   bctx.arc(cx, cy, r, 0, Math.PI * 2);
-  bctx.lineWidth = Math.max(0.6, DPR * (real ? 1 : 1.15));
+  /* flat keeps a half-pixel hairline: white gets a black ring, black gets a
+     white one, both at half the weight used before so the disc reads clean */
+  bctx.lineWidth = real ? Math.max(0.6, DPR * 1) : Math.max(0.3, DPR * 0.575);
   bctx.strokeStyle = p.edge;
   bctx.stroke();
 }

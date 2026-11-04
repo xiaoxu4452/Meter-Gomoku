@@ -180,7 +180,8 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
   background:linear-gradient(90deg,#6338ff,#a78bff);
   box-shadow:0 0 9px rgba(122,90,248,.85),0 0 22px rgba(122,90,248,.4)}
 .wr-w{flex:1 1 auto;border-radius:0 999px 999px 0;
-  background:linear-gradient(90deg,#2f7fd6,#79c8ff);
+  /* mirrored, so the bright end of both halves meets at the middle seam */
+  background:linear-gradient(90deg,#79c8ff,#2f7fd6);
   box-shadow:0 0 9px rgba(79,143,214,.8),0 0 22px rgba(79,143,214,.36)}
 html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
 
