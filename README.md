@@ -12,10 +12,9 @@ assets/calc.png       站点图标 / favicon
 assets/calc-og.png    1200×630 社交分享缩略图
 ```
 
-- 访问：<https://xiaoxu4452.github.io/Meter-Gomoku/>
-- 英文直达：`?lang=en`
-- 下载最新版本：<https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
-- 本项目 / 站点源码（Pages 部署仓库）：<https://github.com/xiaoxu4452/Meter-Gomoku>
+
+- 下载最新桌面版本：<https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
+
 
 ## 两个在线计算器
 
