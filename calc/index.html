@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5">
 <meta name="theme-color" content="#edf1f6">
 <title>五子棋计算器 · Meter Gomoku</title>
-<link rel="icon" href="../assets/calc.png">
+<!-- the shared calc.png is reused verbatim for the favicon, the header mark and
+     the share card — never resized or regenerated -->
+<link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
+<link rel="apple-touch-icon" href="../assets/calc.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="五子棋计算器 · Meter Gomoku">
+<meta property="og:description" content="Rapfi NNUE 引擎在浏览器本地运行：深度、速度、胜率、分析路线一屏可见。">
+<meta property="og:url" content="https://xiaoxu4452.github.io/Meter-Gomoku/calc/">
+<meta property="og:image" content="https://xiaoxu4452.github.io/Meter-Gomoku/assets/calc.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="五子棋计算器 · Meter Gomoku">
+<meta name="twitter:image" content="https://xiaoxu4452.github.io/Meter-Gomoku/assets/calc.png">
 <script>
 /* apply the stored theme before first paint (no flash) */
 (function () {
@@ -33,11 +44,6 @@
       </div>
     </div>
     <div class="top-right">
-      <button id="langBtn" class="lang-btn" type="button" title="中文 / English" aria-label="Language">中 / EN</button>
-      <button id="themeBtn" class="icon-btn" type="button" aria-label="主题" title="主题" aria-pressed="false">
-        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
-      </button>
       <button id="btnSettings" class="icon-btn" type="button" aria-label="设置" title="设置">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15.4a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 11a2 2 0 1 1 0 4Z"/></svg>
       </button>
@@ -143,7 +149,7 @@
   </section>
 
   <footer class="foot">
-    <span id="engineChip" class="chip" data-i18n-title="tipEngine">引擎加载中</span>
+    <span id="engineChip" class="chip" data-i18n-title="tipEngine" data-i18n="engineIdle">引擎待命 · 按需加载</span>
     <span class="foot-note" data-i18n="foot">Rapfi NNUE 引擎 · 全部计算在本机浏览器完成</span>
   </footer>
 </div>
@@ -156,7 +162,59 @@
     </button>
   </div>
   <div class="dialog-body">
-    <div class="debug" id="debugBox"></div>
+    <div class="set-group" data-i18n="grpLook">外观与语言</div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="langLabel">语言</b><span data-i18n="langHint">切换后整页文案立即更新</span></div>
+      <div class="seg" id="segLang" role="group" aria-label="语言 / Language">
+        <button type="button" data-v="zh">中文</button>
+        <button type="button" data-v="en">English</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="theme">主题</b><span data-i18n="themeHint">深浅色立即生效，并记住你的选择</span></div>
+      <div class="seg" id="segTheme" role="group" aria-label="主题">
+        <button type="button" data-v="light" data-i18n="themeLight">浅色</button>
+        <button type="button" data-v="dark" data-i18n="themeDark">深色</button>
+        <button type="button" data-v="system" data-i18n="themeSystem">跟随系统</button>
+      </div>
+    </div>
+
+    <div class="set-group" data-i18n="grpBoard">棋盘与棋子</div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="stoneStyle">棋子样式</b><span data-i18n="stoneStyleHint">仿真 / 扁平两档，与桌面训练器一致</span></div>
+      <div class="seg" id="segStone" role="group" aria-label="棋子样式">
+        <button type="button" data-v="flat" data-i18n="stoneFlat">扁平</button>
+        <button type="button" data-v="real" data-i18n="stoneReal">仿真</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="boardColor">棋盘颜色</b><span data-i18n="boardColorHint">15 种预置色调，盘线随底色自动配深</span></div>
+      <div class="swatches" id="swBoard" role="group" aria-label="棋盘颜色"></div>
+    </div>
+
+    <div class="set-row switch-row">
+      <div class="set-label"><b data-i18n="showNum">显示手数</b><span data-i18n="showNumHint">在棋子上标出第几手，最后一手标红</span></div>
+      <button id="swNum" class="switch" type="button" role="switch" aria-checked="true" data-i18n-title="showNum" aria-label="显示手数">
+        <span class="knob"></span>
+      </button>
+    </div>
+
+    <div class="set-group" data-i18n="grpRule">对局规则</div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="rule">规则</b><span id="ruleHint"></span></div>
+      <div class="seg" id="segRule" role="group" aria-label="五子棋规则">
+        <button type="button" data-v="0" data-i18n="rule0">无禁手</button>
+        <button type="button" data-v="1" data-i18n="rule1">长连不赢</button>
+        <button type="button" data-v="2" data-i18n="rule2">连珠禁手</button>
+      </div>
+    </div>
+
+    <div class="set-group" data-i18n="grpEngine">引擎与搜索</div>
 
     <div class="set-row">
       <div class="set-label"><b data-i18n="think">思考时间</b><span data-i18n="thinkHint">每次计算分析的时长</span></div>
@@ -179,42 +237,13 @@
     </div>
 
     <div class="set-row">
-      <div class="set-label"><b data-i18n="stoneStyle">棋子样式</b><span data-i18n="stoneStyleHint">与桌面训练器一致的三档</span></div>
-      <div class="seg" id="segStone" role="group" aria-label="棋子样式">
-        <button type="button" data-v="flat" data-i18n="stoneFlat">扁平</button>
-        <button type="button" data-v="real" data-i18n="stoneReal">仿真</button>
-      </div>
-    </div>
-
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="boardColor">棋盘颜色</b><span data-i18n="boardColorHint">15 种预置色调，盘线随底色自动配深</span></div>
-      <div class="swatches" id="swBoard" role="group" aria-label="棋盘颜色"></div>
-    </div>
-
-    <div class="set-row switch-row">
-      <div class="set-label"><b data-i18n="showNum">显示手数</b><span data-i18n="showNumHint">在棋子上标出第几手，最后一手标红</span></div>
-      <button id="swNum" class="switch" type="button" role="switch" aria-checked="false" data-i18n-title="showNum" aria-label="显示手数">
-        <span class="knob"></span>
-      </button>
-    </div>
-
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="rule">规则</b><span id="ruleHint"></span></div>
-      <div class="seg" id="segRule" role="group" aria-label="五子棋规则">
-        <button type="button" data-v="0" data-i18n="rule0">无禁手</button>
-        <button type="button" data-v="1" data-i18n="rule1">长连不赢</button>
-        <button type="button" data-v="2" data-i18n="rule2">连珠禁手</button>
-      </div>
-    </div>
-
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="hash">哈希表大小</b><span data-i18n="hashHint">引擎置换表，越大越省重复计算</span></div>
-      <div class="seg five" id="segHash" role="group" aria-label="哈希表大小">
-        <button type="button" data-v="64">64</button>
-        <button type="button" data-v="128">128</button>
-        <button type="button" data-v="256">256</button>
-        <button type="button" data-v="512">512</button>
-        <button type="button" data-v="1024">1024</button>
+      <div class="set-label"><b data-i18n="hash">哈希表大小（MB）</b><span data-i18n="hashHint">引擎置换表，单位 MB，越大越省重复计算</span></div>
+      <div class="seg five hash-seg" id="segHash" role="group" aria-label="哈希表大小（MB）">
+        <button type="button" data-v="64">64 MB</button>
+        <button type="button" data-v="128">128 MB</button>
+        <button type="button" data-v="256">256 MB</button>
+        <button type="button" data-v="512">512 MB</button>
+        <button type="button" data-v="1024">1024 MB</button>
       </div>
     </div>
 
@@ -248,14 +277,8 @@
       </div>
     </div>
 
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="theme">主题</b><span data-i18n="themeHint">也可跟随系统自动切换</span></div>
-      <div class="seg" id="segTheme" role="group" aria-label="主题">
-        <button type="button" data-v="light" data-i18n="themeLight">浅色</button>
-        <button type="button" data-v="dark" data-i18n="themeDark">深色</button>
-        <button type="button" data-v="system" data-i18n="themeSystem">跟随系统</button>
-      </div>
-    </div>
+    <div class="set-group" data-i18n="grpDebug">诊断</div>
+    <div class="debug" id="debugBox"></div>
 
     <div class="dialog-foot">
       <button id="btnReset" class="btn text" type="button" data-i18n="reset">恢复默认参数</button>
@@ -264,7 +287,7 @@
   </div>
 </dialog>
 
-<div id="loader" class="loader" role="dialog" aria-modal="true" aria-labelledby="loadTitle" aria-live="polite">
+<div id="loader" class="loader" role="status" aria-live="polite" aria-labelledby="loadTitle">
   <div class="loader-card">
     <div class="loader-top">
       <img src="../assets/calc.png" alt="" width="40" height="40">

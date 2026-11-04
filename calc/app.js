@@ -3,15 +3,20 @@
 /* ============================================================ constants */
 const SIZE = 15;
 const LETTERS = 'ABCDEFGHIJKLMNO';
-const ENGINE_VERSION = '20261103d';
+const ENGINE_VERSION = '20261104e';
 const SETTINGS_KEY = 'mgcalc.settings.v1';
 const THEME_KEY = 'mgcalc.theme';
 const RELOAD_KEY = 'mgcalc.isolation.reload';
 /* keeps the 41 MB package across UI releases — must match sw.js */
-const ENGINE_CACHE = 'mgcalc-engine-20261105b';
+const ENGINE_CACHE = 'mgcalc-engine-20261105c';
+/* Versioned weight/wasm URLs: a new release asks for new cache keys, so the
+   Cache API can answer first (stale copies are never served) and the browser
+   may also keep them as immutable long-lived entries. The JS entry stays plain:
+   Emscripten derives its pthread worker URL from it. */
+const ENGINE_VER = 'v=' + ENGINE_VERSION;
 const ENGINE_FILES = {
-  multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm', data: 'engine/rapfi.data' },
-  single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm', data: 'engine/rapfi.data' },
+  multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm?' + ENGINE_VER, data: 'engine/rapfi.data?' + ENGINE_VER },
+  single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm?' + ENGINE_VER, data: 'engine/rapfi.data?' + ENGINE_VER },
 };
 const HASH_OPTIONS = [64, 128, 256, 512, 1024];
 const HASH_LIMIT_DEFAULT = 1024;
@@ -51,13 +56,16 @@ const I18N = {
     stoneFlat: '扁平', stoneReal: '仿真',
     boardColor: '棋盘颜色', boardColorHint: '15 种预置色调，盘线随底色自动配深',
     showNum: '显示手数', showNumHint: '在棋子上标出第几手，最后一手标红', on: '开', off: '关',
-    rule: '规则', hash: '哈希表大小', hashHint: '引擎置换表，越大越省重复计算',
+    rule: '规则', hash: '哈希表大小（MB）', hashHint: '引擎置换表，单位 MB，越大越省重复计算',
     pointsLabel: '分析点数', pointsHint: '最多显示几个候选（1–8），相邻点只留较强的一个',
     threads: '线程数', range: '选点范围', rangeHint: '引擎候选点筛选的谨慎程度',
     threadSingle: '未隔离，仅单线程可用', threadHintT: '硬件 {hc} 线程，可用上限 {max}',
-    theme: '主题', themeLight: '浅色', themeDark: '深色', themeSystem: '跟随系统', themeHint: '也可跟随系统自动切换',
+    theme: '主题', themeLight: '浅色', themeDark: '深色', themeSystem: '跟随系统', themeHint: '深浅色立即生效，并记住你的选择',
+    langLabel: '语言', langHint: '切换后整页文案立即更新',
+    grpLook: '外观与语言', grpBoard: '棋盘与棋子', grpRule: '对局规则', grpEngine: '引擎与搜索', grpDebug: '诊断',
     reset: '恢复默认参数', done: '完成',
     engineLoading: '引擎加载中', engineReady: '引擎就绪', engineSingle: '单线程', engineErr: '引擎异常',
+    engineIdle: '引擎待命 · 按需加载',
     engineMulti: '多线程 {n} 线程', engineExit: '引擎退出',
     stIdle: '等待', stSearching: '搜索中', stBal: '平衡点搜索中', stAi: 'AI 思考中', stMove: '计算一手',
     stStopped: '已停止', stWinB: '黑方获胜', stWinW: '白方获胜',
@@ -68,6 +76,7 @@ const I18N = {
     tRestartConfirm: '再点一次「重开一局」确认', tRestarted: '已重新开局', tUndo: '已撤回 {p}',
     tWinB: '黑方获胜', tWinW: '白方获胜', tForbidden: '黑方禁手点，不能落子',
     tNoEngine: '引擎加载中，请稍候', tGameOver: '对局已结束，请重开一局', tNoBalance: '空盘没有稳定的平衡点（需开局库），请先落子',
+    tEngineLazy: '正在按需加载引擎，就绪后自动开始…',
     tBalOn: '平衡点：{n} 个点 · 再按一次落子', tBalRunning: '平衡点计算中，请稍候…',
     tBalPlayed: '已在平衡点落子 {p}', tBalOff: '平衡点已关闭', tBalNone: '没有可用的平衡点',
     tAiOn: 'AI 执{n}已开启', tAiOff: 'AI 执{n}已关闭', tBlack: '黑', tWhite: '白',
@@ -114,13 +123,16 @@ const I18N = {
     stoneFlat: 'Flat', stoneReal: 'Realistic',
     boardColor: 'Board colour', boardColorHint: '15 presets — the grid darkens to suit each tone',
     showNum: 'Move numbers', showNumHint: 'Print the move number on each stone; the last one turns red', on: 'On', off: 'Off',
-    rule: 'Rule', hash: 'Hash size', hashHint: 'Transposition table — larger saves more re-search',
+    rule: 'Rule', hash: 'Hash size (MB)', hashHint: 'Transposition table in MB — larger saves more re-search',
     pointsLabel: 'Multi-PV', pointsHint: 'Up to 1–8 candidates; of two neighbouring points only the stronger is drawn',
     threads: 'Threads', range: 'Move range', rangeHint: 'How cautious the candidate filter is',
     threadSingle: 'Not isolated — single thread only', threadHintT: 'Hardware {hc} threads, up to {max}',
-    theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeSystem: 'System', themeHint: 'Or follow the system setting',
+    theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeSystem: 'System', themeHint: 'Applies instantly and is remembered',
+    langLabel: 'Language', langHint: 'Every label on the page switches at once',
+    grpLook: 'Appearance & language', grpBoard: 'Board & stones', grpRule: 'Game rule', grpEngine: 'Engine & search', grpDebug: 'Diagnostics',
     reset: 'Reset defaults', done: 'Done',
     engineLoading: 'Loading engine', engineReady: 'Engine ready', engineSingle: 'single thread', engineErr: 'Engine error',
+    engineIdle: 'Engine idle · loads on demand',
     engineMulti: '{n} threads', engineExit: 'Engine exited',
     stIdle: 'Idle', stSearching: 'Searching', stBal: 'Balancing', stAi: 'AI thinking', stMove: 'Playing one',
     stStopped: 'Stopped', stWinB: 'Black wins', stWinW: 'White wins',
@@ -132,6 +144,7 @@ const I18N = {
     tWinB: 'Black wins', tWinW: 'White wins', tForbidden: 'Forbidden point for Black',
     tNoEngine: 'The engine is still loading', tGameOver: 'Game over — start a new game',
     tNoBalance: 'An empty board has no stable balance point — play a stone first',
+    tEngineLazy: 'Loading the engine on demand — it starts on its own when ready…',
     tBalOn: 'Balance: {n} point(s) · press again to play it', tBalRunning: 'Computing balance points, one moment…',
     tBalPlayed: 'Played the balance point {p}', tBalOff: 'Balance off', tBalNone: 'No balance point available',
     tAiOn: 'AI now plays {n}', tAiOff: 'AI stops playing {n}', tBlack: 'black', tWhite: 'white',
@@ -196,16 +209,21 @@ function hexLum(hex) {
   const r = parseInt(v.slice(0, 2), 16), g = parseInt(v.slice(2, 4), 16), b = parseInt(v.slice(4, 6), 16);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
-/* stone presets: realistic and flat, mirroring the desktop trainer; the flat
-   white stone keeps a black hairline, as requested */
+/* stone presets: realistic and flat, mirroring the desktop trainer.
+   Both stones now carry a matching outer ring — white a fine black one, black a
+   fine white one — at 0.4× the old stroke, so the pair reads evenly on any wood
+   tone without turning into heavy 3-D. The realistic preset adds one restrained
+   right-bottom sheen (drawn in paintStone); flat stays completely clean. */
 const STONES = {
   flat: {
-    black: { fill: '#191715', edge: 'rgba(96,90,82,.65)' },
+    black: { fill: '#191715', edge: 'rgba(248,246,238,.95)' },
     white: { fill: '#eeeadf', edge: '#171614' },
   },
   real: {
-    black: { grad: ['#726d67', '#4a4540', '#241f1b', '#080706'], edge: 'rgba(255,255,255,.18)' },
-    white: { grad: ['#ffffff', '#f8f3e7', '#e0d9c7', '#b8b1a0'], edge: 'rgba(120,112,98,.6)' },
+    /* deliberately low-contrast fill: the emboss comes from the rim sheen in
+       paintStone, not from a sphere-like body gradient */
+    black: { grad: ['#3a3530', '#2d2925', '#211d1a', '#161311'], edge: 'rgba(248,246,238,.95)' },
+    white: { grad: ['#fdfbf5', '#f7f2e7', '#ece6d7', '#ddd6c5'], edge: 'rgba(24,21,17,.92)' },
   },
 };
 const ANA = [
@@ -257,6 +275,8 @@ const S = {
   pv: [],                   // main line, used by the hover preview
   preview: null,            // { i } — index in pv being previewed
   oneShot: false,           // the "play one" button is computing a single move
+  pendingOne: false,        // "play one" asked before the lazy engine finished booting
+  wrGame: { value: 0.5, track: [0.5] },   // black-perspective win rate, kept for the whole game
   hover: null,
   anim: null,
   lastAiMove: null,
@@ -265,6 +285,8 @@ const S = {
 
 let geo = { css: 0, px: 0, cell: 0, pad: 0, fs: 0 };
 let DPR = 1;
+/* cold-start numbers, surfaced through MG.perf() for the loading measurements */
+const PERF = { boot: performance.now(), usable: 0, prefetch: 0, engineStart: 0, engineReady: 0, firstEval: 0 };
 let C = { board: '#e9d6b0', line: '#4a4438', coord: '#5c5140', star: '#4a4438', last: '#d94b3f',
   black: '#14171a', white: '#faf9f5', whiteEdge: 'rgba(0,0,0,.18)' };
 let bctx = null;
@@ -350,7 +372,7 @@ function retryLoad() {
 function defaults() {
   return {
     hashMB: 256, points: 3, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
-    think: 3000, showNum: false, stone: 'real', balPoints: 1, board: 'classic',
+    think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic',
   };
 }
 function defaultThreads() {
@@ -387,11 +409,6 @@ function applyTheme(mode, remember) {
   document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   const m = document.querySelector('meta[name="theme-color"]');
   if (m) m.setAttribute('content', dark ? '#0a0f15' : '#edf1f6');
-  const btn = $('themeBtn');
-  if (btn) {
-    btn.setAttribute('aria-pressed', String(dark));
-    btn.setAttribute('aria-label', dark ? T('toLight') : T('toDark'));
-  }
   C = themeColor();
   try {
     if (remember) localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
@@ -407,12 +424,6 @@ function initTheme() {
   try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
   S.settings.theme = saved === 'light' || saved === 'dark' ? saved : null;
   applyTheme(saved || (systemDark() ? 'dark' : 'light'), false);
-  $('themeBtn').addEventListener('click', () => {
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    S.settings.theme = dark ? 'light' : 'dark';
-    applyTheme(dark ? 'light' : 'dark', true);
-    saveSettings();
-  });
   if (window.matchMedia) {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
@@ -426,9 +437,12 @@ function initTheme() {
 }
 
 /* ============================================================ geometry / board */
-/* The coordinate ring is only 0.46 cell wide, so the grid itself gets the rest
-   of the canvas and looks a size larger than before. */
-const PAD_CELLS = 0.92;
+/* The coordinate ring is 0.7 cell of whitespace plus the glyph itself, so the
+   padding has to hold gap + a two-digit number (at most ~0.55 cell, the font is
+   floor()'d at 8 CSS px) with a hair of margin. 1.32 keeps a 320 px phone from
+   ever clipping the row numbers, and the canvas stays square, so the board plus
+   its ring is centred by simply filling the shell. */
+const PAD_CELLS = 1.32;
 const BOARD_SPAN = SIZE - 1 + PAD_CELLS * 2;
 
 function themeColor() {
@@ -516,8 +530,10 @@ function drawBoard() {
 }
 
 function drawCoords(xs, ys, pad, cell) {
-  // The column letters sit under the board, the row numbers keep to the left edge.
-  const gap = cell * 0.40;
+  // The column letters sit under the board, the row numbers keep to the left
+  // edge. Both use the same 0.7-cell whitespace from the frame (inner text edge
+  // to the outer rule), which is what PAD_CELLS below is sized for.
+  const gap = cell * 0.70;
   bctx.fillStyle = C.coord;
   bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
   bctx.textAlign = 'center';
@@ -532,21 +548,75 @@ function stoneRadius() { return geo.cell * 0.485; }
 
 /* paint one stone with the style picked in the settings */
 function paintStone(cx, cy, r, c) {
+  const real = S.settings.stone === 'real';
   const preset = STONES[S.settings.stone] || STONES.real;
   const p = c === 1 ? preset.black : preset.white;
+  /* realistic only: a soft cast shadow on the board, offset towards the lower
+     right (6-10% of the radius). It is painted before the stone, so only the
+     crescent outside the disc shows and it never bleeds into the stone face or
+     over a neighbouring point. */
+  if (real) {
+    const ox = r * 0.08, oy = r * 0.09;
+    const sg = bctx.createRadialGradient(cx + ox, cy + oy, r * 0.76, cx + ox, cy + oy, r * 1.05);
+    sg.addColorStop(0, c === 1 ? 'rgba(0,0,0,.26)' : 'rgba(74,58,38,.17)');
+    sg.addColorStop(0.5, c === 1 ? 'rgba(0,0,0,.10)' : 'rgba(74,58,38,.06)');
+    sg.addColorStop(1, 'rgba(0,0,0,0)');
+    bctx.beginPath();
+    bctx.arc(cx + ox, cy + oy, r * 1.05, 0, Math.PI * 2);
+    bctx.fillStyle = sg;
+    bctx.fill();
+  }
   bctx.beginPath();
   bctx.arc(cx, cy, r, 0, Math.PI * 2);
   if (p.grad) {
-    const g = bctx.createRadialGradient(cx - r * 0.34, cy - r * 0.38, r * 0.08, cx, cy, r);
-    const stops = [0, 0.44, 0.8, 1];
+    /* light source sits at the upper-left: the body is faintly lit from that
+       edge, the lower-right falls into shade (sphere without a gradient ball) */
+    const g = bctx.createRadialGradient(cx - r * 0.30, cy - r * 0.34, r * 0.10, cx, cy, r);
+    const stops = [0, 0.46, 0.82, 1];
     p.grad.forEach((col, i) => g.addColorStop(stops[i], col));
     bctx.fillStyle = g;
   } else {
     bctx.fillStyle = p.fill;
   }
   bctx.fill();
-  const hairline = S.settings.stone === 'flat' && c === 2;
-  bctx.lineWidth = Math.max(1, DPR * (hairline ? 1.15 : 0.9));
+
+  /* realistic stones only: one restrained specular sheen in the upper-left and
+     the faint opposite shade, both clipped to the stone so the outline stays
+     crisp. Narrow bands — an edge highlight, not a glossy ball. */
+  if (real) {
+    bctx.save();
+    bctx.beginPath();
+    bctx.arc(cx, cy, r * 0.985, 0, Math.PI * 2);
+    bctx.clip();
+    const lit = bctx.createRadialGradient(
+      cx - r * 0.46, cy - r * 0.50, r * 0.02,
+      cx - r * 0.26, cy - r * 0.30, r * 0.82
+    );
+    lit.addColorStop(0, c === 1 ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.14)');
+    lit.addColorStop(0.52, 'rgba(255,255,255,.05)');
+    lit.addColorStop(1, 'rgba(255,255,255,0)');
+    bctx.fillStyle = lit;
+    bctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+    const shade = bctx.createRadialGradient(
+      cx + r * 0.42, cy + r * 0.44, r * 0.04,
+      cx + r * 0.22, cy + r * 0.24, r * 0.96
+    );
+    shade.addColorStop(0, c === 1 ? 'rgba(0,0,0,.16)' : 'rgba(48,40,26,.12)');
+    shade.addColorStop(0.55, 'rgba(0,0,0,.045)');
+    shade.addColorStop(1, 'rgba(0,0,0,0)');
+    bctx.fillStyle = shade;
+    bctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    bctx.restore();
+  }
+
+  /* matching outer ring: white gets a black hairline, black a white one, both
+     at 0.4× the previous stroke width */
+  const base = Math.max(1, DPR * (real ? 0.9 : 1.15));
+  const ring = Math.max(0.5, base * 0.4);
+  bctx.beginPath();
+  bctx.arc(cx, cy, r, 0, Math.PI * 2);
+  bctx.lineWidth = ring;
   bctx.strokeStyle = p.edge;
   bctx.stroke();
 }
@@ -561,14 +631,20 @@ function drawStones() {
     paintStone(cx, cy, r, m.c);
 
     if (S.settings.showNum) {
-      // With numbers on, the red last-move dot is replaced by a red number.
+      // Move number: white digits on black stones, ink digits on white stones.
+      // The last move keeps its red mark (as a red number) so it stays obvious.
       const label = String(i + 1);
-      const fs = Math.max(7 * DPR, geo.cell * 0.42);
-      bctx.fillStyle = isLast ? '#e5402f' : (m.c === 1 ? '#f3efe4' : '#201d18');
-      bctx.font = '700 ' + fs + 'px "Cascadia Code",Consolas,monospace';
+      const fs = Math.max(7.2 * DPR, geo.cell * 0.44);
+      bctx.font = '800 ' + fs + 'px "Cascadia Code",Consolas,monospace';
       bctx.textAlign = 'center';
       bctx.textBaseline = 'middle';
-      bctx.fillText(label, cx, cy + fs * 0.04);
+      bctx.lineWidth = Math.max(0.9 * DPR, fs * 0.12);
+      bctx.strokeStyle = isLast
+        ? (m.c === 1 ? 'rgba(20,8,6,.55)' : 'rgba(255,246,236,.85)')
+        : (m.c === 1 ? 'rgba(0,0,0,.42)' : 'rgba(255,255,255,.70)');
+      bctx.strokeText(label, cx, cy + fs * 0.03);
+      bctx.fillStyle = isLast ? '#e5402f' : (m.c === 1 ? '#f7f3e8' : '#201d18');
+      bctx.fillText(label, cx, cy + fs * 0.03);
     } else if (isLast) {
       bctx.beginPath();
       bctx.arc(cx, cy, Math.max(1.8 * DPR, geo.cell * 0.10), 0, Math.PI * 2);
@@ -952,23 +1028,76 @@ function bootEngine() {
   });
 }
 
-/* On the very first visit the service worker has to take over and the page is
-   reloaded once (to get COOP/COEP), so downloading 41 MB beforehand would be
-   wasted. Every later visit starts the engine immediately. */
+/* The engine and its 41 MB weight package are loaded on demand: the shell paints
+   immediately and only a search (analyse / balance / a move that needs AI)
+   triggers the download. Until then the page is fully usable.
+   ?eager=1 keeps the old always-load behaviour for A/B timing. */
 let engineStarted = false;
-function startEngineWhenReady() {
-  if (engineStarted) return;
-  const sw = navigator.serviceWorker;
-  let reloaded = false;
-  try { reloaded = sessionStorage.getItem(RELOAD_KEY) === ENGINE_VERSION; } catch (e) {}
-  const go = () => {
-    if (engineStarted) return;
-    engineStarted = true;
-    bootEngine();
-  };
-  if (!sw || sw.controller || reloaded || isolated()) { go(); return; }
-  setLoader(1, 'loadCold');
-  setTimeout(go, 1600);
+const EAGER = /[?&]eager=1/i.test(location.search);
+
+function ensureEngine() {
+  if (engineStarted) return S.engineReady;
+  engineStarted = true;
+  PERF.engineStart = performance.now();
+  loaderError = false;
+  loaderDone = false;
+  loaderPct = 0;
+  loaderKey = 'loadFetch';
+  if (EAGER) {
+    loaderEl.classList.remove('lazy', 'hidden', 'error');
+  } else {
+    /* non-blocking: the same card becomes a small status pill in the corner */
+    loaderEl.classList.add('lazy');
+    loaderEl.classList.remove('hidden', 'error');
+  }
+  chip.textContent = T('engineLoading');
+  chip.className = 'chip warn';
+  paintLoader();
+  bootEngine();
+  return false;
+}
+
+function initEngineMode() {
+  if (EAGER) {
+    ensureEngine();
+    return;
+  }
+  chip.textContent = T('engineIdle');
+  chip.className = 'chip';
+  loaderEl.classList.add('hidden');
+}
+
+/* Quiet pre-start: once the shell is interactive, the worker + pthread pool +
+   weights are fetched during idle time, so the first click usually finds the
+   engine already warm. A hover / touch on any engine button pulls it forward
+   one step further. Nothing blocks the UI; the status pill stays unobtrusive. */
+function prefetchEngine() {
+  if (EAGER || engineStarted) return;
+  try {
+    if (navigator.connection && navigator.connection.saveData) return;
+  } catch (e) {}
+  PERF.prefetch = performance.now();
+  ensureEngine();
+}
+function schedulePrefetch() {
+  if (EAGER || engineStarted) return;
+  const run = () => { if (!engineStarted) prefetchEngine(); };
+  if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 1200 });
+  else setTimeout(run, 400);
+}
+function prewarmEngine() {
+  if (!engineStarted) prefetchEngine();
+}
+
+/* does anything currently need the engine? */
+function engineWanted() {
+  if (S.analysis || S.balance || S.pendingOne) return true;
+  const side = sideToMove();
+  return !!(side === 1 ? S.aiB : S.aiW);
+}
+function ensureEngineIfWanted() {
+  if (!S.engineReady && engineWanted()) { ensureEngine(); return true; }
+  return false;
 }
 
 function retrySingle(reason) {
@@ -998,12 +1127,15 @@ function onEngineMessage(ev) {
     S.engineBuild = d.build;
     S.engineThreads = d.threads;
     S.engineHash = d.hashMB;
+    PERF.engineReady = performance.now();
     chip.textContent = d.build === 'multi' ? T('engineMulti', { n: d.threads }) : T('engineSingle');
     chip.className = 'chip ' + (d.build === 'multi' ? 'on' : 'warn');
     chip.title = T('engineReady') + (d.build === 'multi' ? ' · SharedArrayBuffer' : '');
     hideLoader();
     renderDebug();
     updateThreadUI();
+    /* an action asked for before the lazy load finished runs now */
+    if (S.pendingOne) { S.pendingOne = false; setTimeout(playOneMove, 0); return; }
     schedule(0);
     return;
   }
@@ -1077,6 +1209,8 @@ function applyStats(st) {
   }
   S.statPly = S.moves.length;
   S.stats = st;
+  noteWinRate(st);
+  if (!PERF.firstEval) PERF.firstEval = performance.now();
   writeStats();
   updateState();
   scheduleDebug();
@@ -1161,7 +1295,7 @@ function applyBalance(points, stats) {
     };
   });
   S.balanceInfo = { empty: false, stats, winrate: wr, eval: ev };
-  if (stats) { S.stats = stats; writeStats(); updateState(); scheduleDebug(); }
+  if (stats) { S.stats = stats; noteWinRate(stats); writeStats(); updateState(); scheduleDebug(); }
   drawBoard();
   updateBalanceRow();
 }
@@ -1197,10 +1331,11 @@ function launch(kind) {
 }
 
 function schedule(delay) {
-  if (!S.engineReady || S.winner) return;
+  if (S.winner) return;
   if (S.searching) return;
   const run = () => {
-    if (!S.engineReady || S.winner || S.searching) return;
+    if (S.winner || S.searching) return;
+    if (!S.engineReady) { ensureEngineIfWanted(); return; }
     const side = sideToMove();
     if ((side === 1 ? S.aiB : S.aiW)) { launch('ai'); return; }
     if (S.balance) { launch('balance'); return; }
@@ -1222,6 +1357,7 @@ function boardChanged(options) {
   const keepRedo = !!opts.keepRedo;
   haltSearch();
   if (!keepRedo) S.redo = [];
+  syncWinRate();
   S.stats = null;
   S.marks = [];
   S.balanceHeld = false;
@@ -1264,6 +1400,9 @@ function commitMove(x, y, opts) {
   }
   S.moves.push({ x, y, c: sideToMove() });
   S.redo = [];
+  /* a new stone starts a new branch: drop the samples recorded for the ply that
+     is being replaced, then keep the last value until the next analysis lands */
+  S.wrGame.track.length = S.moves.length;
   S.lastAiMove = o.fromAi ? [x, y] : null;
   stopAiIfDone();
   recompute();
@@ -1324,6 +1463,7 @@ function restartGame(force) {
   S.anim = null;
   S.lastAiMove = null;
   S.preview = null;
+  resetWinRate();
   enginePost({ t: 'reset', moves: [], rule: S.settings.rule });
   drawBoard();
   writeStats();
@@ -1347,8 +1487,8 @@ function toggleAI(side) {
    with two points both stones drop at once (the pair is Black + White) */
 function clickBalance() {
   if (S.winner) { toast(T('tGameOver')); return; }
-  if (!S.engineReady) { toast(T('tNoEngine')); return; }
   if (!S.moves.length) { toast(T('tNoBalance')); return; }
+  if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
   if (S.balanceMarks.length) {
     const pts = S.balanceMarks.map((m) => ({ x: m.x, y: m.y }));
     S.balance = 0;
@@ -1398,7 +1538,7 @@ function cycleBalPoints() {
 
 function toggleAnalysis() {
   if (S.winner) { toast(T('tGameOver')); return; }
-  if (!S.engineReady) { toast(T('tNoEngine')); return; }
+  if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
   if (S.analysis) {
     // Second click = cancel. Play the current best point, then stop.
     const best = S.marks[0] || null;
@@ -1431,7 +1571,6 @@ function toggleAnalysis() {
 /* the middle key of the step row: compute one move and play it right away */
 function playOneMove() {
   if (S.winner) { toast(T('tGameOver')); return; }
-  if (!S.engineReady) { toast(T('tNoEngine')); return; }
   haltSearch();
   S.analysis = false;
   S.balance = 0;
@@ -1440,6 +1579,13 @@ function playOneMove() {
   S.balanceInfo = null;
   S.marks = [];
   S.preview = null;
+  if (!S.engineReady) {
+    S.pendingOne = true;
+    ensureEngine();
+    updateAll();
+    toast(T('tEngineLazy'));
+    return;
+  }
   updateAll();
   launch('move');
   toast(T('tThinkingOne'));
@@ -1493,6 +1639,7 @@ function applyCode(text) {
   S.balanceInfo = null;
   S.stats = null;
   S.statsShown = false;
+  resetWinRate();
   recompute();
   drawBoard();
   writeStats();
@@ -1523,15 +1670,15 @@ function applyLang(lang) {
     const k = el.getAttribute('data-i18n-title');
     if (I18N[LANG][k]) { el.setAttribute('title', T(k)); el.setAttribute('aria-label', T(k)); }
   });
-  const lb = $('langBtn');
-  if (lb) {
-    lb.textContent = LANG === 'en' ? 'ZH / EN' : '中 / EN';
-    lb.setAttribute('aria-pressed', String(LANG === 'en'));
-  }
   if (S.engineReady) {
     chip.textContent = S.engineBuild === 'multi' ? T('engineMulti', { n: S.engineThreads }) : T('engineSingle');
+  } else if (engineStarted) {
+    chip.textContent = T('engineLoading');
+  } else {
+    chip.textContent = T('engineIdle');
   }
   $('btnRestart').textContent = T('restart');
+  syncSettingsUI();
   updateAll();
   writeStats();
   drawBoard();
@@ -1667,18 +1814,36 @@ function updateAll() {
   syncSettingsUI();
 }
 
-/* black share of the win rate, 0..1 — 0.5 on an empty board */
-function blackWinRate() {
-  const st = S.stats;
-  if (!st) return 0.5;
+/* black share of the win rate, 0..1 — the engine reports the mover's win rate,
+   so it is flipped whenever white is to move. Kept per ply so the bar can follow
+   undo/redo, and kept across moves so a new stone no longer snaps back to 50%. */
+function blackWrOf(st) {
+  if (!st) return null;
   let wr = normWr(st.winrate);
   if (wr == null) {
     const ev = parseEval(st.eval);
-    if (ev == null) return 0.5;
+    if (ev == null) return null;
     wr = 1 / (1 + Math.exp(-ev / 200));
   }
   wr = Math.max(0.01, Math.min(0.99, wr));
   return sideToMove() === 1 ? wr : 1 - wr;
+}
+function noteWinRate(st) {
+  const wr = blackWrOf(st);
+  if (wr == null) return;
+  S.wrGame.value = wr;
+  S.wrGame.track[S.moves.length] = wr;
+}
+/* after undo / redo / a new stone: use the recorded value for this ply when it
+   exists, otherwise carry the last value forward (never fall back to 50%) */
+function syncWinRate() {
+  const v = S.wrGame.track[S.moves.length];
+  if (Number.isFinite(v)) S.wrGame.value = v;
+}
+function resetWinRate() { S.wrGame = { value: 0.5, track: [0.5] }; }
+
+function blackWinRate() {
+  return S.wrGame.value;
 }
 
 /* the win-rate bar: black (violet) on the left, white (sky blue) on the right;
@@ -1722,6 +1887,7 @@ function syncSettingsUI() {
   seg('segRange', S.settings.caution);
   seg('segRule', S.settings.rule);
   seg('segTheme', S.settings.theme || 'system');
+  seg('segLang', LANG);
   seg('segThink', S.settings.think);
   seg('segStone', S.settings.stone);
   refreshSkinTitles();
@@ -1865,6 +2031,7 @@ function initSettingsEvents() {
   segClick('segRange', (v) => setSetting('caution', +v));
   segClick('segRule', (v) => setSetting('rule', +v));
   segClick('segThink', (v) => setSetting('think', +v));
+  segClick('segLang', (v) => { if (v !== LANG) applyLang(v); });
   segClick('segStone', (v) => setSetting('stone', v));
   segClick('segThreads', (v) => setSetting('threads', +v));
   buildBoardSwatches();
@@ -2085,7 +2252,14 @@ function initHeaderEvents() {
   $('btnAnalysis').addEventListener('click', toggleAnalysis);
   $('btnBalance').addEventListener('click', clickBalance);
   $('balCount').addEventListener('click', cycleBalPoints);
-  $('langBtn').addEventListener('click', () => applyLang(LANG === 'en' ? 'zh' : 'en'));
+  /* hover / touch pre-warms the engine before the click even lands */
+  ['btnAnalysis', 'btnBalance', 'btnStep', 'btnAIB', 'btnAIW', 'balCount'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    ['pointerenter', 'touchstart', 'focus'].forEach((ev) => {
+      el.addEventListener(ev, prewarmEngine, { passive: true });
+    });
+  });
   $('btnUndo').addEventListener('click', undoMove);
   $('btnRedo').addEventListener('click', redoMove);
   $('btnStep').addEventListener('click', playOneMove);
@@ -2176,11 +2350,11 @@ function boot() {
   paintLoader();
   $('btnRetryLoad').addEventListener('click', retryLoad);
   initServiceWorker();
-  /* start fetching the 41 MB engine as soon as the shell is ready */
-  startEngineWhenReady();
+  /* engine + weights stay on the shelf until a search needs them */
+  initEngineMode();
   /* if nothing moves for over a minute, offer a retry instead of waiting forever */
   setInterval(() => {
-    if (S.engineReady || loaderDone || loaderError) return;
+    if (!engineStarted || S.engineReady || loaderDone || loaderError) return;
     if (Date.now() - loadTick > 75000) showLoadError('loadSlow');
   }, 5000);
   initCanvas();
@@ -2192,9 +2366,25 @@ function boot() {
   measureBoard();
   writeStats();
   updateAll();
+  PERF.usable = performance.now();
+  schedulePrefetch();
   // surface isolation state for QA / debugging
   window.MG = {
-    S, geo,
+    S, geo, PERF,
+    perf: () => ({
+      bootMs: Math.round(PERF.boot),
+      usableMs: PERF.usable ? Math.round(PERF.usable) : null,
+      prefetchMs: PERF.prefetch ? Math.round(PERF.prefetch) : null,
+      engineStartMs: PERF.engineStart ? Math.round(PERF.engineStart) : null,
+      engineReadyMs: PERF.engineReady ? Math.round(PERF.engineReady) : null,
+      firstEvalMs: PERF.firstEval ? Math.round(PERF.firstEval) : null,
+      readyFromBootMs: PERF.engineReady ? Math.round(PERF.engineReady) : null,
+      loadFromTriggerMs: (PERF.engineStart && PERF.engineReady) ? Math.round(PERF.engineReady - PERF.engineStart) : null,
+      evalFromTriggerMs: (PERF.engineStart && PERF.firstEval) ? Math.round(PERF.firstEval - PERF.engineStart) : null,
+      eager: EAGER,
+    }),
+    winrate: () => ({ value: S.wrGame.value, track: S.wrGame.track.slice() }),
+    loadEngine: ensureEngine,
     metrics: () => ({
       dpr: DPR,
       css: geo.css,

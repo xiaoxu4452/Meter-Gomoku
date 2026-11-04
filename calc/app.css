@@ -199,12 +199,22 @@ html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
 .dialog-body{padding:4px 17px calc(14px + env(safe-area-inset-bottom));overflow-y:auto;max-height:calc(min(84vh,620px) - 55px)}
 .set-row{padding:10px 0 11px;border-bottom:1px solid var(--line-2)}
 .set-row:last-of-type{border-bottom:0}
+.set-group{display:flex;align-items:center;gap:7px;margin:13px 0 1px;font-size:10px;font-weight:700;
+  letter-spacing:.14em;color:var(--mute);text-transform:uppercase}
+.set-group:first-child{margin-top:8px}
+.set-group::after{content:"";flex:1 1 auto;height:1px;background:var(--line-2)}
 .set-label{display:flex;flex-direction:column;gap:1px;margin-bottom:7px}
 .set-label b{font-size:12.5px;color:var(--ink);font-weight:700}
 .set-label span{font-size:10.5px;color:var(--mute)}
 .seg{display:flex;gap:3px;background:var(--bg);border:1px solid var(--line-2);border-radius:9px;padding:3px}
 html[data-theme="dark"] .seg{background:#0e151e}
 .seg.five button{font-size:10.5px;padding:0 2px}
+/* hash segments carry the unit: never wrap or squeeze at 320 px */
+.seg.hash-seg button{white-space:nowrap;letter-spacing:-.15px;font-variant-numeric:tabular-nums}
+@media (max-width:360px){
+  .seg.five button{font-size:10px;padding:0 1px}
+  .seg.hash-seg button{font-size:9.5px;letter-spacing:-.35px}
+}
 .seg.four{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
 .seg button{flex:1 1 0;min-width:0;min-height:38px;border:0;border-radius:7px;background:transparent;color:var(--sub);
   font-size:11.5px;font-weight:600;transition:.14s;padding:0 4px;white-space:nowrap}
@@ -296,6 +306,22 @@ html[data-theme="dark"] .loader-card{background:rgba(22,31,43,.62);border-color:
 .loader-actions .ghost:hover{border-color:var(--btn-border-hover);color:var(--ink);filter:none}
 .loader.error .loader-titles h2{color:#c9463c}
 .loader.error .loader-bar i{width:100% !important;background:linear-gradient(90deg,#d35b5b,#e79a9a);opacity:.5}
+
+/* lazy load: the engine is fetched only when a search is asked for, so the
+   first paint is never blocked. The same card shrinks into a small, non-modal
+   status pill in the corner while the 41 MB package streams in. */
+.loader.lazy{display:block;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
+  pointer-events:none;padding:0}
+.loader.lazy .loader-card{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));
+  transform:translateX(-50%);width:min(330px,calc(100vw - 22px));pointer-events:auto;
+  padding:10px 12px 9px;border-radius:14px}
+.loader.lazy .loader-top{gap:9px}
+.loader.lazy .loader-top img{width:26px;height:26px;border-radius:7px}
+.loader.lazy .loader-titles h2{font-size:12px}
+.loader.lazy .loader-titles p{font-size:10px}
+.loader.lazy .loader-bar{margin:9px 0 5px;height:2px}
+.loader.lazy .loader-actions{margin-top:9px}
+.loader.lazy .loader-actions .mini-btn{height:30px;font-size:11px}
 
 @media (max-width:360px){
   .app{padding-left:6px;padding-right:6px}

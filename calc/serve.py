@@ -5,7 +5,10 @@ Adds the headers a cross-origin-isolated page needs (COOP/COEP) plus the wasm
 MIME type, so the pthread engine can use SharedArrayBuffer locally exactly the
 way the Service Worker makes it work on GitHub Pages.
 
-    python serve.py            # http://127.0.0.1:8123/
+It serves the *site root*, so the calculator lives at /calc/ exactly as it does
+on GitHub Pages (the shared icon at ../assets/calc.png resolves correctly).
+
+    python serve.py            # http://127.0.0.1:8123/calc/
     python serve.py 9000       # custom port
 """
 
@@ -14,7 +17,7 @@ import os
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
-ROOT = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8123
 
 mimetypes.add_type("application/wasm", ".wasm")
@@ -25,6 +28,14 @@ mimetypes.add_type("text/javascript", ".js")
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
+
+    def do_GET(self):
+        if self.path in ("/", ""):
+            self.send_response(302)
+            self.send_header("Location", "/calc/")
+            self.end_headers()
+            return
+        super().do_GET()
 
     def end_headers(self):
         self.send_header("Cross-Origin-Opener-Policy", "same-origin")
@@ -41,6 +52,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    print(f"calc preview: http://127.0.0.1:{PORT}/")
+    print(f"calc preview: http://127.0.0.1:{PORT}/calc/")
     print("COOP/COEP enabled, Ctrl+C to stop")
     ThreadingHTTPServer(("127.0.0.1", PORT), Handler).serve_forever()

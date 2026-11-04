@@ -6,10 +6,11 @@
    make sure the engine cache survives shell updates. */
 'use strict';
 
-const VERSION = '20261105f';
+const VERSION = '20261104g';
 /* Keep the engine cache name stable across UI releases: worker.js stores the
-   weights under this name, and a new shell must not throw 41 MB away. */
-const ENGINE_VERSION = '20261105b';
+   weights under this name, and a new shell must not throw 41 MB away. Bumped
+   only when the weight entry itself changes. */
+const ENGINE_VERSION = '20261105c';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
 const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
