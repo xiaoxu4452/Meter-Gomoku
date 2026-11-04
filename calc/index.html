@@ -52,9 +52,6 @@
 
   <section class="board-shell" aria-label="棋盘">
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
-    <div class="hud" id="hud" aria-live="polite">
-      <div class="hud-notes" id="hudNotes"></div>
-    </div>
   </section>
 
   <div class="stepbar" role="group" aria-label="行棋步数">
@@ -86,12 +83,12 @@
       <button class="xf-key" type="button" data-xf="rot"><span class="g">↻</span><span data-i18n="xfRot">旋转 90°</span></button>
       <button class="xf-key" type="button" data-xf="fliph"><span class="g">↔</span><span data-i18n="xfFlipH">左右翻转</span></button>
       <button class="xf-key" type="button" data-xf="flipv"><span class="g">↕</span><span data-i18n="xfFlipV">上下翻转</span></button>
-      <button class="xf-key" type="button" data-xf="diag"><span class="g">⤡</span><span data-i18n="xfDiag">主对角</span></button>
-      <button class="xf-key" type="button" data-xf="left"><span class="g">←</span><span data-i18n="xfLeft">左移</span></button>
-      <button class="xf-key" type="button" data-xf="right"><span class="g">→</span><span data-i18n="xfRight">右移</span></button>
       <button class="xf-key" type="button" data-xf="anti"><span class="g">⤢</span><span data-i18n="xfAnti">副对角</span></button>
       <button class="xf-key" type="button" data-xf="up"><span class="g">↑</span><span data-i18n="xfUp">上移</span></button>
+      <button class="xf-key" type="button" data-xf="diag"><span class="g">⤡</span><span data-i18n="xfDiag">主对角</span></button>
+      <button class="xf-key" type="button" data-xf="left"><span class="g">←</span><span data-i18n="xfLeft">左移</span></button>
       <button class="xf-key" type="button" data-xf="down"><span class="g">↓</span><span data-i18n="xfDown">下移</span></button>
+      <button class="xf-key" type="button" data-xf="right"><span class="g">→</span><span data-i18n="xfRight">右移</span></button>
       <div class="xf-hint" data-i18n="xfHint">按对称性改变局面；手数与先后手保留，分析结果会按新局面重算</div>
     </div>
   </div>
@@ -168,11 +165,10 @@
   <section class="panel analysis-panel">
     <div class="panel-head">
       <span class="panel-title" data-i18n="routeTitle">分析路线</span>
+      <span id="routeMeta" class="route-meta" hidden><b class="depth">d–</b><b class="eval">–</b></span>
       <span id="analysisState" class="panel-hint">–</span>
     </div>
     <div id="routeRow" class="route-row empty">
-      <span class="depth">d–</span>
-      <span class="eval">–</span>
       <span class="route" data-i18n="routeEmpty">点击「计算分析」查看最佳路线</span>
     </div>
     <div id="balanceRow" class="balance-row" hidden></div>
@@ -180,6 +176,7 @@
 
   <footer class="foot">
     <span id="engineChip" class="chip" data-i18n-title="tipEngine" data-i18n="engineIdle">引擎待命 · 按需加载</span>
+    <span id="toastLine" class="toast-line" aria-live="polite"></span>
     <span class="foot-note" data-i18n="foot">Rapfi NNUE 引擎 · 全部计算在本机浏览器完成</span>
   </footer>
 </div>
@@ -322,7 +319,7 @@
       </span>
     </a>
 
-    <a class="set-link" href="about.html" target="_blank" rel="noopener">
+    <a class="set-link" href="guide.html" target="_blank" rel="noopener">
       <span class="set-link-ico" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r="1.1" fill="currentColor" stroke="none"/></svg>
       </span>

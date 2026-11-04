@@ -64,7 +64,7 @@ const I18N = {
     langLabel: '语言', langHint: '切换后整页文案立即更新',
     grpLook: '外观与语言', grpBoard: '棋盘与棋子', grpRule: '对局规则', grpEngine: '引擎与搜索', grpDebug: '诊断', grpMore: '更多',
     desktopLink: '桌面软件 / 官网', desktopLinkHint: '下载桌面版，或查看项目主页',
-    aboutLink: '关于', aboutLinkHint: '版本、规则、快捷键与致谢',
+    aboutLink: '使用说明', aboutLinkHint: '完整说明书 · 规则、设置、快捷键与致谢',
     transform: '变换', transformTitle: '变换局面', tipTransform: '按对称或平移改变当前局面',
     xfRot: '旋转 90°', xfFlipH: '左右翻转', xfFlipV: '上下翻转', xfDiag: '主对角', xfAnti: '副对角',
     xfLeft: '左移', xfRight: '右移', xfUp: '上移', xfDown: '下移',
@@ -141,7 +141,7 @@ const I18N = {
     langLabel: 'Language', langHint: 'Every label on the page switches at once',
     grpLook: 'Appearance & language', grpBoard: 'Board & stones', grpRule: 'Game rule', grpEngine: 'Engine & search', grpDebug: 'Diagnostics', grpMore: 'More',
     desktopLink: 'Desktop app / website', desktopLinkHint: 'Download the desktop build or visit the project page',
-    aboutLink: 'About', aboutLinkHint: 'Version, rules, shortcuts and credits',
+    aboutLink: 'User guide', aboutLinkHint: 'Full manual: rules, settings, shortcuts and credits',
     transform: 'Transform', transformTitle: 'Transform position', tipTransform: 'Rotate, flip or shift the position',
     xfRot: 'Rotate 90°', xfFlipH: 'Flip H', xfFlipV: 'Flip V', xfDiag: 'Main diag.', xfAnti: 'Anti diag.',
     xfLeft: 'Shift left', xfRight: 'Shift right', xfUp: 'Shift up', xfDown: 'Shift down',
@@ -311,6 +311,7 @@ const S = {
   balanceInfo: null,
   pv: [],                   // main line, used by the hover preview
   preview: null,            // { i } — index in pv being previewed
+  routePin: -1,             // click-pinned PV move, survives hover-out and redraws
   oneShot: false,           // the "play one" button is computing a single move
   pendingOne: false,        // "play one" asked before the lazy engine finished booting
   wrGame: { value: 0.5, track: [0.5] },   // black-perspective win rate, kept for the whole game
@@ -595,17 +596,32 @@ function drawCoords(xs, ys, pad, cell) {
 }
 function stoneRadius() { return geo.cell * 0.485; }
 
-/* Coordinate of the newest stone, parked in the top-right padding band. Plain
-   text only — same face, weight and colour as the axis labels, no chip, no
-   ring, no pulse — so it reads as one more coordinate on the board. */
+/* Coordinates in the top-right padding band: the newest stone always, plus the
+   cell under the cursor while it hovers (drawn dimmer, to its left). Plain text
+   in the same face and colour as the axis labels — no chip, no ring, no pulse. */
 function drawLastTag(xs, ys, cell) {
   const last = S.moves[S.moves.length - 1];
-  if (!last) return;
-  bctx.fillStyle = C.coord;
+  const h = S.hover;
+  if (!last && !h) return;
+  const y = ys[0] - cell * 0.40;
   bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
   bctx.textAlign = 'right';
   bctx.textBaseline = 'bottom';
-  bctx.fillText(LETTERS[last.x] + (SIZE - last.y), xs[SIZE - 1], ys[0] - cell * 0.40);
+  let right = xs[SIZE - 1];
+  const lastTxt = last ? LETTERS[last.x] + (SIZE - last.y) : '';
+  if (last) {
+    bctx.fillStyle = C.coord;
+    bctx.fillText(lastTxt, right, y);
+    right -= bctx.measureText(lastTxt).width + cell * 0.30;
+  }
+  if (h && (!last || h.x !== last.x || h.y !== last.y)) {
+    const txt = LETTERS[h.x] + (SIZE - h.y);
+    bctx.save();
+    bctx.globalAlpha = last ? 0.55 : 0.9;
+    bctx.fillStyle = C.coord;
+    bctx.fillText(txt, right, y);
+    bctx.restore();
+  }
 }
 
 /* paint one stone with the style picked in the settings.
@@ -2043,20 +2059,22 @@ function updateState() {
 
 function updateRoute(top) {
   const row = $('routeRow');
+  const meta = $('routeMeta');
   const st = S.stats;
   if (!top && !S.marks.length) {
     row.className = 'route-row empty';
-    row.innerHTML = '<span class="depth">d–</span><span class="eval">–</span>' +
-      '<span class="route">' + T('routeEmpty') + '</span>';
+    row.innerHTML = '<span class="route">' + T('routeEmpty') + '</span>';
+    if (meta) { meta.hidden = true; meta.innerHTML = ''; }
     S.pv = [];
     S.preview = null;
+    S.routePin = -1;
     return;
   }
   const mk = S.marks[0];
   const line = top && top.line && top.line.length ? top.line : (mk ? [[mk.x, 14 - mk.y]] : []);
   // keep the whole line so hovering a coordinate can foreshadow it on the board
   const first = sideToMove();
-  S.pv = line.slice(0, 16).map((p, i) => ({
+  S.pv = line.slice(0, 24).map((p, i) => ({
     x: p[0], y: 14 - p[1], c: i % 2 === 0 ? first : (first === 1 ? 2 : 1),
   }));
   const chips = S.pv.map((p, i) =>
@@ -2064,12 +2082,23 @@ function updateRoute(top) {
   ).join('');
   const ev = mk && mk.ev != null ? mk.ev : null;
   const cls = ev == null ? '' : (ev >= 0 ? ' pos' : ' neg');
+  const depth = (st && st.depth) || (mk && mk.depth) || 0;
+  /* depth and score ride in the panel head; the body keeps only the moves */
+  if (meta) {
+    meta.hidden = false;
+    meta.innerHTML = '<b class="depth">d' + depth + '</b>' +
+      '<b class="eval' + cls + '">' + (mk ? mk.evTxt : '–') + '</b>';
+  }
   row.className = 'route-row';
-  row.innerHTML =
-    '<span class="depth">d' + ((st && st.depth) || (mk && mk.depth) || 0) + '</span>' +
-    '<span class="eval' + cls + '">' + (mk ? mk.evTxt : '–') + '</span>' +
-    '<span class="route">' + (chips || T('routeNone')) + '</span>';
-  /* keep an active hover preview alive while the search keeps rewriting the row */
+  row.innerHTML = '<span class="route route-list">' + (chips || T('routeNone')) + '</span>';
+  /* keep an active hover or a click-pinned preview alive while the search keeps
+     rewriting the row */
+  let pin = S.routePin;
+  if (pin >= S.pv.length) S.routePin = pin = -1;
+  if (pin >= 0) {
+    const p = row.querySelector('.mv[data-i="' + pin + '"]');
+    if (p) { p.classList.add('pin'); if (!S.preview) S.preview = { i: pin }; }
+  }
   if (S.preview) {
     const on = row.querySelector('.mv[data-i="' + S.preview.i + '"]');
     if (on) on.classList.add('on');
@@ -2498,20 +2527,16 @@ function initBoardEvents() {
   }, { passive: false });
 }
 
-/* notices live inside the board's top-right padding band, stacked and fading */
+/* short notices now live on one footer line — the board's top-right corner is
+   reserved for the coordinate label, so nothing covers the stones any more */
+let toastTimer = 0;
 function toast(msg) {
-  const box = $('hudNotes');
-  if (!box) return;
-  const el = document.createElement('div');
-  el.className = 'hud-note';
+  const el = $('toastLine');
+  if (!el || !msg) return;
   el.textContent = msg;
-  box.appendChild(el);
-  requestAnimationFrame(() => el.classList.add('on'));
-  while (box.children.length > 2) box.removeChild(box.firstChild);
-  setTimeout(() => {
-    el.classList.remove('on');
-    setTimeout(() => el.remove(), 240);
-  }, 2400);
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2600);
 }
 
 /* the newest coordinate is painted on the canvas by drawLastTag, so there is no
@@ -2558,16 +2583,22 @@ function initCanvas() {
 function initRoutePreview() {
   const row = $('routeRow');
   if (!row) return;
+  const mark = (i) => {
+    [...row.querySelectorAll('.mv')].forEach((el) => {
+      const k = +el.dataset.i;
+      el.classList.toggle('on', k === i);
+      el.classList.toggle('pin', k === S.routePin);
+    });
+  };
   const show = (i) => {
     if (!S.pv.length) return;
     S.preview = { i };
-    [...row.querySelectorAll('.mv')].forEach((el) => el.classList.toggle('on', +el.dataset.i === i));
+    mark(i);
     drawBoard();
   };
   const clear = () => {
-    if (!S.preview) return;
     S.preview = null;
-    [...row.querySelectorAll('.mv')].forEach((el) => el.classList.remove('on'));
+    mark(-1);
     drawBoard();
   };
   row.addEventListener('pointerover', (e) => {
@@ -2575,11 +2606,16 @@ function initRoutePreview() {
     if (!b) return;
     show(+b.dataset.i);
   });
-  row.addEventListener('pointerleave', clear);
+  /* leaving the list falls back to the pinned move (if any) instead of blanking */
+  row.addEventListener('pointerleave', () => {
+    if (S.routePin >= 0) show(S.routePin); else clear();
+  });
+  /* a click parks the preview so it stays on the board while the mouse wanders */
   row.addEventListener('click', (e) => {
     const b = e.target.closest && e.target.closest('.mv');
     if (!b) return;
-    if (S.preview && +b.dataset.i === S.preview.i) clear(); else show(+b.dataset.i);
+    const i = +b.dataset.i;
+    if (S.routePin === i) { S.routePin = -1; clear(); } else { S.routePin = i; show(i); }
   });
 }
 

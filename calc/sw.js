@@ -14,7 +14,7 @@ const ENGINE_VERSION = '20261105c';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
 const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
-const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js', './guide.html', './about.html', './docs.html'];
+const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js', './guide.html'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {

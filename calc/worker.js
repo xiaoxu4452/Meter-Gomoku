@@ -152,20 +152,102 @@ async function rankRoutes(urls) {
   return hits;
 }
 
+/* ---- ranged pull for the weight package -------------------------------
+   The weights are one 40 MB stream, and on a lossy link a single connection
+   crawls at 100–300 KB/s no matter how fast the line is. So the file is cut
+   into fixed chunks that several routes pull at the same time: each chunk can
+   fall back to another mirror on its own, and progress is reported as chunks
+   land, which keeps the bar moving smoothly instead of stalling. */
+const CHUNK_BYTES = 3 * 1024 * 1024;
+const LANES = 4;
+
+async function fetchChunk(route, start, end) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 90000);
+  try {
+    const res = await fetch(route.url, reqOpts(route.url, {
+      signal: ctl.signal,
+      headers: { Range: 'bytes=' + start + '-' + (end - 1) },
+    }));
+    if (res.status !== 206) throw new Error('range ignored: ' + res.status);
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength !== end - start) throw new Error('short chunk: ' + buf.byteLength);
+    return new Uint8Array(buf);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchRanged(routes, meta, from, to) {
+  const total = routes[0].total;
+  if (!total || total < 4 * 1024 * 1024) return null;
+  const n = Math.ceil(total / CHUNK_BYTES);
+  const out = new Uint8Array(total);
+  let next = 0;
+  let filled = 0;
+  let dead = null;
+  const lanes = Math.max(1, Math.min(LANES, routes.length * 2, n));
+  const lane = async (seed) => {
+    for (;;) {
+      if (dead) return;
+      const k = next++;
+      if (k >= n) return;
+      const start = k * CHUNK_BYTES;
+      const end = Math.min(total, start + CHUNK_BYTES);
+      let ok = false;
+      for (let t = 0; t < routes.length && !ok; t++) {
+        const route = routes[(seed + k + t) % routes.length];
+        try {
+          out.set(await fetchChunk(route, start, end), start);
+          ok = true;
+        } catch (err) { /* next mirror takes this chunk */ }
+      }
+      if (!ok) { dead = new Error('chunk ' + k + ' failed on every route'); return; }
+      filled += end - start;
+      postLoad(from + (to - from) * (filled / total), null);
+    }
+  };
+  await Promise.all(Array.from({ length: lanes }, (_, i) => lane(i)));
+  if (dead) throw dead;
+  const buf = out.buffer;
+  if (meta.min && buf.byteLength < meta.min) throw new Error('short read: ' + buf.byteLength);
+  if (meta.wasm) {
+    const m = new Uint8Array(buf, 0, 4);
+    if (!(m[0] === 0 && m[1] === 0x61 && m[2] === 0x73 && m[3] === 0x6d)) throw new Error('not wasm');
+  }
+  return buf;
+}
+
 /* The site itself is tried first and trusted only when the bytes pass the size
    and magic checks; public mirrors are the fallback for networks where GitHub
-   Pages is unreachable. Sequential on purpose: one good stream beats several
-   half-broken chunk streams from proxies. */
+   Pages is unreachable. Small files keep one plain stream; the 40 MB weight
+   package probes every route and then pulls ranged chunks in parallel. */
 async function downloadFrom(urls, meta, from, to) {
   const list = urls.slice();
-  const first = list.shift();
   let last = null;
-  try {
-    return await fetchWhole(first, from, to, meta);
-  } catch (err) {
-    last = err;
+  if (!meta.big) {
+    const first = list.shift();
+    try {
+      return await fetchWhole(first, from, to, meta);
+    } catch (err) {
+      last = err;
+    }
+    const small = await rankRoutes(list);
+    for (const route of small) {
+      try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
+    }
+    throw last || new Error('download failed');
   }
   const routes = await rankRoutes(list);
+  const ranged = routes.filter((r) => r.ranged && r.total);
+  if (ranged.length) {
+    try {
+      const buf = await fetchRanged(ranged, meta, from, to);
+      if (buf) return buf;
+    } catch (err) {
+      last = err;
+    }
+  }
   for (const route of routes) {
     try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
   }
@@ -186,7 +268,9 @@ function looksValid(name, buf, res) {
 async function loadAsset(url, cache, from, to) {
   const abs = new URL(url, self.location.href).href;
   const name = abs.split('/').pop().split('?')[0];
-  const meta = /.wasm$/.test(name) ? { min: 100000, wasm: true } : { min: 200000 };
+  const meta = /.wasm$/.test(name)
+    ? { min: 100000, wasm: true }
+    : { min: 200000, big: /\.data$/.test(name) };
   if (cache) {
     try {
       /* exact key (the UI appends ?v=<release>): a new release never reads an
