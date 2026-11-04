@@ -209,9 +209,7 @@ html[data-theme="dark"] .route-meta .eval.neg{color:#e58a8a}
 .route-row .route{flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink);letter-spacing:.04em;display:block}
 .route-row .route:not(.route-list){white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .route-row .route-list{display:flex;flex-wrap:wrap;gap:5px 2px;max-height:78px;overflow-y:auto;overflow-x:hidden;
-  white-space:normal;scrollbar-width:thin;scrollbar-color:var(--line) transparent;overscroll-behavior:contain;
-  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 10px),transparent);
-  mask-image:linear-gradient(to bottom,#000 calc(100% - 10px),transparent)}
+  white-space:normal;scrollbar-width:thin;scrollbar-color:var(--line) transparent;overscroll-behavior:contain}
 .route-list::-webkit-scrollbar{width:5px}
 .route-list::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
 .route-row .mv{flex:0 0 auto;padding:1px 3px;border-radius:5px;font-weight:600;color:var(--sub);
