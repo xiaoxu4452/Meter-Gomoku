@@ -83,11 +83,12 @@ function reqOpts(url, extra) {
   return o;
 }
 
-/* one-byte range probe: cheap, and it also tells us whether ranges are honoured */
-async function probeRoute(url) {
+/* one-byte range probe: cheap, and it also tells us whether ranges are honoured.
+   `cap` shortens the timeout for the "is our own host healthy?" check. */
+async function probeRoute(url, cap) {
   const t0 = Date.now();
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 6000);
+  const timer = setTimeout(() => ctl.abort(), cap || 6000);
   try {
     const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=0-0' } }));
     if (!res.ok) return null;
@@ -237,6 +238,18 @@ async function downloadFrom(urls, meta, from, to) {
       try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
     }
     throw last || new Error('download failed');
+  }
+  /* Fast path: when our own origin answers a probe within half a second, go
+     straight to ranged chunks on it — no mirror probing, no waiting for the
+     proxy chain to time out (that wait was what made a warm CDN feel cold). */
+  const home = await probeRoute(list[0], 2500);
+  if (home && home.ranged && home.total) {
+    try {
+      const buf = await fetchRanged([home], meta, from, to);
+      if (buf) return buf;
+    } catch (err) {
+      last = err;
+    }
   }
   const routes = await rankRoutes(list);
   const ranged = routes.filter((r) => r.ranged && r.total);
