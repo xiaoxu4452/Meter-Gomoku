@@ -365,7 +365,8 @@ async function boot(opts) {
   try {
     const build = opts.build === 'multi' ? 'multi' : 'single';
     let urls = opts.urls;
-    const blobs = [];
+    let dataBuf = null;
+    let wasmBuf = null;
     postLoad(2, 'loadFetch');
     /* Kick both network streams off before the (cached, synchronous) engine
        script is parsed, so script eval overlaps the download instead of
@@ -380,23 +381,33 @@ async function boot(opts) {
     assets.catch(() => {});              // avoid an unhandled rejection while parsing
     importScripts(opts.urls.js);
     postLoad(4, 'loadCached');
+    /* Hand the bytes straight to the runtime instead of wrapping them in blob
+       URLs: getPreloadedPackage() keeps Emscripten from fetching the 41 MB a
+       second time, and instantiateWasm() compiles the module we already hold.
+       Together they remove a full 40 MB round trip from every cold start. */
     try {
       const [data, wasm] = await assets;
-      const dataUrl = URL.createObjectURL(new Blob([data]));
-      const wasmUrl = URL.createObjectURL(new Blob([wasm], { type: 'application/wasm' }));
-      blobs.push(dataUrl, wasmUrl);
-      urls = { js: opts.urls.js, wasm: wasmUrl, data: dataUrl };
+      dataBuf = data;
+      wasmBuf = wasm;
     } catch (err) {
       // last resort: let the module fetch the plain URLs itself
       post({ t: 'stderr', msg: 'asset load failed: ' + String((err && err.message) || err) });
-      urls = opts.urls;
+      dataBuf = null;
+      wasmBuf = null;
     }
     postLoad(96, 'loadModule');
     const mod = await Rapfi({
       locateFile: (f) => {
-        if (/\.wasm$/.test(f)) return urls.wasm;
-        if (/\.data$/.test(f)) return urls.data;
+        if (/\.wasm$/.test(f)) return opts.urls.wasm;
+        if (/\.data$/.test(f)) return opts.urls.data;
         return new URL(f, opts.urls.js).href;
+      },
+      getPreloadedPackage: () => dataBuf,
+      instantiateWasm: (imports, done) => {
+        WebAssembly.instantiate(wasmBuf, imports)
+          .then((r) => done(r.instance, r.module))
+          .catch((err) => post({ t: 'stderr', msg: 'instantiate ' + ((err && err.message) || err) }));
+        return {};
       },
       mainScriptUrlOrBlob: build === 'multi' ? opts.urls.js : undefined,
       onReceiveStdout: onLine,
@@ -405,7 +416,6 @@ async function boot(opts) {
       setStatus: () => {},
     });
     Mod = mod;
-    blobs.forEach((u) => { try { URL.revokeObjectURL(u); } catch (e) {} });
     postLoad(97, 'loadStart');
     send('START 15');
     // Emscripten pthread workers need a moment before THREAD_NUM is accepted;

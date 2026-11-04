@@ -220,10 +220,15 @@ const STONES = {
     white: { fill: '#eeeadf', edge: '#171614' },
   },
   real: {
-    /* deliberately low-contrast fill: the emboss comes from the rim sheen in
-       paintStone, not from a sphere-like body gradient */
-    black: { grad: ['#3a3530', '#2d2925', '#211d1a', '#161311'], edge: 'rgba(248,246,238,.95)' },
-    white: { grad: ['#fdfbf5', '#f7f2e7', '#ece6d7', '#ddd6c5'], edge: 'rgba(24,21,17,.92)' },
+    /* desktop trainer .spf-stones.real, stop for stop */
+    black: {
+      stops: ['#726d67', '#4a4540', '#241f1b', '#080706'], at: [0, 0.28, 0.68, 1],
+      edge: 'rgba(255,255,255,.16)', sheen: 0.16, drop: 0.30,
+    },
+    white: {
+      stops: ['#ffffff', '#f8f3e7', '#e0d9c7', '#b8b1a0'], at: [0, 0.28, 0.68, 1],
+      edge: 'rgba(120,112,98,.55)', sheen: 0.55, drop: 0.16,
+    },
   },
 };
 const ANA = [
@@ -266,6 +271,8 @@ const S = {
   engineHash: 0,
   hashLimit: HASH_LIMIT_DEFAULT,
   fallback: false,
+  searchT0: 0,              // when the running search was dispatched
+  searchAnswered: false,    // has the engine said anything since?
   worker: null,
   stats: null,
   marks: [],
@@ -437,12 +444,11 @@ function initTheme() {
 }
 
 /* ============================================================ geometry / board */
-/* The coordinate ring is 0.7 cell of whitespace plus the glyph itself, so the
-   padding has to hold gap + a two-digit number (at most ~0.55 cell, the font is
-   floor()'d at 8 CSS px) with a hair of margin. 1.32 keeps a 320 px phone from
-   ever clipping the row numbers, and the canvas stays square, so the board plus
-   its ring is centred by simply filling the shell. */
-const PAD_CELLS = 1.32;
+/* The coordinate ring: the row numbers sit 0.4 cell from the frame and are 
+   right-aligned against it, so the padding only needs room for the glyphs 
+   themselves (~0.6 cell at the 8 px font floor). 0.95 keeps a 320 px phone from
+   clipping them while giving the grid ~5% more room than the old 1.32. */
+const PAD_CELLS = 0.95;
 const BOARD_SPAN = SIZE - 1 + PAD_CELLS * 2;
 
 function themeColor() {
@@ -533,7 +539,7 @@ function drawCoords(xs, ys, pad, cell) {
   // The column letters sit under the board, the row numbers keep to the left
   // edge. Both use the same 0.7-cell whitespace from the frame (inner text edge
   // to the outer rule), which is what PAD_CELLS below is sized for.
-  const gap = cell * 0.70;
+  const gap = cell * 0.40;
   bctx.fillStyle = C.coord;
   bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
   bctx.textAlign = 'center';
@@ -546,77 +552,54 @@ function drawCoords(xs, ys, pad, cell) {
 }
 function stoneRadius() { return geo.cell * 0.485; }
 
-/* paint one stone with the style picked in the settings */
+/* paint one stone with the style picked in the settings.
+   Both presets are copied from the desktop trainer (#spf-stones):
+     flat  solid disc + 1 px hairline (white gets black, black gets white)
+     real  radial-gradient(circle at 32% 28%) with the desktop 4-stop body,
+           one inset top light and a small drop shadow                    */
 function paintStone(cx, cy, r, c) {
   const real = S.settings.stone === 'real';
   const preset = STONES[S.settings.stone] || STONES.real;
   const p = c === 1 ? preset.black : preset.white;
-  /* realistic only: a soft cast shadow on the board, offset towards the lower
-     right (6-10% of the radius). It is painted before the stone, so only the
-     crescent outside the disc shows and it never bleeds into the stone face or
-     over a neighbouring point. */
-  if (real) {
-    const ox = r * 0.08, oy = r * 0.09;
-    const sg = bctx.createRadialGradient(cx + ox, cy + oy, r * 0.76, cx + ox, cy + oy, r * 1.05);
-    sg.addColorStop(0, c === 1 ? 'rgba(0,0,0,.26)' : 'rgba(74,58,38,.17)');
-    sg.addColorStop(0.5, c === 1 ? 'rgba(0,0,0,.10)' : 'rgba(74,58,38,.06)');
-    sg.addColorStop(1, 'rgba(0,0,0,0)');
-    bctx.beginPath();
-    bctx.arc(cx + ox, cy + oy, r * 1.05, 0, Math.PI * 2);
-    bctx.fillStyle = sg;
-    bctx.fill();
-  }
+
+  bctx.save();
   bctx.beginPath();
   bctx.arc(cx, cy, r, 0, Math.PI * 2);
-  if (p.grad) {
-    /* light source sits at the upper-left: the body is faintly lit from that
-       edge, the lower-right falls into shade (sphere without a gradient ball) */
-    const g = bctx.createRadialGradient(cx - r * 0.30, cy - r * 0.34, r * 0.10, cx, cy, r);
-    const stops = [0, 0.46, 0.82, 1];
-    p.grad.forEach((col, i) => g.addColorStop(stops[i], col));
+  if (real) {
+    /* CSS: 0 .1rem .28rem rgba(0,0,0,d) — cast onto the wood, offset downwards */
+    bctx.shadowColor = 'rgba(0,0,0,' + p.drop + ')';
+    bctx.shadowBlur = r * 0.30;
+    bctx.shadowOffsetY = r * 0.11;
+    /* the gradient centre sits at 32% / 28% of the bounding box, and the last
+       stop lands on the far corner, exactly like the CSS circle gradient */
+    const gx = cx - r * 0.36, gy = cy - r * 0.44;
+    const g = bctx.createRadialGradient(gx, gy, 0, gx, gy, r * 1.36);
+    p.stops.forEach((col, i) => g.addColorStop(p.at[i], col));
     bctx.fillStyle = g;
   } else {
     bctx.fillStyle = p.fill;
   }
   bctx.fill();
+  bctx.restore();
 
-  /* realistic stones only: one restrained specular sheen in the upper-left and
-     the faint opposite shade, both clipped to the stone so the outline stays
-     crisp. Narrow bands — an edge highlight, not a glossy ball. */
   if (real) {
+    /* CSS: inset 0 .08rem .18rem rgba(255,255,255,s) — a narrow top light that
+       stops before the middle, so the stone keeps a flat-looking face */
     bctx.save();
     bctx.beginPath();
-    bctx.arc(cx, cy, r * 0.985, 0, Math.PI * 2);
+    bctx.arc(cx, cy, Math.max(1, r - 0.6), 0, Math.PI * 2);
     bctx.clip();
-    const lit = bctx.createRadialGradient(
-      cx - r * 0.46, cy - r * 0.50, r * 0.02,
-      cx - r * 0.26, cy - r * 0.30, r * 0.82
-    );
-    lit.addColorStop(0, c === 1 ? 'rgba(255,255,255,.16)' : 'rgba(255,255,255,.14)');
-    lit.addColorStop(0.52, 'rgba(255,255,255,.05)');
+    const lit = bctx.createLinearGradient(cx, cy - r * 1.02, cx, cy - r * 0.28);
+    lit.addColorStop(0, 'rgba(255,255,255,' + p.sheen + ')');
     lit.addColorStop(1, 'rgba(255,255,255,0)');
     bctx.fillStyle = lit;
-    bctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-
-    const shade = bctx.createRadialGradient(
-      cx + r * 0.42, cy + r * 0.44, r * 0.04,
-      cx + r * 0.22, cy + r * 0.24, r * 0.96
-    );
-    shade.addColorStop(0, c === 1 ? 'rgba(0,0,0,.16)' : 'rgba(48,40,26,.12)');
-    shade.addColorStop(0.55, 'rgba(0,0,0,.045)');
-    shade.addColorStop(1, 'rgba(0,0,0,0)');
-    bctx.fillStyle = shade;
     bctx.fillRect(cx - r, cy - r, r * 2, r * 2);
     bctx.restore();
   }
 
-  /* matching outer ring: white gets a black hairline, black a white one, both
-     at 0.4× the previous stroke width */
-  const base = Math.max(1, DPR * (real ? 0.9 : 1.15));
-  const ring = Math.max(0.5, base * 0.4);
   bctx.beginPath();
   bctx.arc(cx, cy, r, 0, Math.PI * 2);
-  bctx.lineWidth = ring;
+  bctx.lineWidth = Math.max(0.6, DPR * (real ? 1 : 1.15));
   bctx.strokeStyle = p.edge;
   bctx.stroke();
 }
@@ -636,15 +619,25 @@ function drawStones() {
       const label = String(i + 1);
       const fs = Math.max(7.2 * DPR, geo.cell * 0.44);
       bctx.font = '800 ' + fs + 'px "Cascadia Code",Consolas,monospace';
-      bctx.textAlign = 'center';
-      bctx.textBaseline = 'middle';
+      /* "middle" centres the em box, not the digits, which leaves 1 and 4
+         sitting a hair high. Measure the ink box and put its geometric centre on
+         the stone centre instead. */
+      bctx.textAlign = 'left';
+      bctx.textBaseline = 'alphabetic';
+      const tm = bctx.measureText(label);
+      const iAsc = tm.actualBoundingBoxAscent || fs * 0.72;
+      const iDesc = tm.actualBoundingBoxDescent || 0;
+      const iL = tm.actualBoundingBoxLeft || 0;
+      const iR = tm.actualBoundingBoxRight || tm.width;
+      const nx = cx - (iR - iL) / 2;
+      const ny = cy + (iAsc - iDesc) / 2;
       bctx.lineWidth = Math.max(0.9 * DPR, fs * 0.12);
       bctx.strokeStyle = isLast
         ? (m.c === 1 ? 'rgba(20,8,6,.55)' : 'rgba(255,246,236,.85)')
         : (m.c === 1 ? 'rgba(0,0,0,.42)' : 'rgba(255,255,255,.70)');
-      bctx.strokeText(label, cx, cy + fs * 0.03);
+      bctx.strokeText(label, nx, ny);
       bctx.fillStyle = isLast ? '#e5402f' : (m.c === 1 ? '#f7f3e8' : '#201d18');
-      bctx.fillText(label, cx, cy + fs * 0.03);
+      bctx.fillText(label, nx, ny);
     } else if (isLast) {
       bctx.beginPath();
       bctx.arc(cx, cy, Math.max(1.8 * DPR, geo.cell * 0.10), 0, Math.PI * 2);
@@ -1081,9 +1074,12 @@ function prefetchEngine() {
 }
 function schedulePrefetch() {
   if (EAGER || engineStarted) return;
+  /* gomocalc starts the engine straight after first paint and never blocks the
+     board. Waiting for an idle slot (up to 1.2 s) was the main reason the engine
+     still felt cold when the user tapped a stone. */
   const run = () => { if (!engineStarted) prefetchEngine(); };
-  if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 1200 });
-  else setTimeout(run, 400);
+  if (window.requestAnimationFrame) requestAnimationFrame(() => requestAnimationFrame(run));
+  else setTimeout(run, 60);
 }
 function prewarmEngine() {
   if (!engineStarted) prefetchEngine();
@@ -1150,8 +1146,9 @@ function onEngineMessage(ev) {
   if (d.t === 'stderr') {
     const msg = String(d.msg || '');
     if (window.console) console.warn('[engine]', msg);
-    /* a crashed pthread pool leaves the engine deaf — fall back to one thread */
-    if (S.engineBuild === 'multi' && msg.indexOf('worker ') === 0 && retrySingle(msg)) return;
+    /* Emscripten also fires a benign worker error on this build, so a message
+       alone is no reason to downgrade: the watchdog below only acts when the
+       engine stays silent while a search is running. */
     return;
   }
   if (d.t === 'exit') {
@@ -1209,6 +1206,7 @@ function applyStats(st) {
   }
   S.statPly = S.moves.length;
   S.stats = st;
+  S.searchAnswered = true;
   noteWinRate(st);
   if (!PERF.firstEval) PERF.firstEval = performance.now();
   writeStats();
@@ -1310,6 +1308,8 @@ function launch(kind) {
   S.searching = true;
   S.searchKind = kind;
   S.oneShot = kind === 'move';
+  S.searchT0 = Date.now();
+  S.searchAnswered = false;
   const job = {
     id: ++S.seq,
     gen: S.gen,
@@ -2300,19 +2300,24 @@ function initHeaderEvents() {
    while nothing is focused and freeze it in --vh, so opening the keyboard only
    scrolls the page instead of re-flowing it. */
 let stableH = 0;
+let lastLandscape = false;
 function typingNow() {
   const a = document.activeElement;
   return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
 }
 function syncViewport() {
   const root = document.documentElement;
-  if (!stableH) stableH = Math.round(window.innerHeight || root.clientHeight);
-  if (!typingNow()) {
-    const h = Math.round(window.innerHeight || root.clientHeight);
-    if (h > 0) stableH = h;
-  }
+  const h = Math.round(window.innerHeight || root.clientHeight);
+  const land = window.innerWidth > window.innerHeight;
+  if (land !== lastLandscape) { lastLandscape = land; stableH = 0; }   // rotation: measure again
+  if (!stableH) stableH = h;
+  /* only ever grow: the keyboard (and WeChat's resized viewport) used to lock a
+     shrunken height in, after which the board stayed at 230 px for good */
+  else if (!typingNow() && h > stableH) stableH = h;
   root.style.setProperty('--vh', stableH + 'px');
-  root.classList.toggle('short', stableH < 720 && window.innerWidth < 900);
+  /* the short-screen cap is a landscape-only fallback — in portrait it must
+     never touch the board width */
+  root.classList.toggle('short', h < 560 && window.innerWidth > window.innerHeight);
 }
 /* keep the focused box above the on-screen keyboard (the layout viewport is
    taller than the visual one while the keyboard is up) */
@@ -2327,7 +2332,10 @@ function ensureCaretVisible() {
 function initViewport() {
   syncViewport();
   window.addEventListener('resize', syncViewport);
-  window.addEventListener('orientationchange', () => setTimeout(syncViewport, 260));
+  window.addEventListener('orientationchange', () => {
+    stableH = 0;                       // re-measure from scratch after a rotate
+    setTimeout(syncViewport, 260);
+  });
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
       if (typingNow()) { ensureCaretVisible(); return; }
@@ -2354,9 +2362,18 @@ function boot() {
   initEngineMode();
   /* if nothing moves for over a minute, offer a retry instead of waiting forever */
   setInterval(() => {
-    if (!engineStarted || S.engineReady || loaderDone || loaderError) return;
-    if (Date.now() - loadTick > 75000) showLoadError('loadSlow');
-  }, 5000);
+    if (!engineStarted || loaderDone || loaderError) return;
+    if (!S.engineReady) {
+      if (Date.now() - loadTick > 75000) showLoadError('loadSlow');
+      return;
+    }
+    /* Ready but stone deaf: a search has been running for 9 s without a single
+       info line. Restart once with one thread so the board is never frozen. */
+    if (S.searching && !S.searchAnswered && Date.now() - S.searchT0 > 9000 && !S.fallback) {
+      haltSearch();
+      retrySingle('silent');
+    }
+  }, 3000);
   initCanvas();
   initSettingsEvents();
   initHeaderEvents();

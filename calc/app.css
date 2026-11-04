@@ -312,9 +312,14 @@ html[data-theme="dark"] .loader-card{background:rgba(22,31,43,.62);border-color:
    status pill in the corner while the 41 MB package streams in. */
 .loader.lazy{display:block;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;
   pointer-events:none;padding:0}
+/* solid pill, no frosted glass: the blur over a live board looked like a smudge
+   and cost a compositing layer the whole time the engine was loading */
 .loader.lazy .loader-card{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));
   transform:translateX(-50%);width:min(330px,calc(100vw - 22px));pointer-events:auto;
-  padding:10px 12px 9px;border-radius:14px}
+  padding:10px 12px 9px;border-radius:14px;background:var(--paper);border:1px solid var(--line);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:0 12px 30px -18px rgba(10,24,40,.55),0 2px 6px rgba(10,24,40,.10)}
+html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);border-color:var(--line)}
 .loader.lazy .loader-top{gap:9px}
 .loader.lazy .loader-top img{width:26px;height:26px;border-radius:7px}
 .loader.lazy .loader-titles h2{font-size:12px}
@@ -351,12 +356,17 @@ html[data-theme="dark"] .loader-card{background:rgba(22,31,43,.62);border-color:
    The height comes from --vh, which JS freezes while the on-screen keyboard is
    up — that keeps the board from being squashed into a postage stamp when the
    user taps the position-code box. */
-html.short .board-shell,
-html.short .tools,
-html.short .stats,
-html.short .panel,
-html.short .foot,
-html.short .stepbar{max-width:max(230px,min(100%,calc(var(--vh,100dvh) - 320px)))}
+/* Landscape phones only: cap the column so the board still leaves room for the
+   keys. Portrait never reaches this rule — that is what used to shrink the board
+   to 230 px after the keyboard had been up once. */
+@media (orientation:landscape){
+  html.short .board-shell,
+  html.short .tools,
+  html.short .stats,
+  html.short .panel,
+  html.short .foot,
+  html.short .stepbar{max-width:max(240px,min(100%,calc(var(--vh,100dvh) - 120px)))}
+}
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important}
 }
