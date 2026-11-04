@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#edf1f6">
+<title>关于 · 五子棋计算器</title>
+<link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
+<link rel="apple-touch-icon" href="../assets/calc.png">
+<script>
+(function () {
+  var t = '';
+  try { t = localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
+  if (t !== 'light' && t !== 'dark') {
+    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.style.colorScheme = t;
+  var l = '';
+  try { l = localStorage.getItem('mgcalc.lang') || ''; } catch (e) {}
+  if (l !== 'zh' && l !== 'en') l = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+  document.documentElement.setAttribute('lang', l);
+})();
+</script>
+<style>
+*{box-sizing:border-box}
+:root{
+  --ink:#171b21;--sub:#5c6774;--mute:#8792a0;--body-text:#2b333c;
+  --line:#e3e8ef;--paper:#fff;--bg:#edf1f6;--card:#fcfdfe;--accent:#2f6fb0;--accent-d:#1e4e80;--accent-l:#eaf3fc;
+  --sans:"Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Code",Consolas,"SF Mono",Menlo,monospace;
+}
+html[data-theme="dark"]{
+  --ink:#e8eef7;--sub:#b6c2d1;--mute:#94a3b5;--body-text:#d7dfe9;
+  --line:#2b3745;--paper:#111820;--bg:#0a0f15;--card:#151d27;--accent:#79b8ef;--accent-d:#a8d2f6;--accent-l:#17283a;
+}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--body-text);font-family:var(--sans);-webkit-text-size-adjust:100%}
+.wrap{width:100%;max-width:640px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.logo{width:40px;height:40px;border-radius:11px;display:block;object-fit:cover;flex:0 0 auto}
+.titles{min-width:0;flex:1 1 auto}
+h1{margin:0;font-size:20px;line-height:1.25;color:var(--ink);letter-spacing:.01em}
+.meta{margin:2px 0 0;font-size:11.5px;color:var(--mute);font-family:var(--mono)}
+.tools{display:flex;gap:8px;flex:0 0 auto}
+.pill{display:inline-flex;align-items:center;justify-content:center;height:32px;padding:0 12px;border-radius:999px;
+  border:1px solid var(--line);background:var(--paper);color:var(--sub);font-size:12px;font-weight:600;
+  text-decoration:none;white-space:nowrap;transition:.15s}
+.pill:hover{border-color:var(--accent);color:var(--accent-d);background:var(--accent-l)}
+.pill.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.pill.primary:hover{background:var(--accent-d);border-color:var(--accent-d);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:11px 14px;margin-top:8px;
+  box-shadow:0 1px 2px rgba(20,40,70,.04)}
+h2{margin:0 0 4px;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute)}
+p{margin:0;font-size:12.8px;line-height:1.55;color:var(--body-text)}
+p + p{margin-top:5px}
+b{color:var(--ink)}
+ul{margin:2px 0 0;padding-left:18px}
+li{font-size:12.8px;line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 14px;margin-top:4px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;border-bottom:1px dashed var(--line);padding:5px 0}
+.kv span{color:var(--mute);flex:0 0 auto}
+.kv b{font-family:var(--mono);font-size:12px;font-weight:600;min-width:0;text-align:right}
+kbd{font-family:var(--mono);font-size:11px;padding:1px 5px;border:1px solid var(--line);border-bottom-width:2px;
+  border-radius:5px;background:var(--paper);color:var(--ink);white-space:nowrap}
+.links{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.foot{margin-top:14px;font-size:11px;color:var(--mute);text-align:center;line-height:1.6}
+html[lang="zh"] .en,html[lang="en"] .zh{display:none}
+@media (max-width:420px){
+  h1{font-size:18px}
+  .wrap{padding-left:11px;padding-right:11px}
+  .grid{grid-template-columns:1fr}
+  .tools{gap:6px}
+  .pill{padding:0 10px;font-size:11.5px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <img class="logo" src="../assets/calc.png" alt="" width="40" height="40">
+    <div class="titles">
+      <h1><span class="zh">关于五子棋计算器</span><span class="en">About the calculator</span></h1>
+      <p class="meta">Meter Gomoku · Web · v20261104e</p>
+    </div>
+    <div class="tools">
+      <a class="pill" id="langBtn" href="#" role="button">EN</a>
+      <a class="pill primary" href="./"><span class="zh">返回</span><span class="en">Back</span></a>
+    </div>
+  </header>
+
+  <section class="card">
+    <h2><span class="zh">这是什么</span><span class="en">What this is</span></h2>
+    <p class="zh">一个完全在浏览器里运行的 15×15 五子棋分析器。Rapfi NNUE 引擎通过 WebAssembly 在本机计算，
+      不需要服务器，也不会把棋局上传到任何地方。棋盘、胜率、分析路线与评估曲线都在一屏内完成。</p>
+    <p class="en">A 15×15 Gomoku (five-in-a-row) analyser that runs entirely in your browser. The Rapfi NNUE
+      engine is compiled to WebAssembly, so nothing is uploaded and no server is involved. Board, win rate,
+      main line and evaluation curve all live on one screen.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="zh">引擎与规则</span><span class="en">Engine & rules</span></h2>
+    <div class="grid">
+      <div class="kv"><span>Engine</span><b>Rapfi NNUE · WASM</b></div>
+      <div class="kv"><span class="zh">线程</span><span class="en">Threads</span><b>1–8 <span class="zh">（需隔离）</span><span class="en">(isolated)</span></b></div>
+      <div class="kv"><span class="zh">棋盘</span><span class="en">Board</span><b>15×15</b></div>
+      <div class="kv"><span class="zh">哈希</span><span class="en">Hash</span><b>64–1024 MB</b></div>
+    </div>
+    <ul class="zh" style="margin-top:8px">
+      <li><b>无禁手</b>：连成五子即胜，长连也算胜。</li>
+      <li><b>长连不赢</b>：双方必须正好五连。</li>
+      <li><b>连珠</b>：黑方有三三、四四、长连禁手，白方无禁手。</li>
+    </ul>
+    <ul class="en" style="margin-top:8px">
+      <li><b>Freestyle</b>: five or more in a row wins.</li>
+      <li><b>No overline</b>: exactly five wins for both colours.</li>
+      <li><b>Renju</b>: Black is bound by double-three, double-four and overline rules; White is not.</li>
+    </ul>
+    <p class="zh" style="margin-top:6px">「计算分析」与「平衡点」都是持续加深的搜索：深度、节点与用时一直累加，直到你停止或改局面。</p>
+    <p class="en" style="margin-top:6px">Both Analyse and Balance keep deepening: depth, nodes and time accumulate until you stop or change the position.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="zh">快捷键</span><span class="en">Shortcuts</span></h2>
+    <div class="grid">
+      <div class="kv"><span class="zh">落子</span><span class="en">Place</span><b><span class="zh">单击交点</span><span class="en">click</span></b></div>
+      <div class="kv"><span class="zh">撤回</span><span class="en">Undo</span><b><span class="zh">右键 / 长按</span><span class="en">right-click / long-press</span></b></div>
+      <div class="kv"><span class="zh">撤回键</span><span class="en">Undo key</span><b><kbd>Ctrl</kbd>+<kbd>Z</kbd></b></div>
+      <div class="kv"><span class="zh">前进键</span><span class="en">Redo key</span><b><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></b></div>
+      <div class="kv"><span class="zh">分析</span><span class="en">Analyse</span><b><span class="zh">再点一次＝停止并落子</span><span class="en">click again = stop & play</span></b></div>
+      <div class="kv"><span class="zh">平衡点</span><span class="en">Balance</span><b><span class="zh">再点一次＝落子</span><span class="en">click again = play</span></b></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="zh">致谢与许可</span><span class="en">Credits & licence</span></h2>
+    <p class="zh"><b>Rapfi</b> 是开源五子棋引擎（作者 dhbloo），引擎与 NNUE 权重版权归其作者所有，
+      按其上游许可证（GPL-3.0）发布；本站使用官方 WebAssembly 构建，仅做界面与调度，不修改搜索行为。
+      网页界面、站点与文档属于 Meter Gomoku 项目。计算全在本机完成。</p>
+    <p class="en"><b>Rapfi</b> is an open-source Gomoku engine by dhbloo. The engine and its NNUE weights
+      remain the property of their authors and are distributed under their upstream licence (GPL-3.0).
+      This site ships the official WebAssembly build and only adds the interface and scheduling layer.
+      The web UI, site and documentation belong to the Meter Gomoku project. All computation is local.</p>
+  </section>
+
+  <div class="links">
+    <a class="pill" href="https://github.com/xiaoxu4452/Meter-Gomoku" target="_blank" rel="noopener">GitHub</a>
+    <a class="pill" href="https://xiaoxu4452.github.io/Meter-Gomoku/" target="_blank" rel="noopener"><span class="zh">桌面软件 / 官网</span><span class="en">Desktop app / website</span></a>
+    <a class="pill" href="./guide.html"><span class="zh">使用指南</span><span class="en">Guide</span></a>
+  </div>
+
+  <p class="foot">Meter Gomoku · 五子棋计算器 · 2026</p>
+</main>
+<script>
+(function () {
+  var langBtn = document.getElementById('langBtn');
+  var cur = document.documentElement.getAttribute('lang') === 'zh' ? 'zh' : 'en';
+  langBtn.textContent = cur === 'zh' ? 'EN' : '中文';
+  langBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    cur = cur === 'zh' ? 'en' : 'zh';
+    document.documentElement.setAttribute('lang', cur);
+    try { localStorage.setItem('mgcalc.lang', cur); } catch (err) {}
+    langBtn.textContent = cur === 'zh' ? 'EN' : '中文';
+  });
+})();
+</script>
+</body>
+</html>

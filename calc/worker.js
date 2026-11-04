@@ -5,15 +5,37 @@
 'use strict';
 
 let Mod = null;
-let active = null;          // { id, gen, topN, infinite, stopping, lastBest }
-let pending = null;         // next search request queued behind a running one
-let bal = null;             // { id, gen, count, moves, stopping, lastPoints }
+let active = null;          // { id, gen, topN, infinite, stopping, lastBest, key }
+let pending = null;         // newest request queued behind the running one (older ones are dropped)
+let bal = null;             // { id, gen, count, moves, stopping, lastPoints, key }
 let pvIdx = -1;
 let pvs = [];
 let glob = { speed: 0, totaltime: 0, totalnodes: 0 };
 let lastCfg = { threads: 0, hashMB: 0, caution: 0, rule: -1 };
 let stopTimer = 0;
 let booting = false;
+/* Serialisation: every job carries a monotonically increasing seq. A job whose
+   seq is older than the newest accepted one is stale and must never reach the
+   engine, so rapid clicking cannot stack searches. The newest queued job wins. */
+let jobSeq = -1;
+let hbTimer = 0;
+
+function jobKey(job) {
+  const mv = (job.moves || []).map((m) => m[0] + ',' + m[1] + ',' + m[2]).join(';');
+  return (job.rule | 0) + '|' + (job.topN | 0) + '|' + (job.infinite ? 1 : 0) + '|' + mv;
+}
+
+function startHeartbeat() {
+  stopHeartbeat();
+  hbTimer = setInterval(() => {
+    if (!active && !bal) { stopHeartbeat(); return; }
+    const st = statsOf();
+    post({ t: 'hb', search: !!active, balance: !!bal, depth: st.depth, nodes: st.nodes, time: st.time, stopping: !!(active && active.stopping) || !!(bal && bal.stopping) });
+  }, 500);
+}
+function stopHeartbeat() {
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = 0; }
+}
 
 function post(msg) {
   self.postMessage(msg);
@@ -436,17 +458,29 @@ async function boot(opts) {
   }
 }
 
-function finishSearch(best) {
+function finishSearch(best, forced) {
   if (!active) return;
   const a = active;
   active = null;
   clearTimeout(stopTimer);
+  stopHeartbeat();
+  if (forced) {
+    /* the build did not answer STOP in time — repeat it so the engine is really
+       idle before the queued job sends a new position */
+    send('STOP');
+  }
   const stats = statsOf();
   post({
     t: 'best', id: a.id, gen: a.gen, stats, candidates: candidates(),
     best: best || a.lastBest || null,
+    forced: !!forced,
   });
-  if (pending && !bal) startPending();
+  if (pending && !bal) {
+    /* after a forced stop give the engine one more beat to settle before the
+       next job rewrites the board */
+    if (forced) setTimeout(startPending, 150);
+    else startPending();
+  }
 }
 
 function startPending() {
@@ -459,9 +493,10 @@ function startPending() {
 
 function startSearch(job) {
   if (!Mod) return;
+  clearTimeout(stopTimer);
   active = {
     id: job.id, gen: job.gen, topN: Math.max(1, Math.min(8, job.topN | 0)),
-    infinite: !!job.infinite, stopping: false, lastBest: null,
+    infinite: !!job.infinite, stopping: false, lastBest: null, key: jobKey(job),
   };
   pvs = [];
   pvIdx = -1;
@@ -470,17 +505,28 @@ function startSearch(job) {
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
   sendBoard(job.moves);
   send('YXNBEST ' + active.topN);
+  startHeartbeat();
 }
 
 function search(job) {
   if (!Mod) return;
-  if (active || bal) {
-    // The UI stops before starting the next job; queue it so nothing is lost.
-    pending = { kind: 'search', job };
-    if (active) stopSearch();
-    if (bal) stopBalance();
+  if (job.seq != null) {
+    if (job.seq <= jobSeq) return;          // superseded while it was in the pipe
+    jobSeq = job.seq;
+  }
+  const key = jobKey(job);
+  if (active) {
+    if (active.key === key) return;         // idempotent: the same search is running
+    pending = { kind: 'search', job, key }; // newest request wins, older pending dropped
+    stopSearch();
     return;
   }
+  if (bal) {
+    pending = { kind: 'search', job, key };
+    stopBalance();
+    return;
+  }
+  if (pending && pending.key === key) return;
   startSearch(job);
 }
 
@@ -488,11 +534,12 @@ function stopSearch() {
   if (!active || active.stopping) return;
   active.stopping = true;
   send('STOP');
-  // Guarantee a bounded stop even if the engine build does not answer STOP.
+  // Guarantee a bounded stop even if the engine build does not answer STOP;
+  // the next job must not wait forever for an answer that never comes.
   clearTimeout(stopTimer);
   stopTimer = setTimeout(() => {
-    if (active) finishSearch(active.lastBest);
-  }, 900);
+    if (active) finishSearch(active.lastBest, true);
+  }, 500);
 }
 
 function finishBalance(points, stats) {
@@ -500,6 +547,7 @@ function finishBalance(points, stats) {
   const b = bal;
   bal = null;
   clearTimeout(b.timer);
+  stopHeartbeat();
   // The balance search leaves an extra move on the engine board; resend the real
   // position and reset the block list before any later search.
   setTimeout(() => {
@@ -516,22 +564,35 @@ function finishBalance(points, stats) {
 
 function balance(job) {
   if (!Mod) return;
-  if (active || bal) {
-    pending = { kind: 'balance', job };
-    if (active) stopSearch();
-    if (bal) stopBalance();
+  if (job.seq != null) {
+    if (job.seq <= jobSeq) return;
+    jobSeq = job.seq;
+  }
+  const key = jobKey(job);
+  if (bal) {
+    if (bal.key === key) return;
+    pending = { kind: 'balance', job, key };
+    stopBalance();
     return;
   }
+  if (active) {
+    pending = { kind: 'balance', job, key };
+    stopSearch();
+    return;
+  }
+  if (pending && pending.key === key) return;
+  clearTimeout(stopTimer);
   const count = Math.max(1, Math.min(2, job.count | 0));
   pvs = [];
   pvIdx = -1;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
   applyConfig(job.threads, job.hashMB, job.caution, job.rule, false);
-  const b = { id: job.id, gen: job.gen, count, moves: job.moves, stopping: false, lastPoints: [], timer: 0 };
+  const b = { id: job.id, gen: job.gen, count, moves: job.moves, stopping: false, lastPoints: [], timer: 0, key };
   bal = b;
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(500, job.timeMs | 0)));
   sendBoard(job.moves);
   send(count >= 2 ? 'YXBALANCETWO 0' : 'YXBALANCEONE 0');
+  startHeartbeat();
   b.timer = setTimeout(() => {
     if (bal === b) finishBalance(b.lastPoints, statsOf());
   }, job.infinite ? 3600000 : Math.max(500, job.timeMs | 0) + 5500);
@@ -544,7 +605,7 @@ function stopBalance() {
   const b = bal;
   setTimeout(() => {
     if (bal === b) finishBalance(b.lastPoints, statsOf());
-  }, 700);
+  }, 600);
 }
 
 function resetEngine(moves, rule) {
@@ -562,7 +623,13 @@ self.onmessage = (e) => {
   try {
     if (d.t === 'init') boot(d);
     else if (d.t === 'search') search(d.job);
-    else if (d.t === 'stop') { if (bal) stopBalance(); else stopSearch(); }
+    else if (d.t === 'stop') {
+      /* a stop invalidates every job already in the pipe, so a late request that
+         raced past the UI cannot restart the search after the user cancelled */
+      if (d.seq != null && d.seq > jobSeq) jobSeq = d.seq;
+      if (bal) stopBalance();
+      else stopSearch();
+    }
     else if (d.t === 'balance') balance(d.job);
     else if (d.t === 'config') applyConfig(d.threads, d.hashMB, d.caution, d.rule, false);
     else if (d.t === 'reset') resetEngine(d.moves, d.rule);

@@ -42,7 +42,7 @@ const I18N = {
     aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止并落子', balance: '平衡点', points: '点',
     playOne: '计算一手',
     depth: '深度', speed: '速度', nodes: '节点', time: '用时',
-    codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标',
+    codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标', codeAltLabel: '坐标',
     codePlaceholder: '例如 h8h9g7f7 或 7,7 8,8',
     routeTitle: '分析路线', routeEmpty: '点击「计算分析」查看最佳路线', routeNone: '（无路线）',
     winTitle: '胜率',
@@ -62,7 +62,15 @@ const I18N = {
     threadSingle: '未隔离，仅单线程可用', threadHintT: '硬件 {hc} 线程，可用上限 {max}',
     theme: '主题', themeLight: '浅色', themeDark: '深色', themeSystem: '跟随系统', themeHint: '深浅色立即生效，并记住你的选择',
     langLabel: '语言', langHint: '切换后整页文案立即更新',
-    grpLook: '外观与语言', grpBoard: '棋盘与棋子', grpRule: '对局规则', grpEngine: '引擎与搜索', grpDebug: '诊断',
+    grpLook: '外观与语言', grpBoard: '棋盘与棋子', grpRule: '对局规则', grpEngine: '引擎与搜索', grpDebug: '诊断', grpMore: '更多',
+    desktopLink: '桌面软件 / 官网', desktopLinkHint: '下载桌面版，或查看项目主页',
+    aboutLink: '关于', aboutLinkHint: '版本、规则、快捷键与致谢',
+    transform: '变换', transformTitle: '变换局面', tipTransform: '按对称或平移改变当前局面',
+    xfRot: '旋转 90°', xfFlipH: '左右翻转', xfFlipV: '上下翻转', xfDiag: '主对角', xfAnti: '副对角',
+    xfLeft: '左移', xfRight: '右移', xfUp: '上移', xfDown: '下移',
+    xfHint: '按对称性改变局面；手数与先后手保留，分析结果会按新局面重算',
+    tTransformed: '局面已变换（第 {n} 手位置同步）', tXfEmpty: '空盘不需要变换', tXfNoRoom: '该方向已贴边，无法继续平移',
+    evalBlack: '黑子', evalWhite: '白子',
     reset: '恢复默认参数', done: '完成',
     engineLoading: '引擎加载中', engineReady: '引擎就绪', engineSingle: '单线程', engineErr: '引擎异常',
     engineIdle: '引擎待命 · 按需加载',
@@ -87,6 +95,8 @@ const I18N = {
     tBalPoints: '平衡点点数：{n}', tBalanceNoResult: '还没有平衡点结果',
     tHashClamp: '哈希表超过引擎上限 {n} MB，已自动收敛',
     tFallback: '多线程不可用，已降级为单线程模式',
+    tEngineRebuilt: '引擎无响应，已自动重启（局面保留）',
+    tEngineLoop: '引擎连续异常，已暂停分析',
     toLight: '切换到浅色模式', toDark: '切换到深色模式',
     tipUndo: '上一步（棋盘右键 / 长按也可撤回）', tipRedo: '下一步', tipRestart: '清空棋盘并重置引擎',
     tipAiB: '让引擎执黑，可同时开启黑白', tipAiW: '让引擎执白，可同时开启黑白',
@@ -109,7 +119,7 @@ const I18N = {
     aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop & play', balance: 'Balance', points: 'pt',
     playOne: 'Play one',
     depth: 'Depth', speed: 'Speed', nodes: 'Nodes', time: 'Time',
-    codeTitle: 'Position code', codeHint: 'letters + number, or x,y',
+    codeTitle: 'Position code', codeHint: 'letters + number, or x,y', codeAltLabel: 'coords',
     codePlaceholder: 'e.g. h8h9g7f7 or 7,7 8,8',
     routeTitle: 'Main line', routeEmpty: 'Press Analyse to see the best line', routeNone: '(no line)',
     winTitle: 'Win rate',
@@ -129,7 +139,15 @@ const I18N = {
     threadSingle: 'Not isolated — single thread only', threadHintT: 'Hardware {hc} threads, up to {max}',
     theme: 'Theme', themeLight: 'Light', themeDark: 'Dark', themeSystem: 'System', themeHint: 'Applies instantly and is remembered',
     langLabel: 'Language', langHint: 'Every label on the page switches at once',
-    grpLook: 'Appearance & language', grpBoard: 'Board & stones', grpRule: 'Game rule', grpEngine: 'Engine & search', grpDebug: 'Diagnostics',
+    grpLook: 'Appearance & language', grpBoard: 'Board & stones', grpRule: 'Game rule', grpEngine: 'Engine & search', grpDebug: 'Diagnostics', grpMore: 'More',
+    desktopLink: 'Desktop app / website', desktopLinkHint: 'Download the desktop build or visit the project page',
+    aboutLink: 'About', aboutLinkHint: 'Version, rules, shortcuts and credits',
+    transform: 'Transform', transformTitle: 'Transform position', tipTransform: 'Rotate, flip or shift the position',
+    xfRot: 'Rotate 90°', xfFlipH: 'Flip H', xfFlipV: 'Flip V', xfDiag: 'Main diag.', xfAnti: 'Anti diag.',
+    xfLeft: 'Shift left', xfRight: 'Shift right', xfUp: 'Shift up', xfDown: 'Shift down',
+    xfHint: 'Changes the position by symmetry; move order and sides are kept, analysis restarts on the new position',
+    tTransformed: 'Position transformed (last move moved too)', tXfEmpty: 'Nothing to transform on an empty board', tXfNoRoom: 'Already touching that edge — cannot shift further',
+    evalBlack: 'Black', evalWhite: 'White',
     reset: 'Reset defaults', done: 'Done',
     engineLoading: 'Loading engine', engineReady: 'Engine ready', engineSingle: 'single thread', engineErr: 'Engine error',
     engineIdle: 'Engine idle · loads on demand',
@@ -155,6 +173,8 @@ const I18N = {
     tBalPoints: 'Balance points: {n}', tBalanceNoResult: 'No balance result yet',
     tHashClamp: 'Hash clamped to the engine limit of {n} MB',
     tFallback: 'Multi-threading unavailable — running single-threaded',
+    tEngineRebuilt: 'The engine stopped responding — restarted, position kept',
+    tEngineLoop: 'The engine failed repeatedly — analysis paused',
     toLight: 'Switch to light mode', toDark: 'Switch to dark mode',
     tipUndo: 'Undo (right click / long press also works)', tipRedo: 'Redo', tipRestart: 'Clear the board and reset the engine',
     tipAiB: 'Let the engine play black; both sides can be on at once', tipAiW: 'Let the engine play white; both sides can be on at once',
@@ -262,6 +282,15 @@ const S = {
   balanceHeld: false,       // balance markers kept as reference while analysing
   searching: false,
   searchKind: null,
+  engineBusy: false,        // a job was dispatched and the worker has not acknowledged the finish yet
+  queuedKind: null,         // newest intent that arrived while the engine was busy
+  lastEngineMsg: 0,         // timestamp of the last message from the worker
+  lastProgress: 0,          // last time depth/nodes actually moved
+  lastProgressNodes: 0,
+  recovering: false,        // worker is being rebuilt
+  recoveries: [],           // timestamps, used to stop an endless crash loop
+  stopGuard: 0,
+  stopSent: false,
   winner: 0,
   gen: 0,
   seq: 0,
@@ -1009,9 +1038,12 @@ function enginePost(msg) {
 function bootEngine() {
   S.worker = new Worker('worker.js');
   S.worker.onmessage = onEngineMessage;
-  const build = isolated() ? 'multi' : 'single';
+  const build = S.fallback ? 'single' : (isolated() ? 'multi' : 'single');
   S.engineBuild = build;
   S.engineThreads = build === 'multi' ? S.settings.threads : 1;
+  S.engineBusy = false;
+  S.queuedKind = null;
+  S.lastEngineMsg = Date.now();
   enginePost({
     t: 'init',
     build,
@@ -1024,6 +1056,56 @@ function bootEngine() {
   });
 }
 
+/* The worker can die (OOM after a very deep search, an aborted pthread pool, a
+   frozen tab). Rebuild it without touching the position: flags survive, the next
+   search re-sends the board, and the last numbers stay on screen. */
+function rebuildWorker(reason) {
+  if (!engineStarted || S.recovering) return;
+  const now = Date.now();
+  S.recoveries = S.recoveries.filter((t) => now - t < 30000);
+  if (S.recoveries.length >= 3) {
+    /* three rebuilds in half a minute: stop looping and let the user decide */
+    S.analysis = false;
+    S.balance = 0;
+    S.searching = false;
+    S.engineBusy = false;
+    chip.textContent = T('engineErr');
+    chip.className = 'chip err';
+    toast(T('tEngineLoop'));
+    return;
+  }
+  S.recoveries.push(now);
+  S.recovering = true;
+  S.engineReady = false;
+  S.engineBusy = false;
+  S.searching = false;
+  S.searchKind = null;
+  clearTimeout(S.stopGuard);
+  try { if (S.worker) S.worker.terminate(); } catch (e) {}
+  S.worker = null;
+  chip.textContent = T('engineLoading');
+  chip.className = 'chip warn';
+  toast(T('tEngineRebuilt'));
+  if (window.console) console.warn('[engine] worker rebuilt:', reason);
+  setTimeout(() => bootEngine(), 0);
+}
+function retrySingle(reason) {
+  if (S.fallback) return false;
+  S.fallback = true;
+  S.engineBuild = 'single';
+  S.engineThreads = 1;
+  S.settings.threads = 1;
+  if (S.worker) S.worker.terminate();
+  toast(T('tFallback'));
+  try { S.worker = new Worker('worker.js'); S.worker.onmessage = onEngineMessage; } catch (e) { return false; }
+  S.engineBusy = false;
+  S.lastEngineMsg = Date.now();
+  enginePost({
+    t: 'init', build: 'single', urls: ENGINE_FILES.single,
+    threads: 1, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule, cacheName: ENGINE_CACHE,
+  });
+  return true;
+}
 /* The engine and its 41 MB weight package are loaded on demand: the shell paints
    immediately and only a search (analyse / balance / a move that needs AI)
    triggers the download. Until then the page is fully usable.
@@ -1099,33 +1181,40 @@ function ensureEngineIfWanted() {
   return false;
 }
 
-function retrySingle(reason) {
-  if (S.fallback) return false;
-  S.fallback = true;
-  S.engineBuild = 'single';
-  S.engineThreads = 1;
-  S.settings.threads = 1;
-  if (S.worker) S.worker.terminate();
-  toast(T('tFallback'));
-  try { S.worker = new Worker('worker.js'); S.worker.onmessage = onEngineMessage; } catch (e) { return false; }
-  enginePost({
-    t: 'init', build: 'single', urls: ENGINE_FILES.single,
-    threads: 1, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule, cacheName: ENGINE_CACHE,
-  });
-  return true;
-}
-
 function onEngineMessage(ev) {
   const d = ev.data || {};
+  S.lastEngineMsg = Date.now();
+  S.msgRing = S.msgRing || [];
+  S.msgRing.push((d.t || '?') + (d.gen != null ? ':' + d.gen : ''));
+  if (S.msgRing.length > 40) S.msgRing.shift();
   if (d.t === 'load') {
     setLoader(d.pct, d.key);
     return;
   }
+  if (d.t === 'hb') {
+    /* the worker's own heartbeat: proof that a deep search is alive even when a
+       single iteration takes longer than the watchdog window */
+    if ((d.search || d.balance) && (d.nodes > S.lastProgressNodes)) {
+      S.lastProgressNodes = d.nodes || 0;
+      S.lastProgress = Date.now();
+    }
+    /* the engine only prints once per iteration; keep the elapsed clock running
+       between two PV lines so the panel never looks frozen at depth 20+ */
+    if (S.searching && S.stats && S.searchT0) {
+      const el = Date.now() - S.searchT0;
+      if (el > (S.stats.time || 0) + 600) { S.stats.time = el; writeStats(); }
+    }
+    return;
+  }
   if (d.t === 'ready') {
+    S.recovering = false;
     S.engineReady = true;
     S.engineBuild = d.build;
     S.engineThreads = d.threads;
     S.engineHash = d.hashMB;
+    S.engineBusy = false;
+    S.lastProgress = Date.now();
+    S.lastProgressNodes = 0;
     PERF.engineReady = performance.now();
     chip.textContent = d.build === 'multi' ? T('engineMulti', { n: d.threads }) : T('engineSingle');
     chip.className = 'chip ' + (d.build === 'multi' ? 'on' : 'warn');
@@ -1135,10 +1224,12 @@ function onEngineMessage(ev) {
     updateThreadUI();
     /* an action asked for before the lazy load finished runs now */
     if (S.pendingOne) { S.pendingOne = false; setTimeout(playOneMove, 0); return; }
-    schedule(0);
+    requestSync(0);
     return;
   }
   if (d.t === 'initfail') {
+    S.recovering = false;
+    S.engineReady = false;
     if (S.engineBuild === 'multi' && retrySingle(d.error)) return;
     chip.textContent = T('engineErr');
     chip.className = 'chip err';
@@ -1160,21 +1251,34 @@ function onEngineMessage(ev) {
     return;
   }
   if (d.t === 'balance-tick' || d.t === 'balance') {
-    if (d.gen !== S.gen) return;
+    if (d.t === 'balance') { S.engineBusy = false; clearTimeout(S.stopGuard); }
+    if (d.gen !== S.gen) {
+      if (d.t === 'balance') requestSync(0);
+      return;
+    }
     applyBalance(d.points, d.stats);
     if (d.t === 'balance') {
       S.searching = false;
       S.searchKind = null;
       updateState();
       renderDebug();
+      scheduleDebug();
+      requestSync(0);
     }
     return;
   }
   if (d.t === 'info' || d.t === 'best') {
-    if (d.gen !== S.gen) return;
-    if (d.stats) applyStats(d.stats);
-    if (d.candidates && d.candidates.length) applyCandidates(d.candidates);
+    if (d.t === 'best') { S.engineBusy = false; clearTimeout(S.stopGuard); }
+    if (d.gen !== S.gen) {
+      if (d.t === 'best') requestSync(0);
+      return;
+    }
     if (d.t === 'best') {
+      /* the final frame is painted immediately and cancels a queued tick */
+      clearTimeout(infoTimer);
+      infoTimer = 0;
+      infoPending = null;
+      paintInfo(d);
       S.searching = false;
       const kind = S.searchKind;
       S.searchKind = null;
@@ -1191,13 +1295,38 @@ function onEngineMessage(ev) {
         toast(T('tOnePlayed', { p: coordName(mx, my) }));
       } else if (kind === 'ai' && aiOn && d.best) {
         commitMove(d.best[0], 14 - d.best[1], { fromAi: true });
-      } else if (S.engineBuild !== 'multi' && kind === 'analysis' && S.analysis) {
-        setTimeout(() => { if (S.analysis && !S.searching) launch('analysis'); }, 120);
-      } else if (S.engineBuild !== 'multi' && kind === 'balance' && S.balance) {
-        setTimeout(() => { if (S.balance && !S.searching) launch('balance'); }, 120);
       }
+      /* single-thread builds restart in short chunks; multi-thread keeps one
+         infinite search alive until the user stops it */
+      requestSync(S.engineBuild !== 'multi' ? 140 : 0);
+    } else {
+      scheduleInfoPaint(d);
     }
   }
+}
+
+/* Engine info arrives several times per second during a shallow search. Redraw
+   at most once every 120 ms and always keep the newest frame, so a burst of
+   messages can never flood the main thread (or a background tab's task queue). */
+let infoTimer = 0;
+let infoPending = null;
+let lastInfoPaint = 0;
+function scheduleInfoPaint(d) {
+  infoPending = d;
+  if (infoTimer) return;
+  const wait = Math.max(0, 120 - (Date.now() - lastInfoPaint));
+  infoTimer = setTimeout(paintQueuedInfo, wait);
+}
+function paintQueuedInfo() {
+  infoTimer = 0;
+  lastInfoPaint = Date.now();
+  const d = infoPending;
+  infoPending = null;
+  if (d) paintInfo(d);
+}
+function paintInfo(d) {
+  if (d.stats) applyStats(d.stats);
+  if (d.candidates && d.candidates.length) applyCandidates(d.candidates);
 }
 
 function applyStats(st) {
@@ -1207,13 +1336,19 @@ function applyStats(st) {
     st.time = Math.max(st.time, S.stats.time || 0);
     if (!st.speed) st.speed = S.stats.speed || 0;
   }
+  if ((st.nodes || 0) > S.lastProgressNodes) {
+    S.lastProgressNodes = st.nodes || 0;
+    S.lastProgress = Date.now();
+  }
   S.statPly = S.moves.length;
+  S.statSide = sideToMove();
   S.stats = st;
   S.searchAnswered = true;
   noteWinRate(st);
   if (!PERF.firstEval) PERF.firstEval = performance.now();
   writeStats();
   updateState();
+  updateEvalScore();
   scheduleDebug();
 }
 
@@ -1274,12 +1409,55 @@ function fmtEval(v) {
   return (v >= 0 ? '+' : '') + Math.round(v);
 }
 
+/* score line above the win-rate bar: +123 for a normal eval, +M12 for a mate in
+   twelve (the same scale the marker circles and the main line use) */
+function fmtScore(v) {
+  if (v == null || !Number.isFinite(v)) return '-';
+  if (v >= 9900) return '+M' + Math.round(v - 9900);
+  if (v <= -9900) return '-M' + Math.round(Math.abs(v) - 9900);
+  return (v >= 0 ? '+' : '') + Math.round(v);
+}
+
+function updateEvalScore() {
+  const el = $('wrEval');
+  if (!el) return;
+  const stats = S.stats;
+  const base = stats ? parseEval(stats.eval) : null;
+  const statSide = S.statSide || sideToMove();
+  const sides = [];
+  const balMarks = S.balanceMarks || [];
+  if (balMarks.length >= 2) {
+    balMarks.slice(0, 2).sort((a, b) => a.c - b.c).forEach((m) => sides.push({ c: m.c, v: m.ev }));
+  } else if (balMarks.length === 1) {
+    sides.push({ c: balMarks[0].c, v: balMarks[0].ev });
+  } else if (base != null && S.aiB && S.aiW) {
+    const black = statSide === 1 ? base : -base;
+    sides.push({ c: 1, v: black }, { c: 2, v: -black });
+  } else if (S.aiB) {
+    if (base != null) sides.push({ c: 1, v: statSide === 1 ? base : -base });
+  } else if (S.aiW) {
+    if (base != null) sides.push({ c: 2, v: statSide === 1 ? -base : base });
+  } else if (base != null) {
+    /* plain analysis: the side the engine is evaluating */
+    sides.push({ c: statSide, v: base });
+  }
+  if (!sides.length) {
+    el.innerHTML = '<span class="none">-</span>';
+    return;
+  }
+  el.innerHTML = sides.map((s) =>
+    '<span class="side ' + (s.c === 1 ? 'b' : 'w') + '"><i></i><span>' +
+    (s.c === 1 ? T('evalBlack') : T('evalWhite')) + '</span><b>' + fmtScore(s.v) + '</b></span>'
+  ).join('');
+}
+
 function applyBalance(points, stats) {
   if (!points || !points.length) {
     S.balanceMarks = [];
     S.balanceInfo = { empty: true, stats };
     drawBoard();
     updateBalanceRow();
+    updateEvalScore();
     return;
   }
   const mover = sideToMove();
@@ -1296,32 +1474,44 @@ function applyBalance(points, stats) {
     };
   });
   S.balanceInfo = { empty: false, stats, winrate: wr, eval: ev };
-  if (stats) { S.stats = stats; noteWinRate(stats); writeStats(); updateState(); scheduleDebug(); }
+  if (stats) { S.stats = stats; S.statSide = mover; noteWinRate(stats); writeStats(); updateState(); scheduleDebug(); }
   drawBoard();
   updateBalanceRow();
+  updateEvalScore();
 }
 
-/* ============================================================ search orchestration */
+/* ============================================================ search orchestration
+   One worker job at a time. Every click only changes intent flags; a single
+   debounced scheduler reads those flags and talks to the engine. Twenty clicks
+   therefore collapse into at most one stop plus one start, and no second search
+   can be dispatched before the worker acknowledged the previous one. */
 function launch(kind) {
   if (!S.engineReady || !S.worker) return;
   if (S.winner) return;
-  if (S.searching) return;
+  if (S.engineBusy) { S.queuedKind = kind; return; }
   if (kind === 'balance' && !S.balance) return;
-  if (kind !== 'balance' && S.searchKind === 'analysis' && !S.analysis) return;
+  if (kind === 'move' && !S.oneShot) return;
+  S.engineBusy = true;
+  S.stopSent = false;
   S.searching = true;
   S.searchKind = kind;
   S.oneShot = kind === 'move';
   S.searchT0 = Date.now();
   S.searchAnswered = false;
+  S.lastProgress = Date.now();
+  S.lastProgressNodes = 0;
   const job = {
     id: ++S.seq,
+    seq: S.seq,
     gen: S.gen,
     moves: engineMoves(),
     threads: S.engineThreads || 1,
     hashMB: S.settings.hashMB,
     caution: S.settings.caution,
     rule: S.settings.rule,
-    infinite: S.engineBuild === 'multi' && kind !== 'ai' && kind !== 'move',
+    /* analysis and balance both deepen for as long as the user lets them; only
+       one-move/AI jobs keep a time budget */
+    infinite: S.engineBuild === 'multi' && (kind === 'analysis' || kind === 'balance'),
     timeMs: kind === 'ai' ? Math.min(S.settings.think, 4000) : S.settings.think,
     /* Multi-PV only pays off while analysing: playing with several lines splits
        the effort and makes the chosen move weaker. */
@@ -1331,28 +1521,51 @@ function launch(kind) {
   if (kind === 'balance') enginePost({ t: 'balance', job });
   else enginePost({ t: 'search', job });
   updateState();
+  renderDebug();
 }
 
-function schedule(delay) {
-  if (S.winner) return;
-  if (S.searching) return;
-  const run = () => {
-    if (S.winner || S.searching) return;
-    if (!S.engineReady) { ensureEngineIfWanted(); return; }
-    const side = sideToMove();
-    if ((side === 1 ? S.aiB : S.aiW)) { launch('ai'); return; }
-    if (S.balance) { launch('balance'); return; }
-    if (S.analysis) { launch('analysis'); return; }
-  };
-  if (delay) setTimeout(run, delay); else run();
+let syncTimer = 0;
+function desiredKind() {
+  if (S.winner) return null;
+  if (S.oneShot) return 'move';
+  const side = sideToMove();
+  if (side === 1 ? S.aiB : S.aiW) return 'ai';
+  if (S.balance) return 'balance';
+  if (S.analysis) return 'analysis';
+  return null;
 }
+function requestSync(delay) {
+  if (syncTimer) clearTimeout(syncTimer);
+  syncTimer = setTimeout(runSync, Math.max(0, delay || 0));
+}
+function runSync() {
+  syncTimer = 0;
+  if (S.winner || S.recovering) return;
+  if (!S.engineReady) { if (engineWanted()) ensureEngine(); return; }
+  const kind = desiredKind();
+  if (kind) launch(kind);
+}
+
+/* kept for the many existing call sites; it now only debounces the scheduler */
+function schedule(delay) { requestSync(delay || 0); }
 
 function haltSearch() {
   S.gen++;
+  S.seq++;
   S.searching = false;
   S.searchKind = null;
   S.oneShot = false;
-  enginePost({ t: 'stop' });
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = 0; }
+  if (S.engineBusy) {
+    if (!S.stopSent) {
+      S.stopSent = true;
+      enginePost({ t: 'stop', seq: S.seq });
+    }
+    /* if the worker never confirms, stop blocking the scheduler: the worker's
+       own 500 ms fallback finishes the search anyway */
+    clearTimeout(S.stopGuard);
+    S.stopGuard = setTimeout(() => { S.engineBusy = false; S.stopSent = false; }, 800);
+  }
 }
 
 function boardChanged(options) {
@@ -1437,6 +1650,57 @@ function redoMove() {
   boardChanged({ keepRedo: true });
 }
 
+/* ============================================================ transforms
+   Same nine operations as gomocalc: four sym metries plus shifts that push the
+   whole position against one edge. Move order (手数) and colours are untouched,
+   so undo/redo history stays valid; only the coordinates move. Analysis is
+   stopped first and restarted on the transformed position. */
+const XF_SYMMETRY = {
+  rot: (x, y) => [SIZE - 1 - y, x],
+  fliph: (x, y) => [SIZE - 1 - x, y],
+  flipv: (x, y) => [x, SIZE - 1 - y],
+  diag: (x, y) => [y, x],
+  anti: (x, y) => [SIZE - 1 - y, SIZE - 1 - x],
+};
+
+function applyTransform(kind) {
+  if (!S.moves.length && !S.redo.length) { toast(T('tXfEmpty')); return; }
+  haltSearch();
+  let map;
+  if (XF_SYMMETRY[kind]) {
+    const f = XF_SYMMETRY[kind];
+    map = (m) => ({ x: f(m.x, m.y)[0], y: f(m.x, m.y)[1], c: m.c });
+  } else {
+    const all = S.moves.concat(S.redo);
+    const minX = Math.min(...all.map((m) => m.x));
+    const maxX = Math.max(...all.map((m) => m.x));
+    const minY = Math.min(...all.map((m) => m.y));
+    const maxY = Math.max(...all.map((m) => m.y));
+    const dx = kind === 'left' ? -minX : kind === 'right' ? SIZE - 1 - maxX : 0;
+    const dy = kind === 'up' ? -minY : kind === 'down' ? SIZE - 1 - maxY : 0;
+    if (!dx && !dy) { toast(T('tXfNoRoom')); return; }
+    map = (m) => ({ x: m.x + dx, y: m.y + dy, c: m.c });
+  }
+  S.moves = S.moves.map(map);
+  S.redo = S.redo.map(map);
+  S.lastAiMove = null;
+  S.hover = null;
+  S.preview = null;
+  S.wrGame.track = S.wrGame.track.slice(0, S.moves.length + 1);
+  boardChanged({ keepRedo: true });
+  toast(T('tTransformed', { n: S.moves.length }));
+}
+
+function toggleXfPanel(open) {
+  const p = $('xfPanel'), b = $('btnTransform');
+  if (!p) return;
+  const want = open == null ? !p.classList.contains('open') : !!open;
+  p.classList.toggle('open', want);
+  document.body.classList.toggle('xf-open', want);
+  if (b) b.setAttribute('aria-expanded', String(want));
+}
+
+
 function restartGame(force) {
   const btn = $('btnRestart');
   if (!force && S.moves.length && !S.winner && !btn.classList.contains('confirm')) {
@@ -1454,6 +1718,10 @@ function restartGame(force) {
   btn.classList.remove('confirm');
   btn.textContent = T('restart');
   haltSearch();
+  S.analysis = false;
+  S.balance = 0;
+  S.oneShot = false;
+  S.statPly = -1;
   S.moves = [];
   S.redo = [];
   S.winner = 0;
@@ -1471,7 +1739,7 @@ function restartGame(force) {
   drawBoard();
   writeStats();
   updateAll();
-  schedule(320);
+  requestSync(0);
   toast(T('tRestarted'));
 }
 
@@ -1479,8 +1747,21 @@ function restartGame(force) {
 function toggleAI(side) {
   if (side === 1) S.aiB = !S.aiB; else S.aiW = !S.aiW;
   haltSearch();
+  /* switching sides makes the previous numbers meaningless: clear them instead
+     of showing the old side's score under the new label */
+  S.stats = null;
+  S.statsShown = false;
+  S.statPly = -1;
+  S.marks = [];
+  S.balanceMarks = [];
+  S.balanceInfo = null;
+  S.balance = 0;
+  S.balanceHeld = false;
+  S.analysis = false;
+  writeStats();
+  drawBoard();
   updateAll();
-  schedule(180);
+  requestSync(180);
   const on = side === 1 ? S.aiB : S.aiW;
   const who = side === 1 ? T('tBlack') : T('tWhite');
   toast(on ? T('tAiOn', { n: who }) : T('tAiOff', { n: who }));
@@ -1561,9 +1842,10 @@ function toggleAnalysis() {
     return;
   }
   S.analysis = true;
-  // Keep the last balance result visible as a reference; the balance search stops.
-  S.balanceHeld = !!S.balanceMarks.length;
+  S.balanceHeld = false;
   S.balance = 0;
+  S.balanceMarks = [];
+  S.balanceInfo = null;
   S.marks = [];
   S.stats = null;
   haltSearch();
@@ -1589,8 +1871,9 @@ function playOneMove() {
     toast(T('tEngineLazy'));
     return;
   }
+  S.oneShot = true;
   updateAll();
-  launch('move');
+  requestSync(0);
   toast(T('tThinkingOne'));
 }
 
@@ -1786,7 +2069,8 @@ function updateBalanceRow() {
   let note = '';
   if (info && info.empty) note = '<span class="bal note">' + T('balEmpty') + '</span>';
   else if (info && info.eval != null) {
-    note = '<span class="bal note">|Eval| ' + Math.abs(Math.round(info.eval)) + ' · ' +
+    const d = info.stats && info.stats.depth ? 'd' + info.stats.depth + ' · ' : '';
+    note = '<span class="bal note">' + d + '|Eval| ' + Math.abs(Math.round(info.eval)) + ' · ' +
       (Math.abs(info.eval) <= 50 ? T('balWindowIn') : T('balWindowOut')) + '</span>';
   }
   row.innerHTML = bits + note;
@@ -1806,13 +2090,24 @@ function updateAll() {
   $('btnRedo').disabled = !S.redo.length;
   const play = $('btnStep');
   if (play) {
-    play.disabled = !S.engineReady || !!S.winner;
+    /* one shot while a search is live would queue a second engine job; block it */
+    play.disabled = !S.engineReady || !!S.winner || S.searching;
     play.setAttribute('aria-pressed', String(!!(S.searching && S.searchKind === 'move')));
   }
+  an.classList.toggle('busy', !!S.searching && S.searchKind === 'analysis');
+  an.setAttribute('aria-busy', String(!!S.searching && S.searchKind === 'analysis'));
   if (document.activeElement !== codeInput) codeInput.value = formatCode();
+  const codeAlt = $('codeAlt');
+  if (codeAlt) {
+    const pairs = S.moves.map((m) => (m.x + 1) + ',' + (SIZE - m.y)).join(' ');
+    codeAlt.innerHTML = S.moves.length
+      ? '<span>' + T('codeAltLabel') + '</span>' + pairs
+      : '<span>' + T('codeAltLabel') + '</span>—';
+  }
   updateState();
   updateBalanceRow();
   updateWinBar();
+  updateEvalScore();
   renderDebug();
   syncSettingsUI();
 }
@@ -2267,6 +2562,24 @@ function initHeaderEvents() {
   $('btnRedo').addEventListener('click', redoMove);
   $('btnStep').addEventListener('click', playOneMove);
   $('btnRestart').addEventListener('click', () => restartGame(false));
+  $('btnTransform').addEventListener('click', (e) => { e.stopPropagation(); toggleXfPanel(); });
+  $('btnXfClose').addEventListener('click', () => toggleXfPanel(false));
+  const xfPanel = $('xfPanel');
+  if (xfPanel) {
+    xfPanel.addEventListener('click', (e) => {
+      const k = e.target.closest && e.target.closest('[data-xf]');
+      if (!k) return;
+      e.stopPropagation();
+      applyTransform(k.getAttribute('data-xf'));
+    });
+  }
+  document.addEventListener('click', (e) => {
+    if (!xfPanel) return;
+    if (!xfPanel.contains(e.target) && e.target !== $('btnTransform')) toggleXfPanel(false);
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && xfPanel && xfPanel.classList.contains('open')) toggleXfPanel(false);
+  });
   $('btnCopy').addEventListener('click', async () => {
     const txt = formatCode();
     if (!txt) return;
@@ -2365,18 +2678,34 @@ function boot() {
   initEngineMode();
   /* if nothing moves for over a minute, offer a retry instead of waiting forever */
   setInterval(() => {
-    if (!engineStarted || loaderDone || loaderError) return;
+    if (!engineStarted) return;
     if (!S.engineReady) {
-      if (Date.now() - loadTick > 75000) showLoadError('loadSlow');
+      if (!loaderDone && !loaderError && Date.now() - loadTick > 75000) showLoadError('loadSlow');
       return;
     }
-    /* Ready but stone deaf: a search has been running for 9 s without a single
-       info line. Restart once with one thread so the board is never frozen. */
-    if (S.searching && !S.searchAnswered && Date.now() - S.searchT0 > 9000 && !S.fallback) {
+    /* Never judge the engine while the tab is hidden: the browser throttles both
+       timers and message delivery there, and the search is still deepening. */
+    if (document.hidden) return;
+    /* The worker posts a heartbeat every 500 ms while a job is live, so a dead
+       worker is detected by silence alone. Node growth must not be the trigger:
+       a single iteration at depth 24 can easily take longer than 12 s. */
+    const idleFor = Date.now() - S.lastEngineMsg;
+    /* Ready but stone deaf: no node has moved for 12 s although a job is live.
+       Rebuild the worker once (position and flags survive), never loop. */
+    if ((S.searching || S.engineBusy) && idleFor > 12000 && !S.recovering) {
       haltSearch();
-      retrySingle('silent');
+      rebuildWorker('no progress for ' + Math.round(idleFor / 1000) + ' s');
     }
   }, 3000);
+  /* Resuming a background tab: re-sync the UI and, if the flags still ask for
+     a search the worker no longer runs, start it again instead of showing stale
+     numbers. */
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    S.lastProgress = Date.now();
+    scheduleDebug();
+    if (!S.engineBusy) requestSync(300);
+  });
   initCanvas();
   initSettingsEvents();
   initHeaderEvents();
@@ -2426,9 +2755,14 @@ function boot() {
     redo: redoMove,
     restart: () => restartGame(true),
     place: (x, y) => commitMove(x, y, {}),
+    set: (k, v) => setSetting(k, v),
     startAnalysis: () => { if (!S.analysis) toggleAnalysis(); },
     stopAnalysis: () => { if (S.analysis) toggleAnalysis(); },
     setRule: (r) => setSetting('rule', r),
+    transform: applyTransform,
+    toggleXf: toggleXfPanel,
+    stopOnly: () => { S.analysis = false; S.balance = 0; S.oneShot = false; haltSearch(); updateAll(); },
+    msgRing: () => S.msgRing || [],
   };
 }
 
