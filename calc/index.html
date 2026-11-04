@@ -275,7 +275,16 @@
     </div>
 
     <div class="set-row">
-      <div class="set-label"><b data-i18n="pointsLabel">分析点数</b><span data-i18n="pointsHint">每个候选点的多 PV 路线数量</span></div>
+      <div class="set-label">
+        <span class="set-title-line">
+          <b data-i18n="pointsLabel">分析点数</b>
+          <button id="swScan" class="switch sw-sm" type="button" role="switch" aria-checked="false"
+                  data-i18n-title="scanLabel" aria-label="扫描分析"><span class="knob"></span></button>
+          <span class="scan-tag" data-i18n="scanLabel">扫描分析 / Scan analysis</span>
+        </span>
+        <span data-i18n="pointsHint">严格输出 N 条候选与 N 条路线（1–8）</span>
+        <span id="scanNote" class="scan-note" hidden data-i18n="scanNoLimit">扫描模式下不限点数：评估全部空点，关闭后回到固定点数</span>
+      </div>
       <div class="seg grid4" id="segPoints" role="group" aria-label="分析点数">
         <button type="button" data-v="1">1</button>
         <button type="button" data-v="2">2</button>
@@ -289,8 +298,46 @@
     </div>
 
     <div class="set-row">
+      <div class="set-label"><b data-i18n="maxDepth">最大深度</b><span data-i18n="maxDepthHint">搜索深度上限；默认 64，通常先撞思考时间而不是深度</span></div>
+      <div class="seg four" id="segDepth" role="group" aria-label="最大深度">
+        <button type="button" data-v="32">32</button>
+        <button type="button" data-v="64">64</button>
+        <button type="button" data-v="128">128</button>
+        <button type="button" data-v="255">255</button>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="maxNodes">节点上限</b><span data-i18n="maxNodesHint">0 = 不限；设上限可省电、降发热</span></div>
+      <div class="seg four" id="segNodes" role="group" aria-label="节点上限">
+        <button type="button" data-v="0" data-i18n="nodesUnlimited">不限</button>
+        <button type="button" data-v="10000000">10M</button>
+        <button type="button" data-v="50000000">50M</button>
+        <button type="button" data-v="200000000">200M</button>
+      </div>
+    </div>
+
+    <div class="set-row">
       <div class="set-label"><b data-i18n="threads">线程数</b><span id="threadHint"></span></div>
       <div class="seg grid4" id="segThreads" role="group" aria-label="线程数"></div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label">
+        <span class="set-title-line">
+          <b data-i18n="ponder">后台思考 / Pondering</b>
+          <button id="swPonder" class="switch sw-sm" type="button" role="switch" aria-checked="true"
+                  data-i18n-title="ponder" aria-label="后台思考"><span class="knob"></span></button>
+        </span>
+        <span data-i18n="ponderHint">AI 落子后继续预读对手回应，命中即秒回；待机时会占用 CPU</span>
+      </div>
+    </div>
+
+    <div class="set-row">
+      <div class="set-label"><b data-i18n="netEval">网络评估</b><span data-i18n="netEvalHint">Rapfi NNUE 权重始终启用（协议没有关闭开关）</span></div>
+      <div class="seg" role="group" aria-label="网络评估">
+        <button type="button" class="on" disabled>NNUE</button>
+      </div>
     </div>
 
     <div class="set-row">

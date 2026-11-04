@@ -5,24 +5,50 @@
 'use strict';
 
 let Mod = null;
-let active = null;          // { id, gen, topN, infinite, stopping, lastBest, key }
+let active = null;          // { id, gen, topN, scan, infinite, stopping, lastBest, key }
 let pending = null;         // newest request queued behind the running one (older ones are dropped)
 let bal = null;             // { id, gen, count, moves, stopping, lastPoints, key }
 let pvIdx = -1;
+let curNumPv = 0;
 let pvs = [];
 let glob = { speed: 0, totaltime: 0, totalnodes: 0 };
 let lastCfg = { threads: 0, hashMB: 0, caution: 0, rule: -1 };
 let stopTimer = 0;
+let scanTimer = 0;
 let booting = false;
 /* Serialisation: every job carries a monotonically increasing seq. A job whose
    seq is older than the newest accepted one is stale and must never reach the
    engine, so rapid clicking cannot stack searches. The newest queued job wins. */
 let jobSeq = -1;
 let hbTimer = 0;
+/* A reset (new game / pasted position / transform) must wait until the running
+   search has actually stopped: Rapfi ignores every command except STOP while
+   `thinking` is true, so a hash clear sent too early would be dropped. */
+let resetReq = null;
+let lastStrength = { maxDepth: -1, maxNodes: -1, strength: -1, pondering: -1 };
+/* Rapfi drops every non-STOP command while `thinking` is true. If a stop is not
+   acknowledged in time we assume the engine is still finishing an iteration and
+   must prove it is idle before another job rewrites the board — otherwise the
+   board/YXNBEST lines are swallowed and the search never starts. YXHASHCLEAR is
+   the cheapest command the engine always answers, so its reply is that proof. */
+let engineDirty = false;
+let idleTimer = 0;
+
+function waitEngineIdle(ms) {
+  engineDirty = true;
+  clearTimeout(idleTimer);
+  send('STOP');
+  send('YXHASHCLEAR');
+  idleTimer = setTimeout(() => {
+    idleTimer = 0;
+    if (engineDirty) post({ t: 'stalled', msg: 'engine did not answer STOP' });
+  }, Math.max(1000, ms || 4000));
+}
 
 function jobKey(job) {
   const mv = (job.moves || []).map((m) => m[0] + ',' + m[1] + ',' + m[2]).join(';');
-  return (job.rule | 0) + '|' + (job.topN | 0) + '|' + (job.infinite ? 1 : 0) + '|' + mv;
+  return (job.rule | 0) + '|' + (job.topN | 0) + '|' + (job.scan ? 1 : 0) +
+    '|' + (job.infinite ? 1 : 0) + '|' + (job.scan ? (job.timeMs | 0) : 0) + '|' + mv;
 }
 
 function startHeartbeat() {
@@ -181,8 +207,11 @@ async function fetchChunk(route, start, end) {
 
 async function fetchRanged(routes, meta, from, to) {
   const total = routes[0].total;
-  if (!total || total < 4 * 1024 * 1024) return null;
-  const n = Math.ceil(total / CHUNK_BYTES);
+  const chunk = (meta && meta.chunk) || CHUNK_BYTES;
+  /* the wasm is ~1.1 MB and the weights 40 MB: both are cut into ranges, with a
+     smaller chunk size for the wasm so four connections still share the work */
+  if (!total || total < Math.max(512 * 1024, chunk * 1.5)) return null;
+  const n = Math.ceil(total / chunk);
   const out = new Uint8Array(total);
   let next = 0;
   let filled = 0;
@@ -193,8 +222,8 @@ async function fetchRanged(routes, meta, from, to) {
       if (dead) return;
       const k = next++;
       if (k >= n) return;
-      const start = k * CHUNK_BYTES;
-      const end = Math.min(total, start + CHUNK_BYTES);
+      const start = k * chunk;
+      const end = Math.min(total, start + chunk);
       let ok = false;
       for (let t = 0; t < routes.length && !ok; t++) {
         const route = routes[(seed + k + t) % routes.length];
@@ -267,23 +296,92 @@ async function downloadFrom(urls, meta, from, to) {
   throw last || new Error('download failed');
 }
 
-function looksValid(name, buf, res) {
-  const size = +(res.headers.get('X-Size') || 0);
-  if (!size || buf.byteLength !== size) return false;
-  if (/\.wasm$/.test(name)) {
-    const b = new Uint8Array(buf, 0, Math.min(4, buf.byteLength));
-    if (!(b[0] === 0 && b[1] === 0x61 && b[2] === 0x73 && b[3] === 0x6d)) return false;
+/* Authoritative size + SHA-256 of the files shipped in this release. A proxy
+   that answers with a truncated file, an HTML error page or an old network is
+   rejected instead of being cached, so a bad copy can never silently weaken
+   the engine on later visits. */
+const ASSET_META = {
+  'rapfi.data': { size: 40306406, sha256: '2fa58b1c9e005a7b39bbddb798097a8f1ff9ceaba4c9339d87ba7d324b9d846d' },
+  'rapfi-multi-simd128.wasm': { size: 1137577, sha256: '642c79f0fd929a3679053e1b52701e82f9c1749c797e177e1b14bb025fd5a166' },
+  'rapfi-single-simd128.wasm': { size: 1105309, sha256: 'e9ad428a43d6f99c2f5394ddfd05a7e6132408fb85463477a5a9aa173a12c386' },
+};
+
+async function sha256hex(buf) {
+  try {
+    const d = await crypto.subtle.digest('SHA-256', buf);
+    const a = new Uint8Array(d);
+    let s = '';
+    for (let i = 0; i < a.length; i++) s += (a[i] < 16 ? '0' : '') + a[i].toString(16);
+    return s;
+  } catch (e) {
+    return '';                 // WebCrypto missing: the size check still applies
   }
-  if (/\.data$/.test(name) && buf.byteLength < 1024 * 1024) return false;
-  return true;
 }
 
-async function loadAsset(url, cache, from, to) {
+async function verifyAsset(name, buf) {
+  const meta = ASSET_META[name];
+  if (!meta) return { ok: true, sha: '' };
+  if (buf.byteLength !== meta.size) return { ok: false, sha: '', why: 'size ' + buf.byteLength + ' != ' + meta.size };
+  const sha = await sha256hex(buf);
+  if (!sha) return { ok: true, sha: '' };
+  if (sha !== meta.sha256) return { ok: false, sha, why: 'sha256 ' + sha.slice(0, 12) + '… != ' + meta.sha256.slice(0, 12) + '…' };
+  return { ok: true, sha };
+}
+
+function assetReport(list, rec) {
+  if (list) list.push(rec);
+  post({ t: 'asset', asset: rec });
+}
+
+/* Enumerate Cache Storage entries of this project and delete everything that
+   is not the current weight/wasm: older mgcalc-engine-* caches, stale ?v=
+   keys inside the current cache, truncated entries and orphans. */
+async function cleanCaches(name, keepUrls) {
+  const before = [];
+  const removed = [];
+  try {
+    const names = await caches.keys();
+    for (const k of names) {
+      if (!/^mgcalc-engine-/.test(k)) continue;
+      let list = [];
+      try {
+        const c = await caches.open(k);
+        for (const req of await c.keys()) {
+          const res = await c.match(req);
+          const sz = res ? (+(res.headers.get('X-Size') || res.headers.get('content-length')) || 0) : 0;
+          list.push({ url: req.url, bytes: sz });
+        }
+      } catch (e) {}
+      before.push({ name: k, entries: list.length, bytes: list.reduce((n, e) => n + e.bytes, 0), list });
+      if (k !== name) {
+        try { await caches.delete(k); } catch (e) {}
+        removed.push({ cache: k, reason: 'previous release' });
+        continue;
+      }
+      const keep = new Set(keepUrls.map((u) => new URL(u, self.location.href).href.split('?')[0]));
+      try {
+        const c = await caches.open(k);
+        for (const req of await c.keys()) {
+          const base = req.url.split('?')[0];
+          const isWasm = /rapfi-[a-z0-9-]+\.wasm$/.test(base);
+          if (!keep.has(base) && !isWasm) {
+            await c.delete(req);
+            removed.push({ cache: k, reason: 'stale key', url: req.url });
+          }
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+  return { before, removed, keep: name, keepUrls: keepUrls.map((u) => new URL(u, self.location.href).href.split('?')[0]) };
+}
+
+async function loadAsset(url, cache, from, to, reports) {
   const abs = new URL(url, self.location.href).href;
   const name = abs.split('/').pop().split('?')[0];
   const meta = /.wasm$/.test(name)
-    ? { min: 100000, wasm: true }
+    ? { min: 100000, wasm: true, big: true, chunk: 1024 * 1024 }
     : { min: 200000, big: /\.data$/.test(name) };
+  const t0 = Date.now();
   if (cache) {
     try {
       /* exact key (the UI appends ?v=<release>): a new release never reads an
@@ -291,17 +389,28 @@ async function loadAsset(url, cache, from, to) {
       const hit = await cache.match(abs);
       if (hit) {
         const buf = await hit.arrayBuffer();
-        if (looksValid(name, buf, hit)) {
+        const v = await verifyAsset(name, buf);
+        if (v.ok) {
           postLoad(to, 'loadCached');
+          assetReport(reports, { name, source: 'cache', bytes: buf.byteLength, ms: Date.now() - t0, sha: v.sha || '' });
           return buf;
         }
-        await cache.delete(abs);
+        try { await cache.delete(abs); } catch (e) {}
       }
     } catch (err) {}
   }
   const urls = [abs].concat(MIRROR_ROOT.map((base) => base + name));
-  const buf = await downloadFrom(urls, meta, from, to);
-  if (!buf || !buf.byteLength) throw new Error('empty download');
+  let buf = null;
+  let v = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    buf = await downloadFrom(urls, meta, from, to);
+    if (!buf || !buf.byteLength) throw new Error('empty download');
+    v = await verifyAsset(name, buf);
+    if (v.ok) break;
+    try { if (cache) await cache.delete(abs); } catch (e) {}
+    if (attempt === 0) post({ t: 'stderr', msg: 'integrity check failed for ' + name + ' (' + v.why + '), re-downloading' });
+  }
+  if (!v || !v.ok) throw new Error('integrity check failed: ' + (v && v.why));
   if (cache) {
     try {
       await cache.put(abs, new Response(buf, {
@@ -309,6 +418,7 @@ async function loadAsset(url, cache, from, to) {
       }));
     } catch (err) {}
   }
+  assetReport(reports, { name, source: 'network', bytes: buf.byteLength, ms: Date.now() - t0, sha: v.sha || '' });
   return buf;
 }
 
@@ -358,12 +468,19 @@ function balancePts(stats, count) {
 
 function emitInfo(final, best) {
   if (!active) return;
+  /* A scan asks the engine for one PV per empty point, so the whole board can
+     change several times a second. The final frame is always sent; live frames
+     are throttled so a hundred circles do not redraw the page at full speed. */
+  const now = Date.now();
+  if (!final && active.scan && now - active.lastEmit < 300) return;
+  active.lastEmit = now;
   const stats = statsOf();
   const cands = candidates();
   post({
     t: final ? 'best' : 'info',
     id: active.id,
     gen: active.gen,
+    scan: !!active.scan,
     stats,
     candidates: cands,
     best: best || (cands[0] && cands[0].move) || active.lastBest || null,
@@ -395,8 +512,15 @@ function handleLine(raw) {
 
   if (line === 'INFO PV DONE') {
     if (pvIdx >= 0 && pvs[pvIdx]) {
-      if (bal) emitBalanceTick();
-      else emitInfo(false);
+      /* Rapfi completes and prints root PVs one by one inside an iteration, so
+         emitting on every PV would combine a fresh rank 0 with stale lower
+         ranks (and briefly show the same move twice). Emit only when the last
+         PV of the iteration is done: that frame is internally consistent, and
+         the engine's rank order stays stable between refreshes. */
+      if (curNumPv > 0 && pvIdx + 1 >= curNumPv) {
+        if (bal) emitBalanceTick();
+        else emitInfo(false);
+      }
     }
     pvIdx = -1;
     return;
@@ -425,6 +549,7 @@ function handleLine(raw) {
     else if (key === 'TOTALNODES') p.totalnodes = +val;
     else if (key === 'TOTALTIME') p.totaltime = +val;
     else if (key === 'BESTLINE') p.bestline = val;
+    else if (key === 'NUMPV') curNumPv = +val;
     return;
   }
 
@@ -442,6 +567,24 @@ function handleLine(raw) {
   if (line.startsWith('ERROR')) {
     post({ t: 'error', msg: line.slice(0, 160) });
   }
+  if (line.startsWith('MESSAGE')) {
+    const text = line.slice(7).trim();
+    /* Rapfi answers YXHASHCLEAR with this line; forward it so the page can
+       prove a new game really starts from an empty transposition table. It also
+       proves the engine is idle again after a forced stop, which releases the
+       queued job. */
+    if (/transposition table cleared/i.test(text)) {
+      post({ t: 'hashclear', text });
+      if (engineDirty) {
+        engineDirty = false;
+        clearTimeout(idleTimer);
+        idleTimer = 0;
+        if (resetReq) applyReset();
+        if (pending && !bal) startPending();
+      }
+    }
+    return;
+  }
 }
 
 function send(line) {
@@ -456,6 +599,21 @@ function sendBoard(moves) {
   }
   cmd += ' DONE';
   send(cmd);
+}
+
+/* Strength knobs mirror gomoku-calculator's engine setup: MAX_DEPTH,
+   MAX_NODE, STRENGTH (skill) and PONDERING. They are sent before every job so
+   a scan can silence background pondering while a normal search keeps it. */
+function applyStrength(cfg) {
+  const c = cfg || {};
+  const maxDepth = Math.max(1, Math.min(255, c.maxDepth == null ? 64 : (c.maxDepth | 0)));
+  const maxNodes = Math.max(0, Math.floor(c.maxNodes || 0));
+  const strength = Math.max(1, Math.min(100, c.strength == null ? 100 : (c.strength | 0)));
+  const pondering = c.pondering ? 1 : 0;
+  if (maxDepth !== lastStrength.maxDepth) { send('INFO MAX_DEPTH ' + maxDepth); lastStrength.maxDepth = maxDepth; }
+  if (maxNodes !== lastStrength.maxNodes) { send('INFO MAX_NODE ' + maxNodes); lastStrength.maxNodes = maxNodes; }
+  if (strength !== lastStrength.strength) { send('INFO STRENGTH ' + strength); lastStrength.strength = strength; }
+  if (pondering !== lastStrength.pondering) { send('INFO PONDERING ' + pondering); lastStrength.pondering = pondering; }
 }
 
 function applyConfig(threads, hashMB, caution, rule, force) {
@@ -481,6 +639,7 @@ async function boot(opts) {
   booting = true;
   loadPct = -1;
   loadAt = 0;
+  const bootT0 = Date.now();
   try {
     const build = opts.build === 'multi' ? 'multi' : 'single';
     let urls = opts.urls;
@@ -491,11 +650,18 @@ async function boot(opts) {
        script is parsed, so script eval overlaps the download instead of
        preceding it. The wasm is ~3% of the bytes, so only the weights drive
        the progress bar. */
+    const reports = [];
+    let cacheInfo = null;
     let cache = null;
+    try {
+      /* drop old mtcalc-engine-* caches and stale keys before reading anything */
+      cacheInfo = await cleanCaches(opts.cacheName || 'mgcalc-engine', [opts.urls.data, opts.urls.wasm]);
+      post({ t: 'cache', info: cacheInfo });
+    } catch (err) {}
     try { cache = await caches.open(opts.cacheName || 'mgcalc-engine'); } catch (err) {}
     const assets = Promise.all([
-      loadAsset(opts.urls.data, cache, 4, 96),
-      loadAsset(opts.urls.wasm, cache, 0, 0),
+      loadAsset(opts.urls.data, cache, 4, 96, reports),
+      loadAsset(opts.urls.wasm, cache, 0, 0, reports),
     ]);
     assets.catch(() => {});              // avoid an unhandled rejection while parsing
     importScripts(opts.urls.js);
@@ -543,12 +709,13 @@ async function boot(opts) {
     await new Promise((r) => setTimeout(r, 180));
     applyConfig(opts.threads, opts.hashMB, opts.caution, opts.rule, true);
     send('INFO SHOW_DETAIL 3');
-    send('INFO PONDERING 0');
+    applyStrength({ maxDepth: opts.maxDepth, maxNodes: opts.maxNodes, strength: opts.strength, pondering: opts.pondering });
     send('INFO TIMEOUT_MATCH 6000000');
     send('INFO TIME_LEFT 6000000');
     booting = false;
     postLoad(100, 'loadDone');
-    post({ t: 'ready', build, threads: opts.threads, hashMB: opts.hashMB });
+    post({ t: 'ready', build, threads: opts.threads, hashMB: opts.hashMB,
+      assets: reports, cache: cacheInfo, loadMs: Date.now() - bootT0 });
   } catch (err) {
     booting = false;
     post({ t: 'initfail', error: String((err && err.message) || err).slice(0, 300) });
@@ -560,6 +727,7 @@ function finishSearch(best, forced) {
   const a = active;
   active = null;
   clearTimeout(stopTimer);
+  clearTimeout(scanTimer);
   stopHeartbeat();
   if (forced) {
     /* the build did not answer STOP in time — repeat it so the engine is really
@@ -568,20 +736,27 @@ function finishSearch(best, forced) {
   }
   const stats = statsOf();
   post({
-    t: 'best', id: a.id, gen: a.gen, stats, candidates: candidates(),
+    t: 'best', id: a.id, gen: a.gen, scan: !!a.scan, stats, candidates: candidates(),
     best: best || a.lastBest || null,
     forced: !!forced,
   });
-  if (pending && !bal) {
-    /* after a forced stop give the engine one more beat to settle before the
-       next job rewrites the board */
-    if (forced) setTimeout(startPending, 150);
-    else startPending();
+  /* a reset that arrived while this search was running is executed now,
+     before the next queued job (which may start a fresh search) */
+  if (forced) {
+    /* The engine ignored STOP long enough that we cannot trust it to be idle:
+       it is probably still finishing a long iteration (a 200+ PV scan can
+       overshoot by seconds) and would silently drop the next board/YXNBEST.
+       Prove idleness with the hash-clear reply before releasing the queue. */
+    post({ t: 'stderr', msg: 'forced stop after ' + Math.round((a.scan ? 2500 : 500) / 100) / 10 + ' s' });
+    waitEngineIdle(a.scan ? 5000 : 2500);
+    return;
   }
+  if (resetReq) applyReset();
+  if (pending && !bal) startPending();
 }
 
 function startPending() {
-  if (!pending) return;
+  if (!pending || engineDirty) return;
   const p = pending;
   pending = null;
   if (p.kind === 'balance') balance(p.job);
@@ -589,19 +764,41 @@ function startPending() {
 }
 
 function startSearch(job) {
-  if (!Mod) return;
+  if (!Mod || engineDirty) return;
   clearTimeout(stopTimer);
+  clearTimeout(scanTimer);
   active = {
     id: job.id, gen: job.gen, topN: Math.max(1, Math.min(8, job.topN | 0)),
-    infinite: !!job.infinite, stopping: false, lastBest: null, key: jobKey(job),
+    scan: !!job.scan, infinite: !!job.infinite, stopping: false, lastBest: null,
+    lastEmit: 0, key: jobKey(job),
   };
   pvs = [];
   pvIdx = -1;
+  curNumPv = 0;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
-  applyConfig(job.threads, job.hashMB, job.caution, job.rule, false);
+  /* a scan must cover the whole board, so it forces Rapfi's widest candidate
+     range (5 = FULL_BOARD) for the duration of this job; the next job sends its
+     own caution factor again and rebuilds the board with it */
+  applyConfig(job.threads, job.hashMB, active.scan ? 5 : job.caution, job.rule, false);
+  /* a scan owns every thread, so background pondering stays off for its run */
+  applyStrength({
+    maxDepth: job.maxDepth, maxNodes: job.maxNodes, strength: job.strength,
+    pondering: job.pondering && !active.scan ? 1 : 0,
+  });
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
   sendBoard(job.moves);
-  send('YXNBEST ' + active.topN);
+  /* YXSEARCHDEFEND enumerates every empty point (Rapfi sets multiPV to
+     movesLeft()) and is what the scan switch asks for. YXNBEST N is the strict
+     multi-PV path: one engine PV per rank, no repeated main line. */
+  send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
+  /* The engine's own turn clock is not reliable for a 100+ PV search (the
+     iteration can run long past it), so the scan gets an explicit wall-clock
+     fence. STOP produces the final frame through finishSearch. */
+  if (active.scan) {
+    scanTimer = setTimeout(() => {
+      if (active && active.scan && !active.stopping) stopSearch();
+    }, Math.max(300, job.timeMs | 0));
+  }
   startHeartbeat();
 }
 
@@ -612,6 +809,7 @@ function search(job) {
     jobSeq = job.seq;
   }
   const key = jobKey(job);
+  if (engineDirty) { pending = { kind: 'search', job, key }; return; }
   if (active) {
     if (active.key === key) return;         // idempotent: the same search is running
     pending = { kind: 'search', job, key }; // newest request wins, older pending dropped
@@ -632,11 +830,13 @@ function stopSearch() {
   active.stopping = true;
   send('STOP');
   // Guarantee a bounded stop even if the engine build does not answer STOP;
-  // the next job must not wait forever for an answer that never comes.
+  // the next job must not wait forever for an answer that never comes. A scan
+  // owns ~220 PVs, so its last iteration can legitimately overshoot by seconds.
   clearTimeout(stopTimer);
+  const scanJob = !!(active && active.scan);
   stopTimer = setTimeout(() => {
     if (active) finishSearch(active.lastBest, true);
-  }, 500);
+  }, (scanJob ? 2500 : 500));
 }
 
 function finishBalance(points, stats) {
@@ -655,6 +855,7 @@ function finishBalance(points, stats) {
       points: (points || []).slice(0, Math.max(1, Math.min(2, b.count))),
       stats: stats || null,
     });
+    if (resetReq) applyReset();
     if (pending && !active) startPending();
   }, 0);
 }
@@ -684,6 +885,7 @@ function balance(job) {
   pvIdx = -1;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
   applyConfig(job.threads, job.hashMB, job.caution, job.rule, false);
+  applyStrength({ maxDepth: job.maxDepth, maxNodes: job.maxNodes, strength: job.strength, pondering: 0 });
   const b = { id: job.id, gen: job.gen, count, moves: job.moves, stopping: false, lastPoints: [], timer: 0, key };
   bal = b;
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(500, job.timeMs | 0)));
@@ -706,13 +908,25 @@ function stopBalance() {
 }
 
 function resetEngine(moves, rule) {
+  /* remember the request; when a search/ponder is still running it is executed
+     in finishSearch/finishBalance, because Rapfi drops every non-STOP command
+     while `thinking` is true (a hash clear sent early would be silently lost) */
+  resetReq = { moves: moves || null, rule: rule | 0 };
   pending = null;
   if (active) stopSearch();
   if (bal) stopBalance();
-  send('YXHASHCLEAR');
+  if (!active && !bal) applyReset();
+}
+
+function applyReset() {
+  const r = resetReq;
+  if (!r) return;
+  resetReq = null;
+  send('STOP');              /* also cancels a background ponder search */
+  send('YXHASHCLEAR');       /* Rapfi replies "Transposition table cleared." */
   send('YXBLOCKRESET');
-  applyConfig(lastCfg.threads || 1, lastCfg.hashMB || 0, lastCfg.caution || 0, rule, false);
-  if (moves) sendBoard(moves);
+  applyConfig(lastCfg.threads || 1, lastCfg.hashMB || 0, lastCfg.caution || 0, r.rule, false);
+  if (r.moves) sendBoard(r.moves);
 }
 
 self.onmessage = (e) => {
@@ -729,6 +943,12 @@ self.onmessage = (e) => {
     }
     else if (d.t === 'balance') balance(d.job);
     else if (d.t === 'config') applyConfig(d.threads, d.hashMB, d.caution, d.rule, false);
+    else if (d.t === 'strength') {
+      /* Rapfi only reads INFO while idle; the UI stops the search first, and
+         this STOP also cancels a background ponder that is still running */
+      if (!d.cfg || !d.cfg.pondering) send('STOP');
+      applyStrength(d.cfg);
+    }
     else if (d.t === 'reset') resetEngine(d.moves, d.rule);
     else if (d.t === 'shutdown') self.close();
   } catch (err) {

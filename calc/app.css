@@ -197,7 +197,20 @@ html[data-theme="dark"] .code-input:focus{box-shadow:0 0 0 3px rgba(121,184,239,
 
 /* analysis route: depth and eval ride in the panel head, the PV itself is a
    wrapping list that shows three rows and scrolls beyond that */
-.route-row{display:flex;align-items:flex-start;gap:7px;min-height:30px;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.route-row{display:flex;flex-direction:column;align-items:stretch;gap:0;min-height:30px;max-height:186px;
+  overflow-y:auto;font-family:var(--mono);font-variant-numeric:tabular-nums;scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent;overscroll-behavior:contain}
+.route-row::-webkit-scrollbar{width:5px}
+.route-row::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
+.route-line{display:flex;align-items:flex-start;gap:7px;padding:3px 0;border-bottom:1px dashed var(--line-2)}
+.route-line:last-child{border-bottom:0}
+.rt-rank{flex:0 0 19px;text-align:right;font-size:10px;line-height:18px;color:var(--mute);font-weight:600}
+.rt-moves{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;gap:4px 2px}
+.rt-ev{flex:0 0 auto;font-size:11px;line-height:18px;font-weight:700;color:var(--ink)}
+.rt-ev.pos{color:#1d7a4b}
+.rt-ev.neg{color:#a63d3d}
+html[data-theme="dark"] .rt-ev.pos{color:#57c98a}
+html[data-theme="dark"] .rt-ev.neg{color:#e58a8a}
 .route-meta{display:inline-flex;align-items:center;gap:8px;margin-right:auto;margin-left:6px;
   font-family:var(--mono);font-variant-numeric:tabular-nums}
 .route-meta .depth{font-size:11.5px;color:var(--sub);font-weight:600}
@@ -270,6 +283,12 @@ html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.72)}
 .wr-eval .side.w{border-color:rgba(79,143,214,.66);background:rgba(79,143,214,.12);
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.72)}
+/* a fresh number flashes its own chip for a moment; the other chip is untouched */
+.wr-eval .side.fresh{animation:scoreFlash .95s ease}
+@keyframes scoreFlash{
+  0%{box-shadow:0 0 0 2px rgba(47,111,176,.55);filter:brightness(1.18)}
+  100%{box-shadow:0 0 0 0 rgba(47,111,176,0);filter:none}
+}
 .wr-eval .side.b i{background:#14171a;border:.5px solid rgba(255,255,255,.35)}
 .wr-eval .side.w i{background:#faf9f5;border:.5px solid rgba(0,0,0,.25)}
 .wr-eval b{display:inline-block;min-width:3.6ch;text-align:center;font-weight:700;color:var(--ink)}
@@ -371,6 +390,14 @@ html[data-theme="dark"] .mini-btn{color:#0d1a26}
 .switch[aria-checked="true"]{background:var(--accent);border-color:var(--accent)}
 .switch[aria-checked="true"] .knob{transform:translateX(22px)}
 html[data-theme="dark"] .switch .knob{background:#e8eef7}
+/* a compact switch that sits inline with a settings title */
+.switch.sw-sm{width:38px;height:22px}
+.switch.sw-sm .knob{top:2px;left:2px;width:16px;height:16px}
+.switch.sw-sm[aria-checked="true"] .knob{transform:translateX(16px)}
+.set-label .set-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.set-label .scan-tag{font-size:10.5px;color:var(--sub);font-weight:600;letter-spacing:.01em}
+.set-label .scan-note{font-size:10.5px;color:var(--accent-d);font-weight:600;line-height:1.5}
+.seg[hidden]{display:none!important}
 .debug{margin-top:11px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;background:var(--bg);
   font-family:var(--mono);font-size:10.5px;line-height:1.75;color:var(--sub);overflow-wrap:anywhere}
 .debug b{color:var(--ink);font-weight:600}
