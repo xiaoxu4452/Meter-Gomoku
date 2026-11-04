@@ -218,10 +218,14 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
 .balance-row .bal em{font-family:var(--mono);font-style:normal;font-variant-numeric:tabular-nums}
 .balance-row .bal.note{border-style:dotted;border-color:var(--line);background:transparent;color:var(--mute);font-weight:500}
 
-/* win rate: one row — 胜率 / score chip / 黑 xx% / 白 xx% */
+/* win rate: one row — 胜率 / score chip / 黑 xx% 白 xx%. The head is a
+   1fr-auto-1fr grid, so the score chip is centred over the bar itself instead
+   of floating in whatever space the side labels leave behind. */
 .wr-panel{padding-bottom:10px}
-.wr-head{display:flex;align-items:center;gap:9px;margin-bottom:6px;min-height:24px}
-.wr-head .panel-title{flex:0 0 auto;margin-right:0}
+.wr-head{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;
+  margin-bottom:6px;min-height:24px}
+.wr-head .panel-title{justify-self:start;margin:0}
+.wr-right{justify-self:end;display:inline-flex;align-items:center;gap:9px}
 .wr-side{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;font-size:10.5px;color:var(--mute);font-weight:600}
 .wr-side i{width:7px;height:7px;border-radius:50%;display:block}
 .wr-side .dot-b{background:#7a5af8}
@@ -239,29 +243,42 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
   background:linear-gradient(90deg,#79c8ff,#2f7fd6);
   box-shadow:0 0 9px rgba(79,143,214,.8),0 0 22px rgba(79,143,214,.36)}
 html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
-/* the score sits between the label and the percentages, boxed in a chip so it
-   stays readable in both themes and never wraps at 320 px */
-.wr-eval{display:flex;align-items:center;justify-content:center;gap:5px;flex:1 1 auto;min-width:0;
+/* score chips: one per side, kept on screen all the time — a missing number
+   shows a dash instead of the row collapsing. Each chip wears a two-tone frame:
+   white inside, the side colour outside (purple = black, blue = white). */
+.wr-eval{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;max-width:100%;
   margin:0;font-family:var(--mono);font-size:12px;line-height:1;color:var(--sub);white-space:nowrap;
   overflow:hidden;font-variant-numeric:tabular-nums;letter-spacing:.01em}
-.wr-eval .side{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;
-  border:1px solid var(--line);background:var(--chip-gray-bg);font-size:12.5px}
+.wr-eval .side{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:2px 8px;
+  border-radius:7px;border:1px solid var(--line);background:var(--chip-gray-bg);font-size:12.5px}
 .wr-eval .side i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.wr-eval .side.b{border-color:rgba(122,90,248,.62);background:rgba(122,90,248,.10);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.72)}
+.wr-eval .side.w{border-color:rgba(79,143,214,.66);background:rgba(79,143,214,.12);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.72)}
 .wr-eval .side.b i{background:#14171a;border:1px solid rgba(255,255,255,.35)}
 .wr-eval .side.w i{background:#faf9f5;border:1px solid rgba(0,0,0,.25)}
-.wr-eval b{font-weight:700;color:var(--ink);min-width:4ch;text-align:left}
-.wr-eval .none{color:var(--mute);padding:0 4px}
+.wr-eval b{display:inline-block;min-width:3.6ch;text-align:center;font-weight:700;color:var(--ink)}
 html[data-theme="dark"] .wr-eval .side.b i{background:#0c1014;border-color:rgba(255,255,255,.28)}
-@keyframes scoreFresh{from{box-shadow:0 0 0 0 rgba(47,111,176,.42);border-color:var(--accent)}
-  to{box-shadow:0 0 0 5px rgba(47,111,176,0);border-color:var(--line)}}
-.wr-eval.fresh .side{animation:scoreFresh .55s ease-out}
+html[data-theme="dark"] .wr-eval .side.b{background:rgba(122,90,248,.16);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
+html[data-theme="dark"] .wr-eval .side.w{background:rgba(79,143,214,.18);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.16)}
 @media (max-width:360px){
   .wr-head{gap:6px}
+  .wr-right{gap:6px}
   .wr-eval{gap:4px;font-size:11px}
   .wr-eval .side{gap:3px;padding:1px 5px;font-size:11.5px}
   .wr-eval b{min-width:0}
   .wr-side{font-size:9.5px;gap:3px}
   .wr-side b{font-size:10.5px}
+}
+/* on phones the chip drops its word — the coloured dot plus the 黑/白 values on
+   the right already say whose score it is, and the row stays uncrowded */
+@media (max-width:380px){
+  .wr-eval .side > span{display:none}
+  .wr-eval .side{padding:1px 6px}
+  .wr-eval b{min-width:4.2ch}
 }
 
 
@@ -352,22 +369,11 @@ html[data-theme="dark"] .switch .knob{background:#e8eef7}
 .btn.text{border-color:transparent;background:transparent;color:var(--mute);padding:0 4px}
 .btn.text:hover{color:var(--accent-d);background:transparent}
 
-/* in-board HUD: latest move + short notices, inside the top-right padding band
-   (no coordinates are drawn there, so stones and marks stay clear) */
+/* in-board HUD: short notices, inside the top-right padding band. The latest
+   move coordinate is painted straight onto the board canvas (drawLastTag), so
+   it wears the exact same face and colour as the axis labels. */
 .hud{position:absolute;top:3px;right:3px;z-index:6;display:flex;flex-direction:column;
   align-items:flex-end;gap:2px;max-width:54%;pointer-events:none}
-.hud-move{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;
-  border:1px solid var(--line);background:color-mix(in srgb,var(--paper) 76%,transparent);
-  color:var(--sub);font-size:10px;font-weight:600;line-height:1.2;white-space:nowrap;
-  font-variant-numeric:tabular-nums;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
-.hud-move i{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
-.hud-move i.b{background:#14171a;border:1px solid rgba(255,255,255,.4)}
-.hud-move i.w{background:#faf9f5;border:1px solid rgba(0,0,0,.3)}
-.hud-move b{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink)}
-html[data-theme="dark"] .hud-move{background:color-mix(in srgb,var(--card-bg) 72%,transparent)}
-html[data-theme="dark"] .hud-move i.b{background:#0c1014;border-color:rgba(255,255,255,.3)}
-@keyframes hudPulse{from{transform:scale(1.1);border-color:var(--accent)}to{transform:scale(1);border-color:var(--line)}}
-.hud-move.new{animation:hudPulse .42s ease-out}
 .hud-notes{display:flex;flex-direction:column;align-items:flex-end;gap:2px;max-width:100%}
 .hud-note{max-width:100%;padding:2px 7px;border-radius:6px;border:1px solid var(--line);
   background:color-mix(in srgb,var(--paper) 64%,transparent);color:var(--sub);

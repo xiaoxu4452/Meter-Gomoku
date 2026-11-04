@@ -570,6 +570,7 @@ function drawBoard() {
   }
 
   drawCoords(xs, ys, pad, cell);
+  drawLastTag(xs, ys, cell);
   drawStones();
   drawForbidden();
   drawMarks();
@@ -593,6 +594,19 @@ function drawCoords(xs, ys, pad, cell) {
   for (let i = 0; i < SIZE; i++) bctx.fillText(String(SIZE - i), pad - gap, ys[i]);
 }
 function stoneRadius() { return geo.cell * 0.485; }
+
+/* Coordinate of the newest stone, parked in the top-right padding band. Plain
+   text only — same face, weight and colour as the axis labels, no chip, no
+   ring, no pulse — so it reads as one more coordinate on the board. */
+function drawLastTag(xs, ys, cell) {
+  const last = S.moves[S.moves.length - 1];
+  if (!last) return;
+  bctx.fillStyle = C.coord;
+  bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
+  bctx.textAlign = 'right';
+  bctx.textBaseline = 'bottom';
+  bctx.fillText(LETTERS[last.x] + (SIZE - last.y), xs[SIZE - 1], ys[0] - cell * 0.40);
+}
 
 /* paint one stone with the style picked in the settings.
    Both presets are copied from the desktop trainer (#spf-stones):
@@ -1430,40 +1444,21 @@ function fmtScore(v) {
   return (v >= 0 ? '+' : '') + Math.round(v);
 }
 
-function updateEvalScore(fresh) {
+function updateEvalScore() {
   const el = $('wrEval');
   if (!el) return;
-  const sides = [];
-  const balMarks = S.balanceMarks || [];
-  /* Which sides to show is a UI decision; the numbers themselves are kept
-     between searches (S.scoreB / S.scoreW), so switching AI sides, stopping or
-     opening the settings never blanks a score that is still valid. */
-  if (balMarks.length >= 2) {
-    balMarks.slice(0, 2).sort((a, b) => a.c - b.c).forEach((m) => sides.push({ c: m.c, v: m.ev }));
-  } else if (balMarks.length === 1) {
-    sides.push({ c: balMarks[0].c, v: balMarks[0].ev });
-  } else if (S.aiB && S.aiW) {
-    sides.push({ c: 1, v: S.scoreB }, { c: 2, v: S.scoreW });
-  } else if (S.aiB) {
-    sides.push({ c: 1, v: S.scoreB });
-  } else if (S.aiW) {
-    sides.push({ c: 2, v: S.scoreW });
-  } else if (S.scoreSide) {
-    sides.push({ c: S.scoreSide, v: S.scoreSide === 1 ? S.scoreB : S.scoreW });
-  }
-  if (!sides.length) {
-    el.innerHTML = '<span class="none">-</span>';
-    return;
-  }
+  /* Both chips are always on screen, black then white: the numbers live in
+     S.scoreB / S.scoreW between searches, so toggling an AI side, stopping the
+     engine or opening the settings never blanks a score that is still valid.
+     A score that is not known yet shows a dash, which keeps the row from
+     reflowing the moment a search starts. */
+  const val = { 1: S.scoreB, 2: S.scoreW };
+  (S.balanceMarks || []).slice(0, 2).forEach((m) => { if (m.c === 1 || m.c === 2) val[m.c] = m.ev; });
+  const sides = [{ c: 1, v: val[1] }, { c: 2, v: val[2] }];
   el.innerHTML = sides.map((s) =>
     '<span class="side ' + (s.c === 1 ? 'b' : 'w') + '"><i></i><span>' +
     (s.c === 1 ? T('evalBlack') : T('evalWhite')) + '</span><b>' + fmtScore(s.v) + '</b></span>'
   ).join('');
-  if (fresh) {
-    el.classList.remove('fresh');
-    void el.offsetWidth;
-    el.classList.add('fresh');
-  }
 }
 
 /* a new evaluation always replaces both sides at once: the engine speaks from
@@ -1474,7 +1469,7 @@ function setScoreData(value, side) {
   S.scoreB = black;
   S.scoreW = -black;
   S.scoreSide = side;
-  updateEvalScore(true);
+  updateEvalScore();
 }
 
 function applyBalance(points, stats) {
@@ -1614,7 +1609,6 @@ function boardChanged(options) {
   recompute();
   writeStats();
   drawBoard();
-  renderHudMove();
   updateAll();
   schedule(140);
 }
@@ -2140,7 +2134,6 @@ function updateAll() {
   updateBalanceRow();
   updateWinBar();
   updateEvalScore();
-  renderHudMove();
   renderDebug();
   syncSettingsUI();
 }
@@ -2510,25 +2503,8 @@ function toast(msg) {
   }, 2400);
 }
 
-/* the latest stone stays visible as “黑 H8 / 白 J6”, refreshed on every move */
-let hudLastKey = '';
-function renderHudMove() {
-  const el = $('hudMove');
-  if (!el) return;
-  const last = S.moves[S.moves.length - 1];
-  if (!last) { el.hidden = true; el.innerHTML = ''; hudLastKey = ''; return; }
-  const key = last.c + ':' + last.x + ':' + last.y + ':' + S.moves.length;
-  el.hidden = false;
-  el.innerHTML = '<i class="' + (last.c === 1 ? 'b' : 'w') + '"></i><span>' +
-    (last.c === 1 ? T('black') : T('white')) + '</span><b>' +
-    LETTERS[last.x] + (SIZE - last.y) + '</b>';
-  if (key !== hudLastKey) {
-    hudLastKey = key;
-    el.classList.remove('new');
-    void el.offsetWidth;
-    el.classList.add('new');
-  }
-}
+/* the newest coordinate is painted on the canvas by drawLastTag, so there is no
+   HUD element to refresh here any more */
 
 function initServiceWorker() {
   if (!('serviceWorker' in navigator)) return;

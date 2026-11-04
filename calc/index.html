@@ -53,7 +53,6 @@
   <section class="board-shell" aria-label="棋盘">
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
     <div class="hud" id="hud" aria-live="polite">
-      <div class="hud-move" id="hudMove" hidden></div>
       <div class="hud-notes" id="hudNotes"></div>
     </div>
   </section>
@@ -139,9 +138,11 @@
   <section class="panel wr-panel">
     <div class="wr-head">
       <span class="panel-title" data-i18n="winTitle">胜率</span>
-      <span class="wr-eval" id="wrEval" aria-live="polite"><span class="wr-eval-none">—</span></span>
-      <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
-      <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
+      <span class="wr-eval" id="wrEval" aria-live="polite"></span>
+      <span class="wr-right">
+        <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
+        <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
+      </span>
     </div>
     <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
       <span class="wr-b" id="wrB"></span>
