@@ -21,7 +21,7 @@
 /* apply the stored theme before first paint (no flash) */
 (function () {
   var t = '';
-  try { t = localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
+  try { t = localStorage.getItem('mgcalc.theme') || localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
   if (t !== 'light' && t !== 'dark') {
     t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   }
@@ -52,6 +52,10 @@
 
   <section class="board-shell" aria-label="棋盘">
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
+    <div class="hud" id="hud" aria-live="polite">
+      <div class="hud-move" id="hudMove" hidden></div>
+      <div class="hud-notes" id="hudNotes"></div>
+    </div>
   </section>
 
   <div class="stepbar" role="group" aria-label="行棋步数">
@@ -84,9 +88,9 @@
       <button class="xf-key" type="button" data-xf="fliph"><span class="g">↔</span><span data-i18n="xfFlipH">左右翻转</span></button>
       <button class="xf-key" type="button" data-xf="flipv"><span class="g">↕</span><span data-i18n="xfFlipV">上下翻转</span></button>
       <button class="xf-key" type="button" data-xf="diag"><span class="g">⤡</span><span data-i18n="xfDiag">主对角</span></button>
-      <button class="xf-key" type="button" data-xf="anti"><span class="g">⤢</span><span data-i18n="xfAnti">副对角</span></button>
       <button class="xf-key" type="button" data-xf="left"><span class="g">←</span><span data-i18n="xfLeft">左移</span></button>
       <button class="xf-key" type="button" data-xf="right"><span class="g">→</span><span data-i18n="xfRight">右移</span></button>
+      <button class="xf-key" type="button" data-xf="anti"><span class="g">⤢</span><span data-i18n="xfAnti">副对角</span></button>
       <button class="xf-key" type="button" data-xf="up"><span class="g">↑</span><span data-i18n="xfUp">上移</span></button>
       <button class="xf-key" type="button" data-xf="down"><span class="g">↓</span><span data-i18n="xfDown">下移</span></button>
       <div class="xf-hint" data-i18n="xfHint">按对称性改变局面；手数与先后手保留，分析结果会按新局面重算</div>
@@ -135,10 +139,10 @@
   <section class="panel wr-panel">
     <div class="wr-head">
       <span class="panel-title" data-i18n="winTitle">胜率</span>
+      <span class="wr-eval" id="wrEval" aria-live="polite"><span class="wr-eval-none">—</span></span>
       <span class="wr-side"><i class="dot-b"></i><span data-i18n="black">黑</span><b id="wrBTxt">50%</b></span>
       <span class="wr-side"><i class="dot-w"></i><span data-i18n="white">白</span><b id="wrWTxt">50%</b></span>
     </div>
-    <div class="wr-eval" id="wrEval" aria-live="polite"><span class="wr-eval-none">—</span></div>
     <div class="wrbar" id="wrBar" role="img" aria-label="win rate">
       <span class="wr-b" id="wrB"></span>
       <span class="wr-w" id="wrW"></span>
@@ -361,7 +365,6 @@
   </div>
 </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="app.js"></script>
 </body>
 </html>

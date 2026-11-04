@@ -1,7 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>analysis</title><link rel="stylesheet" href="app.css">
+<title>analysis</title><script>
+/* theme: ?theme= → parent page → shared localStorage → system; applied before paint */
+(function () {
+  var t = (location.search.match(/[?&]theme=(dark|light)/) || [])[1] || '';
+  if (!t) {
+    try {
+      var p = window.parent;
+      if (p && p !== window) {
+        var v = p.document.documentElement.getAttribute('data-theme');
+        if (v === 'light' || v === 'dark') t = v;
+      }
+    } catch (e) {}
+  }
+  if (!t) {
+    try { t = localStorage.getItem('mgcalc.theme') || localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
+  }
+  if (t !== 'light' && t !== 'dark') {
+    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  function apply(v) {
+    if (v !== 'light' && v !== 'dark') return;
+    document.documentElement.setAttribute('data-theme', v);
+    document.documentElement.style.colorScheme = v;
+    if (document.body) document.body.setAttribute('data-theme', v);
+  }
+  window.__mgSetTheme = apply;
+  apply(t);
+  window.addEventListener('message', function (e) {
+    if (e && e.data && e.data.type === 'mg-theme') apply(e.data.theme);
+  });
+  document.addEventListener('DOMContentLoaded', function () {
+    apply(document.documentElement.getAttribute('data-theme'));
+  });
+})();
+</script>
+<link rel="stylesheet" href="app.css">
 <style>html,body{margin:0;padding:0;overflow:hidden;pointer-events:none;user-select:none;-webkit-user-select:none}
 *{animation:none!important;transition:none!important;cursor:default!important}</style></head>
 <body data-theme="light" class="" style="--font: "Source Han Sans SC","Source Han Sans CN","Noto Sans SC","思源黑体","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif; --fontweight: 400; --fontstyle: normal; --logfont: "Source Han Sans SC","Source Han Sans CN","Noto Sans SC","思源黑体","PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",sans-serif; --logweight: 400; --logstyle: normal; --lbl-accent: rgb(47,154,224);">

@@ -10,14 +10,14 @@
 <script>
 (function () {
   var t = '';
-  try { t = localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
+  try { t = localStorage.getItem('mgcalc.theme') || localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
   if (t !== 'light' && t !== 'dark') {
     t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   }
   document.documentElement.setAttribute('data-theme', t);
   document.documentElement.style.colorScheme = t;
   var l = '';
-  try { l = localStorage.getItem('mgcalc.lang') || ''; } catch (e) {}
+  try { l = localStorage.getItem('mgcalc.lang') || localStorage.getItem('mg.site.lang') || ''; } catch (e) {}
   if (l !== 'zh' && l !== 'en') l = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
   document.documentElement.setAttribute('lang', l);
 })();
@@ -74,6 +74,32 @@ html[lang="zh"] .en,html[lang="en"] .zh{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+<script>
+(function () {
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var meta = document.querySelector('meta[name="theme-color"]');
+  function resolve() {
+    var t = '';
+    try { t = localStorage.getItem('mgcalc.theme') || localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
+    if (t === 'light' || t === 'dark') return t;
+    return mq && mq.matches ? 'dark' : 'light';
+  }
+  function apply(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.style.colorScheme = t;
+    if (meta) meta.setAttribute('content', t === 'dark' ? '#0a0f15' : '#edf1f6');
+  }
+  apply(resolve());
+  if (mq) {
+    var onSys = function () { apply(resolve()); };
+    if (mq.addEventListener) mq.addEventListener('change', onSys);
+    else if (mq.addListener) mq.addListener(onSys);
+  }
+  window.addEventListener('storage', function (e) {
+    if (e.key === 'mgcalc.theme' || e.key === 'mg.site.theme' || e.key === null) apply(resolve());
+  });
+})();
+</script>
 </head>
 <body>
 <main class="wrap">
@@ -146,7 +172,8 @@ html[lang="zh"] .en,html[lang="en"] .zh{display:none}
   <div class="links">
     <a class="pill" href="https://github.com/xiaoxu4452/Meter-Gomoku" target="_blank" rel="noopener">GitHub</a>
     <a class="pill" href="https://xiaoxu4452.github.io/Meter-Gomoku/" target="_blank" rel="noopener"><span class="zh">桌面软件 / 官网</span><span class="en">Desktop app / website</span></a>
-    <a class="pill" href="./guide.html"><span class="zh">使用指南</span><span class="en">Guide</span></a>
+    <a class="pill primary" href="./docs.html"><span class="zh">完整使用说明</span><span class="en">Full guide</span></a>
+    <a class="pill" href="./guide.html"><span class="zh">快速指南</span><span class="en">Quick guide</span></a>
   </div>
 
   <p class="foot">Meter Gomoku · 五子棋计算器 · 2026</p>
@@ -160,7 +187,7 @@ html[lang="zh"] .en,html[lang="en"] .zh{display:none}
     e.preventDefault();
     cur = cur === 'zh' ? 'en' : 'zh';
     document.documentElement.setAttribute('lang', cur);
-    try { localStorage.setItem('mgcalc.lang', cur); } catch (err) {}
+    try { localStorage.setItem('mgcalc.lang', cur); localStorage.setItem('mg.site.lang', cur); } catch (err) {}
     langBtn.textContent = cur === 'zh' ? 'EN' : '中文';
   });
 })();

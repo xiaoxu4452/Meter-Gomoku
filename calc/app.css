@@ -218,11 +218,11 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
 .balance-row .bal em{font-family:var(--mono);font-style:normal;font-variant-numeric:tabular-nums}
 .balance-row .bal.note{border-style:dotted;border-color:var(--line);background:transparent;color:var(--mute);font-weight:500}
 
-/* win rate: the label row sits above the bar — 胜率 / 黑 xx% / 白 xx% */
+/* win rate: one row — 胜率 / score chip / 黑 xx% / 白 xx% */
 .wr-panel{padding-bottom:10px}
-.wr-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
-.wr-head .panel-title{margin-right:auto}
-.wr-side{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:var(--mute);font-weight:600}
+.wr-head{display:flex;align-items:center;gap:9px;margin-bottom:6px;min-height:24px}
+.wr-head .panel-title{flex:0 0 auto;margin-right:0}
+.wr-side{display:inline-flex;align-items:center;gap:4px;flex:0 0 auto;font-size:10.5px;color:var(--mute);font-weight:600}
 .wr-side i{width:7px;height:7px;border-radius:50%;display:block}
 .wr-side .dot-b{background:#7a5af8}
 .wr-side .dot-w{background:#4f8fd6}
@@ -239,17 +239,31 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
   background:linear-gradient(90deg,#79c8ff,#2f7fd6);
   box-shadow:0 0 9px rgba(79,143,214,.8),0 0 22px rgba(79,143,214,.36)}
 html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
-.wr-eval{display:flex;align-items:center;justify-content:center;gap:18px;min-height:15px;margin:1px 0 5px;
-  font-family:var(--mono);font-size:11px;line-height:15px;color:var(--sub);white-space:nowrap;overflow:hidden;
-  font-variant-numeric:tabular-nums;letter-spacing:.01em}
-.wr-eval .side{display:inline-flex;align-items:baseline;gap:5px}
-.wr-eval .side i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto;transform:translateY(-1px)}
+/* the score sits between the label and the percentages, boxed in a chip so it
+   stays readable in both themes and never wraps at 320 px */
+.wr-eval{display:flex;align-items:center;justify-content:center;gap:5px;flex:1 1 auto;min-width:0;
+  margin:0;font-family:var(--mono);font-size:12px;line-height:1;color:var(--sub);white-space:nowrap;
+  overflow:hidden;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.wr-eval .side{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:6px;
+  border:1px solid var(--line);background:var(--chip-gray-bg);font-size:12.5px}
+.wr-eval .side i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto}
 .wr-eval .side.b i{background:#14171a;border:1px solid rgba(255,255,255,.35)}
 .wr-eval .side.w i{background:#faf9f5;border:1px solid rgba(0,0,0,.25)}
-.wr-eval b{font-weight:600;color:var(--ink);min-width:4ch;text-align:left}
-.wr-eval .none{color:var(--mute)}
+.wr-eval b{font-weight:700;color:var(--ink);min-width:4ch;text-align:left}
+.wr-eval .none{color:var(--mute);padding:0 4px}
 html[data-theme="dark"] .wr-eval .side.b i{background:#0c1014;border-color:rgba(255,255,255,.28)}
-@media (max-width:340px){.wr-eval{gap:10px;font-size:10.5px}.wr-eval .side{gap:3px}.wr-eval b{min-width:3.8ch}}
+@keyframes scoreFresh{from{box-shadow:0 0 0 0 rgba(47,111,176,.42);border-color:var(--accent)}
+  to{box-shadow:0 0 0 5px rgba(47,111,176,0);border-color:var(--line)}}
+.wr-eval.fresh .side{animation:scoreFresh .55s ease-out}
+@media (max-width:360px){
+  .wr-head{gap:6px}
+  .wr-eval{gap:4px;font-size:11px}
+  .wr-eval .side{gap:3px;padding:1px 5px;font-size:11.5px}
+  .wr-eval b{min-width:0}
+  .wr-side{font-size:9.5px;gap:3px}
+  .wr-side b{font-size:10.5px}
+}
+
 
 .foot{max-width:100%;margin:9px auto 0;display:flex;align-items:center;justify-content:center;gap:8px;
   flex-wrap:wrap;text-align:center;font-size:10.5px;color:var(--mute);letter-spacing:.02em}
@@ -338,10 +352,29 @@ html[data-theme="dark"] .switch .knob{background:#e8eef7}
 .btn.text{border-color:transparent;background:transparent;color:var(--mute);padding:0 4px}
 .btn.text:hover{color:var(--accent-d);background:transparent}
 
-.toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translate(-50%,14px);
-  padding:8px 14px;border-radius:999px;background:rgba(20,28,38,.9);color:#fff;font-size:12px;font-weight:600;
-  opacity:0;pointer-events:none;transition:.22s;z-index:80;max-width:calc(100vw - 32px);text-align:center}
-.toast.on{opacity:1;transform:translate(-50%,0)}
+/* in-board HUD: latest move + short notices, inside the top-right padding band
+   (no coordinates are drawn there, so stones and marks stay clear) */
+.hud{position:absolute;top:3px;right:3px;z-index:6;display:flex;flex-direction:column;
+  align-items:flex-end;gap:2px;max-width:54%;pointer-events:none}
+.hud-move{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;
+  border:1px solid var(--line);background:color-mix(in srgb,var(--paper) 76%,transparent);
+  color:var(--sub);font-size:10px;font-weight:600;line-height:1.2;white-space:nowrap;
+  font-variant-numeric:tabular-nums;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.hud-move i{width:6px;height:6px;border-radius:50%;flex:0 0 auto}
+.hud-move i.b{background:#14171a;border:1px solid rgba(255,255,255,.4)}
+.hud-move i.w{background:#faf9f5;border:1px solid rgba(0,0,0,.3)}
+.hud-move b{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink)}
+html[data-theme="dark"] .hud-move{background:color-mix(in srgb,var(--card-bg) 72%,transparent)}
+html[data-theme="dark"] .hud-move i.b{background:#0c1014;border-color:rgba(255,255,255,.3)}
+@keyframes hudPulse{from{transform:scale(1.1);border-color:var(--accent)}to{transform:scale(1);border-color:var(--line)}}
+.hud-move.new{animation:hudPulse .42s ease-out}
+.hud-notes{display:flex;flex-direction:column;align-items:flex-end;gap:2px;max-width:100%}
+.hud-note{max-width:100%;padding:2px 7px;border-radius:6px;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--paper) 64%,transparent);color:var(--sub);
+  font-size:10px;line-height:1.35;text-align:right;opacity:0;transform:translateY(-3px);
+  transition:opacity .18s ease,transform .18s ease;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.hud-note.on{opacity:1;transform:none}
+html[data-theme="dark"] .hud-note{background:color-mix(in srgb,var(--card-bg) 70%,transparent)}
 
 /* engine boot: frosted glass panel with a thin progress line */
 .loader{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:20px;

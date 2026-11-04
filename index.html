@@ -28,7 +28,7 @@
 <script>
 (function () {
   var t = '';
-  try { t = localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
+  try { t = localStorage.getItem('mg.site.theme') || localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
   if (t !== 'light' && t !== 'dark') {
     t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
   }
@@ -429,7 +429,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     <a class="nav" href="#s10"><span class="n">09</span><span class="zh">引擎与硬件</span><span class="en">Engine</span></a>
     <a class="nav" href="#s11"><span class="n">10</span><span class="zh">设置与主题</span><span class="en">Settings</span></a>
     <a class="nav" href="#s12"><span class="n">11</span><span class="zh">常见问题</span><span class="en">FAQ</span></a>
-    <a class="nav" href="#s13"><span class="n">12</span><span class="zh">Rapfi 官方计算器</span><span class="en">Rapfi calculator</span></a>
+    <a class="nav" href="#s13"><span class="n">12</span><span class="zh">自研计算器</span><span class="en">Web calculator</span></a>
     <a class="nav" href="#s14"><span class="n">13</span><span class="zh">Meter Web</span><span class="en">Meter Web</span></a>
   </nav>
 </aside>
@@ -450,7 +450,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     <a class="btnline primary" data-dl-mirror href="https://ghproxy.net/https://github.com/xiaoxu4452/Meter-Gomoku/releases/download/v4.382/Meter.Gomoku_Setup.4.382.exe" download="Meter.Gomoku_Setup.4.382.exe" target="_blank" rel="noopener">
       <span class="zh">下载 Meter Gomoku <span class="ver" data-dl-tag>v4.382</span></span><span class="en">Download Meter Gomoku <span class="ver" data-dl-tag>v4.382</span></span>
     </a>
-    <a class="btnline" href="https://www.gomocalc.com/#/" target="_blank" rel="noopener"><span class="zh">Rapfi 官方计算器</span><span class="en">Rapfi official calculator</span></a>
+    <a class="btnline" href="calc/"><span class="zh">自研计算器</span><span class="en">Meter Web calculator</span></a>
     <a class="btnline" href="https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases" target="_blank" rel="noopener">GitHub Releases</a>
     <a class="btnline" href="https://wwbbj.lanzn.com/b016l49aqj" target="_blank" rel="noopener"><span class="zh">蓝奏云（国内镜像）</span><span class="en">Lanzou cloud (China mirror)</span></a>
     <button class="pwchip" id="copyPw" type="button" title="复制蓝奏云访问密码 15 / Copy Lanzou password 15" aria-label="复制蓝奏云访问密码 15 / Copy Lanzou password 15">
@@ -836,9 +836,9 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 
 <!-- ================================================================ 12 -->
 <section class="sheet" id="s13">
-  <h2><span class="num">12</span><span class="zh">Rapfi 官方计算器</span><span class="en">Rapfi official calculator</span></h2>
-  <p class="zh">不装软件也能算：<b>gomocalc</b> 是 Rapfi 作者维护的官方在线计算器，把同一颗引擎编译成 <b>WebAssembly</b> 跑在浏览器里，打开就能摆盘、分析、看候选与主变。手机与电脑都适配，不用注册，也不用上传局面。</p>
-  <p class="en">You can analyse without installing anything: <b>gomocalc</b> is the official online calculator maintained by the Rapfi author. The same engine is compiled to <b>WebAssembly</b> and runs in your browser, so you can compose a position, analyse it and read the candidates and principal variation straight away. It works on phones and desktops, with no account and no upload.</p>
+  <h2><span class="num">12</span><span class="zh">自研计算器</span><span class="en">Our web calculator</span></h2>
+  <p class="zh">不装软件也能算：<b>Meter Web 计算器</b>把官方 <b>Rapfi</b> 引擎的 <b>WebAssembly</b> 构建装进浏览器，打开就能摆盘、持续加深、看候选与主变，还能直接落子。界面、命令调度与评分呈现都是我们自研的；引擎本身仍是 Rapfi 官方构建，口径与桌面版一致。手机与电脑都适配，不用注册，也不上传局面。</p>
+  <p class="en">You can analyse without installing anything: the <b>Meter Web calculator</b> embeds the official <b>Rapfi</b> engine compiled to <b>WebAssembly</b>, so you can compose a position, let it deepen, read the candidates and principal variation, and even play the move. The interface, command scheduling and score presentation are our own; the engine is still the official Rapfi build, with the same scale as the desktop app. It runs on phones and desktops, with no account and no upload.</p>
 
   <div class="grid3" style="margin-top:14px">
     <div class="card"><div class="k">Engine</div><div class="v">Rapfi · WASM</div>
@@ -847,17 +847,18 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     <div class="card"><div class="k">Install</div><div class="v zh">无需安装</div><div class="v en">No install</div>
       <p class="zh">一个网址就是全部，换设备不丢；手机浏览器直接打开</p>
       <p class="en">One URL is all you need — switch devices freely, open it in a phone browser</p></div>
-    <div class="card"><div class="k">Scope</div><div class="v zh">纯分析</div><div class="v en">Analysis only</div>
-      <p class="zh">只有计算与对局设置；对弈、复盘、识图、连线属于桌面版</p>
-      <p class="en">Calculation and position settings only; play, review, vision and Link belong to the desktop app</p></div>
+    <div class="card"><div class="k">Scope</div><div class="v zh">计算与落子</div><div class="v en">Analyse &amp; play</div>
+      <p class="zh">摆盘、持续分析、平衡点、计算一手直接落子都在网页里完成；对弈、复盘、识图、连线属于桌面版</p>
+      <p class="en">Compose, keep deepening, balance points and play a calculated move — all in the browser; full play, review, vision and Link stay in the desktop app</p></div>
   </div>
 
   <div class="cta" style="margin-top:20px">
-    <a class="btnline primary" href="https://www.gomocalc.com/#/" target="_blank" rel="noopener"><span class="zh">打开 Rapfi 官方计算器</span><span class="en">Open the Rapfi calculator</span></a>
+    <a class="btnline primary" href="calc/"><span class="zh">打开自研计算器</span><span class="en">Open the Meter Web calculator</span></a>
+    <a class="btnline" href="calc/docs.html"><span class="zh">使用说明</span><span class="en">User guide</span></a>
   </div>
 
-  <div class="note zh"><b>和桌面版怎么分工</b>：网页版胜在随手可用——不用安装，换台机器打开就能看盘；桌面版能把更多线程和更大的置换表交给引擎，同样时间里算得更深，还带着完整的对弈、复盘、识图与连线。随手看盘用网页版，认真拆棋回桌面版。</div>
-  <div class="note en"><b>Which one to use</b>: the web calculator wins on convenience — nothing to install, open it on any machine and start reading the board. The desktop app can give the engine more threads and a larger hash, so it searches deeper in the same time, and it brings the full set of play, review, vision and Link tools. Quick checks on the web, serious analysis on the desktop.</div>
+  <div class="note zh"><b>和桌面版怎么分工</b>：网页版胜在随手可用——不用安装，换台机器打开就能看盘；桌面版能把更多线程和更大的置换表交给引擎，同样时间里算得更深，还带着完整的对弈、复盘、识图与连线。随手看盘用网页版，认真拆棋回桌面版。引擎为 Rapfi 官方 WASM 构建（GPL-3.0）；若想对照引擎作者维护的 <a href="https://www.gomocalc.com/#/" target="_blank" rel="noopener">gomocalc</a>，也可以直接打开。</div>
+  <div class="note en"><b>Which one to use</b>: the web calculator wins on convenience — nothing to install, open it on any machine and start reading the board. The desktop app can give the engine more threads and a larger hash, so it searches deeper in the same time, and it brings the full set of play, review, vision and Link tools. Quick checks on the web, serious analysis on the desktop. The engine is the official Rapfi WASM build (GPL-3.0); the author's own <a href="https://www.gomocalc.com/#/" target="_blank" rel="noopener">gomocalc</a> is still available for comparison.</div>
 </section>
 
 <!-- ================================================================ 13 -->
@@ -880,7 +881,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 
   <div class="cta" style="margin-top:20px">
     <a class="btnline primary" href="calc/"><span class="zh">打开 Meter Web</span><span class="en">Open Meter Web</span></a>
-    <a class="btnline" href="README.md"><span class="zh">说明文档</span><span class="en">Documentation</span></a>
+    <a class="btnline" href="calc/docs.html"><span class="zh">使用说明</span><span class="en">User guide</span></a>
   </div>
 
   <div class="note zh"><b>第一次打开会慢一点</b>：引擎与权重大约 41 MB，首次会下载并缓存到本机（走国内可用的加速通路），之后打开几乎瞬时。桌面上也能用，但它本来就是按手机的竖屏比例设计的。</div>
@@ -927,15 +928,24 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     bZh.classList.toggle('on', !en); bEn.classList.toggle('on', en);
     bZh.setAttribute('aria-pressed', String(!en)); bEn.setAttribute('aria-pressed', String(en));
     [].forEach.call(document.querySelectorAll('iframe[data-zh]'), function (f) {
-      var src = f.getAttribute(en ? 'data-en' : 'data-zh');
-      if (src && f.getAttribute('src') !== src) f.setAttribute('src', src);
+      var base = f.getAttribute(en ? 'data-en' : 'data-zh');
+      if (!base) return;
+      var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'theme=' + theme;
+      if (f.getAttribute('src') !== src) f.setAttribute('src', src);
     });
-    try { localStorage.setItem('mg.site.lang', l); } catch (e) {}
+    try { localStorage.setItem('mg.site.lang', l); localStorage.setItem('mgcalc.lang', l); } catch (e) {}
   }
   bZh.onclick = function () { setLang('zh'); };
   bEn.onclick = function () { setLang('en'); };
+  window.addEventListener('storage', function (e) {
+    if (e.key !== null && e.key !== 'mg.site.lang' && e.key !== 'mgcalc.lang') return;
+    var l = '';
+    try { l = localStorage.getItem('mg.site.lang') || localStorage.getItem('mgcalc.lang') || ''; } catch (err) {}
+    if (l === 'zh' || l === 'en') setLang(l);
+  });
   var saved = '';
-  try { saved = localStorage.getItem('mg.site.lang') || ''; } catch (e) {}
+  try { saved = localStorage.getItem('mg.site.lang') || localStorage.getItem('mgcalc.lang') || ''; } catch (e) {}
   var q = (location.search.match(/[?&]lang=(zh|en)/) || [])[1];
   if (q) setLang(q);
   else if (saved === 'en' || (!saved && /^en/i.test(navigator.language || ''))) setLang('en');
@@ -949,6 +959,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
       box.style.height = Math.round(h * k) + 'px';
       f.style.width = w + 'px'; f.style.height = h + 'px';
       f.style.transform = 'scale(' + k + ')';
+      try { f.contentWindow.postMessage({ type: 'mg-theme', theme: document.documentElement.getAttribute('data-theme') }, '*'); } catch (e) {}
     });
   }
   window.addEventListener('resize', fit);
@@ -1075,6 +1086,11 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   /* ---------- theme switch ---------- */
   var themeBtn = document.getElementById('themeBtn');
   var themeMeta = document.querySelector('meta[name="theme-color"]');
+  function syncPreviewTheme(t) {
+    [].forEach.call(document.querySelectorAll('iframe[data-zh]'), function (f) {
+      try { f.contentWindow.postMessage({ type: 'mg-theme', theme: t }, '*'); } catch (e) {}
+    });
+  }
   function applyTheme(t, save) {
     var dark = t === 'dark';
     document.documentElement.setAttribute('data-theme', t);
@@ -1086,7 +1102,13 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
       themeBtn.title = label;
       themeBtn.setAttribute('aria-pressed', String(dark));
     }
-    if (save) { try { localStorage.setItem('mg.site.theme', t); } catch (e) {} }
+    if (save) {
+      try {
+        localStorage.setItem('mg.site.theme', t);
+        localStorage.setItem('mgcalc.theme', t);
+      } catch (e) {}
+    }
+    syncPreviewTheme(t);
   }
   applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', false);
   if (themeBtn) themeBtn.onclick = function () {
@@ -1096,12 +1118,22 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     var mq = window.matchMedia('(prefers-color-scheme: dark)');
     var onSys = function (e) {
       var savedTheme = '';
-      try { savedTheme = localStorage.getItem('mg.site.theme') || ''; } catch (err) {}
+      try { savedTheme = localStorage.getItem('mg.site.theme') || localStorage.getItem('mgcalc.theme') || ''; } catch (err) {}
       if (!savedTheme) applyTheme(e.matches ? 'dark' : 'light', false);
     };
     if (mq.addEventListener) mq.addEventListener('change', onSys);
     else if (mq.addListener) mq.addListener(onSys);
   }
+  /* the calculator, guide and about page share these keys: follow live edits */
+  window.addEventListener('storage', function (e) {
+    if (e.key !== null && e.key !== 'mg.site.theme' && e.key !== 'mgcalc.theme') return;
+    var t = '';
+    try { t = localStorage.getItem('mg.site.theme') || localStorage.getItem('mgcalc.theme') || ''; } catch (err) {}
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    applyTheme(t, false);
+  });
 })();
 </script>
 </body>

@@ -1862,3 +1862,13 @@ body.setwin .si-k{color:var(--lbl-accent,#2f9ae0); opacity:.92}
 }
 .sp-rows .sp-sec .sec-h{background:rgba(0,0,0,.07); border-radius:0}
 .sp-rows .sp-sec .sp-row{padding:.4rem .5rem .46rem}
+
+/* ============================================================ dark: frozen screenshots
+   The board and the eval curve are baked screenshots, so CSS variables cannot recolour
+   them. Dark mode darkens the wood (and its grid lines) and inverts the chart (white
+   paper → dark paper) while keeping the blue/red curve colours recognisable. */
+[data-theme="dark"] #boardWrap{background:var(--card)}
+[data-theme="dark"] #board{filter:brightness(.58) contrast(1.06) saturate(.92)}
+[data-theme="dark"] #curveAxis,
+[data-theme="dark"] #curve{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
+

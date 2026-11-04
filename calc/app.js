@@ -327,7 +327,6 @@ const PERF = { boot: performance.now(), usable: 0, prefetch: 0, engineStart: 0, 
 let C = { board: '#e9d6b0', line: '#4a4438', coord: '#5c5140', star: '#4a4438', last: '#d94b3f',
   black: '#14171a', white: '#faf9f5', whiteEdge: 'rgba(0,0,0,.18)' };
 let bctx = null;
-let toastTimer = 0;
 let restartConfirmTimer = 0;
 let suppressNextTap = false;
 
@@ -448,7 +447,10 @@ function applyTheme(mode, remember) {
   if (m) m.setAttribute('content', dark ? '#0a0f15' : '#edf1f6');
   C = themeColor();
   try {
-    if (remember) localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+    if (remember) {
+      localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light');
+      localStorage.setItem('mg.site.theme', dark ? 'dark' : 'light');
+    }
   } catch (e) {}
   syncThemeSeg();
   drawBoard();
@@ -458,7 +460,7 @@ function systemDark() {
 }
 function initTheme() {
   let saved = null;
-  try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+  try { saved = localStorage.getItem(THEME_KEY) || localStorage.getItem('mg.site.theme'); } catch (e) {}
   S.settings.theme = saved === 'light' || saved === 'dark' ? saved : null;
   applyTheme(saved || (systemDark() ? 'dark' : 'light'), false);
   if (window.matchMedia) {
@@ -470,6 +472,16 @@ function initTheme() {
     if (mq.addEventListener) mq.addEventListener('change', onChange);
     else if (mq.addListener) mq.addListener(onChange);
   }
+  /* the site, docs and about page share the same theme keys: follow their edits live */
+  window.addEventListener('storage', (e) => {
+    if (e.key !== THEME_KEY && e.key !== 'mg.site.theme') return;
+    let v = '';
+    try { v = localStorage.getItem(THEME_KEY) || localStorage.getItem('mg.site.theme') || ''; } catch (err) {}
+    const explicit = v === 'light' || v === 'dark' ? v : null;
+    S.settings.theme = explicit;
+    applyTheme(explicit || (systemDark() ? 'dark' : 'light'), false);
+    syncThemeSeg();
+  });
   syncThemeSeg();
 }
 
@@ -1342,13 +1354,13 @@ function applyStats(st) {
   }
   S.statPly = S.moves.length;
   S.statSide = sideToMove();
-  S.stats = st;
-  S.searchAnswered = true;
+  S.stats = st;  S.searchAnswered = true;
   noteWinRate(st);
   if (!PERF.firstEval) PERF.firstEval = performance.now();
   writeStats();
   updateState();
-  updateEvalScore();
+  const base = parseEval(st.eval);
+  if (base != null) setScoreData(base, S.statSide); else updateEvalScore();
   scheduleDebug();
 }
 
@@ -1418,28 +1430,26 @@ function fmtScore(v) {
   return (v >= 0 ? '+' : '') + Math.round(v);
 }
 
-function updateEvalScore() {
+function updateEvalScore(fresh) {
   const el = $('wrEval');
   if (!el) return;
-  const stats = S.stats;
-  const base = stats ? parseEval(stats.eval) : null;
-  const statSide = S.statSide || sideToMove();
   const sides = [];
   const balMarks = S.balanceMarks || [];
+  /* Which sides to show is a UI decision; the numbers themselves are kept
+     between searches (S.scoreB / S.scoreW), so switching AI sides, stopping or
+     opening the settings never blanks a score that is still valid. */
   if (balMarks.length >= 2) {
     balMarks.slice(0, 2).sort((a, b) => a.c - b.c).forEach((m) => sides.push({ c: m.c, v: m.ev }));
   } else if (balMarks.length === 1) {
     sides.push({ c: balMarks[0].c, v: balMarks[0].ev });
-  } else if (base != null && S.aiB && S.aiW) {
-    const black = statSide === 1 ? base : -base;
-    sides.push({ c: 1, v: black }, { c: 2, v: -black });
+  } else if (S.aiB && S.aiW) {
+    sides.push({ c: 1, v: S.scoreB }, { c: 2, v: S.scoreW });
   } else if (S.aiB) {
-    if (base != null) sides.push({ c: 1, v: statSide === 1 ? base : -base });
+    sides.push({ c: 1, v: S.scoreB });
   } else if (S.aiW) {
-    if (base != null) sides.push({ c: 2, v: statSide === 1 ? -base : base });
-  } else if (base != null) {
-    /* plain analysis: the side the engine is evaluating */
-    sides.push({ c: statSide, v: base });
+    sides.push({ c: 2, v: S.scoreW });
+  } else if (S.scoreSide) {
+    sides.push({ c: S.scoreSide, v: S.scoreSide === 1 ? S.scoreB : S.scoreW });
   }
   if (!sides.length) {
     el.innerHTML = '<span class="none">-</span>';
@@ -1449,6 +1459,22 @@ function updateEvalScore() {
     '<span class="side ' + (s.c === 1 ? 'b' : 'w') + '"><i></i><span>' +
     (s.c === 1 ? T('evalBlack') : T('evalWhite')) + '</span><b>' + fmtScore(s.v) + '</b></span>'
   ).join('');
+  if (fresh) {
+    el.classList.remove('fresh');
+    void el.offsetWidth;
+    el.classList.add('fresh');
+  }
+}
+
+/* a new evaluation always replaces both sides at once: the engine speaks from
+   the side to move, so the other colour is simply its mirror */
+function setScoreData(value, side) {
+  if (value == null || !Number.isFinite(value) || !side) return;
+  const black = side === 1 ? value : -value;
+  S.scoreB = black;
+  S.scoreW = -black;
+  S.scoreSide = side;
+  updateEvalScore(true);
 }
 
 function applyBalance(points, stats) {
@@ -1477,7 +1503,7 @@ function applyBalance(points, stats) {
   if (stats) { S.stats = stats; S.statSide = mover; noteWinRate(stats); writeStats(); updateState(); scheduleDebug(); }
   drawBoard();
   updateBalanceRow();
-  updateEvalScore();
+  if (ev != null) setScoreData(ev, mover); else updateEvalScore();
 }
 
 /* ============================================================ search orchestration
@@ -1580,9 +1606,15 @@ function boardChanged(options) {
   S.balanceMarks = [];
   S.balanceInfo = null;
   S.preview = null;
+  /* the stored scores belong to the previous position: a fresh evaluation on
+     the new position replaces them, but plain UI toggles keep them alive */
+  S.scoreB = null;
+  S.scoreW = null;
+  S.scoreSide = null;
   recompute();
   writeStats();
   drawBoard();
+  renderHudMove();
   updateAll();
   schedule(140);
 }
@@ -1941,7 +1973,7 @@ function applyLang(lang) {
   LANG = lang === 'en' ? 'en' : 'zh';
   const tEl = $('toast');
   if (tEl) { tEl.classList.remove('on'); tEl.textContent = ''; }
-  try { localStorage.setItem(LANG_KEY, LANG); } catch (e) {}
+  try { localStorage.setItem(LANG_KEY, LANG); localStorage.setItem('mg.site.lang', LANG); } catch (e) {}
   document.documentElement.lang = LANG === 'en' ? 'en' : 'zh-CN';
   document.title = LANG === 'en' ? 'Gomoku Calculator · Meter Gomoku' : '五子棋计算器 · Meter Gomoku';
   document.querySelectorAll('[data-i18n]').forEach((el) => {
@@ -2108,6 +2140,7 @@ function updateAll() {
   updateBalanceRow();
   updateWinBar();
   updateEvalScore();
+  renderHudMove();
   renderDebug();
   syncSettingsUI();
 }
@@ -2346,6 +2379,7 @@ function initSettingsEvents() {
     if (v === 'system') {
       S.settings.theme = null;
       saveSettings();
+      try { localStorage.removeItem(THEME_KEY); localStorage.removeItem('mg.site.theme'); } catch (e) {}
       applyTheme(systemDark() ? 'dark' : 'light', false);
     } else {
       S.settings.theme = v;
@@ -2460,22 +2494,40 @@ function initBoardEvents() {
   }, { passive: false });
 }
 
-/* ============================================================ boot */
-function initToasts() {
-  // no-op: toast function is global below
+/* notices live inside the board's top-right padding band, stacked and fading */
+function toast(msg) {
+  const box = $('hudNotes');
+  if (!box) return;
+  const el = document.createElement('div');
+  el.className = 'hud-note';
+  el.textContent = msg;
+  box.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('on'));
+  while (box.children.length > 2) box.removeChild(box.firstChild);
+  setTimeout(() => {
+    el.classList.remove('on');
+    setTimeout(() => el.remove(), 240);
+  }, 2400);
 }
 
-function toast(msg) {
-  const el = $('toast');
+/* the latest stone stays visible as “黑 H8 / 白 J6”, refreshed on every move */
+let hudLastKey = '';
+function renderHudMove() {
+  const el = $('hudMove');
   if (!el) return;
-  el.textContent = msg;
-  el.classList.add('on');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    el.classList.remove('on');
-    /* clear the text so a stale message never shows up in the other language */
-    setTimeout(() => { if (!el.classList.contains('on')) el.textContent = ''; }, 240);
-  }, 2200);
+  const last = S.moves[S.moves.length - 1];
+  if (!last) { el.hidden = true; el.innerHTML = ''; hudLastKey = ''; return; }
+  const key = last.c + ':' + last.x + ':' + last.y + ':' + S.moves.length;
+  el.hidden = false;
+  el.innerHTML = '<i class="' + (last.c === 1 ? 'b' : 'w') + '"></i><span>' +
+    (last.c === 1 ? T('black') : T('white')) + '</span><b>' +
+    LETTERS[last.x] + (SIZE - last.y) + '</b>';
+  if (key !== hudLastKey) {
+    hudLastKey = key;
+    el.classList.remove('new');
+    void el.offsetWidth;
+    el.classList.add('new');
+  }
 }
 
 function initServiceWorker() {
@@ -2669,8 +2721,14 @@ function boot() {
   initTheme();
   initViewport();
   let savedLang = '';
-  try { savedLang = localStorage.getItem(LANG_KEY) || ''; } catch (e) {}
+  try { savedLang = localStorage.getItem(LANG_KEY) || localStorage.getItem('mg.site.lang') || ''; } catch (e) {}
   applyLang(savedLang || (/^en/i.test(navigator.language || '') ? 'en' : 'zh'));
+  window.addEventListener('storage', (e) => {
+    if (e.key !== LANG_KEY && e.key !== 'mg.site.lang') return;
+    let v = '';
+    try { v = localStorage.getItem(LANG_KEY) || localStorage.getItem('mg.site.lang') || ''; } catch (err) {}
+    if ((v === 'zh' || v === 'en') && v !== LANG) applyLang(v);
+  });
   paintLoader();
   $('btnRetryLoad').addEventListener('click', retryLoad);
   initServiceWorker();
