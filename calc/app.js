@@ -2143,9 +2143,14 @@ function updateAll() {
    undo/redo, and kept across moves so a new stone no longer snaps back to 50%. */
 function blackWrOf(st) {
   if (!st) return null;
+  const ev = parseEval(st.eval);
+  /* a forced win is not a probability: pin the value to 1 / 0 so the whole bar
+     turns into the winning side's colour instead of stopping at 99% */
+  if (ev != null && Math.abs(ev) >= 9900) {
+    return (sideToMove() === 1) === (ev > 0) ? 1 : 0;
+  }
   let wr = normWr(st.winrate);
   if (wr == null) {
-    const ev = parseEval(st.eval);
     if (ev == null) return null;
     wr = 1 / (1 + Math.exp(-ev / 200));
   }
@@ -2171,17 +2176,23 @@ function blackWinRate() {
 }
 
 /* the win-rate bar: black (violet) on the left, white (sky blue) on the right;
-   the percentages sit above it in the label row */
+   the percentages sit above it in the label row. A forced win hands the whole
+   bar to one side, so the other half is dropped instead of left as a sliver. */
 function updateWinBar() {
   const b = $('wrB'), w = $('wrW');
   if (!b || !w) return;
   const p = blackWinRate();
   const pct = Math.round(p * 1000) / 10;
-  b.style.flexBasis = pct + '%';
-  w.style.flexBasis = (100 - pct) + '%';
+  const bSolo = pct >= 100, wSolo = pct <= 0;
+  b.classList.toggle('solo', bSolo);
+  b.classList.toggle('gone', wSolo);
+  w.classList.toggle('solo', wSolo);
+  w.classList.toggle('gone', bSolo);
+  b.style.flexBasis = bSolo ? '100%' : pct + '%';
+  w.style.flexBasis = wSolo ? '100%' : (100 - pct) + '%';
   const bt = $('wrBTxt'), wt = $('wrWTxt');
-  if (bt) bt.textContent = pct.toFixed(0) + '%';
-  if (wt) wt.textContent = (100 - pct).toFixed(0) + '%';
+  if (bt) bt.textContent = Math.round(pct) + '%';
+  if (wt) wt.textContent = Math.round(100 - pct) + '%';
 }
 
 /* ============================================================ debug / settings UI */

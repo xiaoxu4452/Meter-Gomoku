@@ -131,14 +131,14 @@ body.lang-en{--sans:"Source Han Sans SC","Noto Sans SC",system-ui,sans-serif}
   <h2><span class="zh">四、仪表盘与胜率</span><span class="en">4. Dashboard and win rate</span></h2>
   <ul class="zh">
     <li><b>深度 / 速度 / 节点 / 用时</b>：搜索结束后保留最后一次的数值，不会被清空；只有重开或载入新局才归零。</li>
-    <li><b>胜率</b>：上面一行是「黑 xx% / 白 xx%」，下面是荧光细条——开局左右各一半，谁的优势大谁那一侧变长。</li>
+    <li><b>胜率</b>：上面一行是「黑 xx% / 白 xx%」，下面是荧光细条——开局左右各一半，谁的优势大谁那一侧变长。<b>算出必杀（+M / -M）时直接记 100%</b>，整条只剩必胜那一方的颜色。</li>
     <li><b>胜率行中间的分数</b>：黑子 / 白子两个格子一直都在，分别套紫白框与蓝白框；还没算出来时显示「-」，算完就一直保留，只有重开或换局面才清空。</li>
     <li><b>棋盘右上角</b>：只用和坐标字符同样的字体写着最新一手的坐标（例如 K12），没有边框也没有底色。</li>
     <li><b>分析路线</b>：`d24 +37 H8 G7 ...` 依次是深度、评分、主变坐标。<b>把鼠标移到某个坐标上（手机点一下），棋盘会把这个点之后的走法半透明地摆出来</b>，虚线圈标出当前悬停的那一手，再点一次收起。</li>
   </ul>
   <ul class="en">
     <li><b>Depth / speed / nodes / time</b> keep their last values after a search stops; only a new game or a loaded position clears them.</li>
-    <li><b>Win rate</b>: the row above reads “Black xx% / White xx%”, the neon bar below splits in that ratio — even at the start, longer on the side that is winning.</li>
+    <li><b>Win rate</b>: the row above reads “Black xx% / White xx%”, the neon bar below splits in that ratio — even at the start, longer on the side that is winning. <b>A forced win (+M / -M) counts as 100%</b>, so the whole bar takes the winning side's colour.</li>
     <li><b>Score chips</b> in the middle of that row: black and white are always both present, framed purple-white and blue-white; an unknown score reads “-” and the last value stays until the position changes.</li>
     <li><b>Board top-right</b>: the newest move's coordinate (e.g. K12), set in the same face and colour as the axis labels — no box, no border.</li>
     <li><b>Main line</b>: `d24 +37 H8 G7 ...` is depth, score, then the moves. <b>Hover a move (tap on a phone) and the board previews the continuation in translucent stones</b>, with a dashed ring on the hovered move; tap again to hide.</li>

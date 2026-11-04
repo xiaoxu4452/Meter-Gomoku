@@ -231,10 +231,16 @@ html[data-theme="dark"] .route-row .mv:hover,html[data-theme="dark"] .route-row 
 .wr-side .dot-b{background:#7a5af8}
 .wr-side .dot-w{background:#4f8fd6}
 .wr-side b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;font-weight:700;color:var(--ink)}
-.wrbar{display:flex;width:100%;height:7px;border-radius:999px;background:rgba(122,140,165,.18);
-  border:1px solid var(--line);box-shadow:inset 0 1px 2px rgba(15,30,50,.08)}
+.wrbar{display:flex;width:100%;height:7px;border-radius:999px;
+  background:rgba(122,140,165,.18);border:1px solid var(--line);box-shadow:inset 0 1px 2px rgba(15,30,50,.08)}
 .wr-b,.wr-w{display:block;min-width:0;
   transition:flex-basis .32s cubic-bezier(.22,.61,.36,1)}
+/* forced win: one half owns the bar, rounded at both ends and lit from the
+   middle, since it no longer has a seam to glow against */
+.wr-b.solo,.wr-w.solo{border-radius:999px}
+.wr-b.solo{background:linear-gradient(90deg,#6338ff,#a78bff 50%,#6338ff)}
+.wr-w.solo{background:linear-gradient(90deg,#2f7fd6,#79c8ff 50%,#2f7fd6)}
+.wr-b.gone,.wr-w.gone{display:none}
 .wr-b{flex:0 0 50%;border-radius:999px 0 0 999px;
   background:linear-gradient(90deg,#6338ff,#a78bff);
   box-shadow:0 0 9px rgba(122,90,248,.85),0 0 22px rgba(122,90,248,.4)}
