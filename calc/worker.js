@@ -409,9 +409,9 @@ async function boot(opts) {
     postLoad(97, 'loadStart');
     send('START 15');
     // Emscripten pthread workers need a moment before THREAD_NUM is accepted;
-    // 300 ms is enough on this build (verified 8 threads / ~700 kNPS) and shaves
-    // another 150 ms off the fixed boot delay.
-    await new Promise((r) => setTimeout(r, 300));
+    // 180 ms is enough on this build (verified 8 threads / >1.5 MNPS) and trims
+    // the fixed boot delay further.
+    await new Promise((r) => setTimeout(r, 180));
     applyConfig(opts.threads, opts.hashMB, opts.caution, opts.rule, true);
     send('INFO SHOW_DETAIL 3');
     send('INFO PONDERING 0');
