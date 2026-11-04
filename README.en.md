@@ -13,10 +13,8 @@ assets/calc.png       site icon / favicon
 assets/calc-og.png    1200×630 social preview image
 ```
 
-- Site: <https://xiaoxu4452.github.io/Meter-Gomoku/>
-- English build: `?lang=en`
-- Download the latest release: <https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
-- Project / site source (Pages repository): <https://github.com/xiaoxu4452/Meter-Gomoku>
+
+- Download the desktop version: <https://github.com/xiaoxu4452/Meter-Gomoku-AI-trainer-Line-Version/releases>
 
 ## Two online calculators
 
@@ -41,14 +39,4 @@ calc/engine/      Rapfi WASM and NNUE weights (~41 MB)
 calc/serve.py     local preview with COOP/COEP headers
 ```
 
-## Local preview
 
-Any static server works, for example `python -m http.server 8000` and then open <http://localhost:8000/>.
-Opening the file directly mostly works too, though some browsers block `file://` iframes.
-
-## Updating the interface pages
-
-The export scripts are not part of this repository (they need the app's debug port). Start
-`Desktop GomokuTrainer.exe` with `GB_WV2_ARGS_EXTRA=--remote-debugging-port=9222`, drive the UI into the
-target state, export `document.body`, and convert visible canvases to PNG injected back as
-`background-image`.
