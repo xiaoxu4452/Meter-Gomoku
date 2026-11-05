@@ -157,7 +157,7 @@ body.xf-open .xf-panel{pointer-events:auto}
 }
 
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);
-  border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 auto}
+  border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:15px auto 0}
 .stat{background:var(--paper);padding:7px 6px 8px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px}
 .stat .k{font-size:10px;color:var(--mute);font-weight:600;letter-spacing:.08em}
 .stat .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;color:var(--ink);
