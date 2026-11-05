@@ -246,9 +246,14 @@ function chunkUrl(name, ver, k) {
     encodeURIComponent(name) + '.v' + encodeURIComponent(ver || 'x') + '.' + k;
 }
 
-async function fetchChunk(route, start, end) {
+async function fetchChunk(route, start, end, limitMs) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 90000);
+  /* a route that slows down mid-download must not hold a lane hostage: the
+     allowed time follows its current measured speed (2.5x the expected time,
+     clamped), after which the chunk moves to a faster route */
+  const expect = ((end - start) / Math.max(route.bps || 0, 200 * 1024)) * 1000;
+  const timeout = Math.max(6000, Math.min(limitMs || 24000, expect * 2.5));
+  const timer = setTimeout(() => ctl.abort(), timeout);
   try {
     const res = await fetch(route.url, reqOpts(route.url, {
       signal: ctl.signal,
@@ -328,7 +333,7 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
         s.inflight++;
         const t0 = Date.now();
         try {
-          const b = await fetchChunk({ url: s.url }, start, end);
+          const b = await fetchChunk({ url: s.url, bps: s.bps }, start, end);
           if (b.length !== end - start) throw new Error('short chunk: ' + b.length);
           out.set(b, start);
           const dt = Math.max(1, Date.now() - t0);
@@ -402,7 +407,7 @@ async function downloadFrom(urls, meta, from, to, cache, name, ver) {
     }
     throw last || new Error('download failed');
   }
-  const routes = await rankRoutes(list, 1600);
+  const routes = await rankRoutes(list, 800);
   const ranged = routes.filter((r) => r.ranged && r.total);
   if (ranged.length) {
     try {
