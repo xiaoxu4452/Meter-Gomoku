@@ -63,7 +63,7 @@ const I18N = {
     scanScore: '分数', scanWr: '胜率',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
-    tipScan: '扫描分析：评估大量候选点；再点一次停止扫描并落最佳点',
+    tipScan: '扫描分析：候选点持续加深；再点一次停止并落最佳点',
     maxDepth: '最大深度', maxDepthHint: '搜索深度上限；默认 64，通常先撞思考时间而不是深度',
     maxNodes: '节点上限', maxNodesHint: '0 = 不限；设上限可省电、降发热',
     nodesUnlimited: '不限',
@@ -104,7 +104,8 @@ const I18N = {
     tReset: '已恢复默认参数', tStoneSet: '棋子样式：{n}', tNumOn: '已显示手数', tNumOff: '已隐藏手数',
     tBoardSet: '棋盘颜色：{n}',
     tBalPoints: '平衡点点数：{n}', tBalanceNoResult: '还没有平衡点结果',
-    tScanOn: '扫描分析已开启：评估全部空点', tScanOff: '扫描分析已关闭：回到固定点数',
+    tScanOn: '扫描分析已开启：持续加深，再点一次停止并落子', tScanOff: '扫描分析已关闭：回到固定点数',
+    tScanChunk: '单线程模式：扫描按 {n} 秒分片持续加深（浏览器未隔离）',
     tScanStop: '扫描已停止，结果已清除', tScanPlayed: '已停止扫描并落下最优点 {p}',
     tScanNoBest: '扫描已停止：没有可用最优点',
     hashCleared: '置换表已清空',
@@ -155,7 +156,7 @@ const I18N = {
     scanScore: 'Score', scanWr: 'Win rate',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
-    tipScan: 'Scan analysis — evaluate many candidates; click again to stop and play the best point',
+    tipScan: 'Scan analysis — candidates keep deepening; click again to stop and play the best point',
     maxDepth: 'Max depth', maxDepthHint: 'Depth ceiling — 64 is the reference default; time is usually the real limit',
     maxNodes: 'Node limit', maxNodesHint: '0 = unlimited; a cap saves battery and heat',
     nodesUnlimited: 'Unlimited',
@@ -197,7 +198,8 @@ const I18N = {
     tReset: 'Defaults restored', tStoneSet: 'Stone style: {n}', tNumOn: 'Move numbers on', tNumOff: 'Move numbers off',
     tBoardSet: 'Board colour: {n}',
     tBalPoints: 'Balance points: {n}', tBalanceNoResult: 'No balance result yet',
-    tScanOn: 'Scan analysis on: evaluating every empty point', tScanOff: 'Scan analysis off: back to N points',
+    tScanOn: 'Scan on: deepening until you stop it; click again to stop and play', tScanOff: 'Scan off: back to N points',
+    tScanChunk: 'Single-thread mode: the scan deepens in {n}s chunks (browser isolation unavailable)',
     tScanStop: 'Scan stopped; results cleared', tScanPlayed: 'Scan stopped, best point {p} played',
     tScanNoBest: 'Scan stopped: no valid best point',
     hashCleared: 'Transposition table cleared',
@@ -1516,9 +1518,9 @@ function onEngineMessage(ev) {
       const kind = S.searchKind;
       S.searchKind = null;
       if (d.best && d.candidates && d.candidates.length) applyCandidates(d.candidates, !!d.scan);
-      /* a scan is a bounded snapshot: once the final frame is in, keep showing
-         it and do not start another scan until the position or settings change */
-      if (d.scan && S.scanOn) S.scanDone = true;
+      /* a scan never self-terminates: the only 'best' frame arrives after STOP
+         (scanOn is already false then), so the scheduler immediately re-arms the
+         single-thread chunk while a multi-thread search simply keeps running */
       S.lastBestDepth = (d.stats && d.stats.depth) || S.lastBestDepth;
       updateState();
       renderDebug();
@@ -1874,6 +1876,11 @@ function launch(kind) {
   S.lastProgress = Date.now();
   S.lastProgressNodes = 0;
   const scan = kind === 'scan';
+  /* analysis, balance and scan all deepen for as long as the user lets them on
+     a multi-thread build; only one-move/AI jobs and the single-thread fallback
+     keep a fixed time budget. */
+  const infinite = S.engineBuild === 'multi' &&
+    (kind === 'analysis' || kind === 'balance' || kind === 'scan');
   const job = {
     id: ++S.seq,
     seq: S.seq,
@@ -1883,11 +1890,9 @@ function launch(kind) {
     hashMB: S.settings.hashMB,
     caution: S.settings.caution,
     rule: S.settings.rule,
-    /* analysis and balance both deepen for as long as the user lets them; only
-       one-move/AI jobs keep a time budget. A scan is deliberately a bounded
-       snapshot: it evaluates every empty point, so time, not depth, is the cap. */
-    infinite: !scan && S.engineBuild === 'multi' && (kind === 'analysis' || kind === 'balance'),
-    /* no hidden 4 s cap: an AI move gets the same budget the user chose */
+    infinite,
+    /* only used by the single-thread fallback, which restarts a shallow chunk
+       every few seconds; a multi-thread job ignores it and runs until STOP */
     timeMs: scan ? scanBudget() : S.settings.think,
     /* strict multi-PV only pays off while analysing: playing with several lines
        splits the effort and makes the chosen move weaker. */
@@ -1895,7 +1900,8 @@ function launch(kind) {
     scan,
     count: S.balance,
     maxDepth: S.settings.maxDepth,
-    maxNodes: S.settings.maxNodes,
+    /* a deep scan searches every candidate, so a node cap would end it early */
+    maxNodes: scan && infinite ? 0 : S.settings.maxNodes,
     strength: S.settings.strength,
     pondering: !!S.settings.pondering,
   };
@@ -1906,10 +1912,12 @@ function launch(kind) {
 }
 
 let syncTimer = 0;
-/* A scan is a bounded snapshot: it uses the same think budget the user picked
-   (1–30 s), so 3 s / 10 s / 30 s are directly measurable and the scan can never
-   run away with the CPU. Density is capped separately in applyScanCandidates. */
+/* Fallback chunk length for a build without SharedArrayBuffer: each slice runs
+   the user's think budget so the page can swap the search and keep deepening. A
+   multi-thread scan is infinite and never consults this. */
 function scanBudget() {
+  /* only the single-thread fallback uses this: each chunk runs this long, then
+     the scheduler starts the next chunk. Multi-thread scans ignore it. */
   return Math.max(1000, Math.min(30000, S.settings.think || 3000));
 }
 function desiredKind() {
@@ -1917,7 +1925,7 @@ function desiredKind() {
   if (S.oneShot) return 'move';
   /* scan is its own job: it owns all threads with the widest candidate range,
      and the analysis job must never be launched while scan mode is active */
-  if (S.scanOn) return S.scanDone ? null : 'scan';
+  if (S.scanOn) return 'scan';
   const side = sideToMove();
   if (side === 1 ? S.aiB : S.aiW) return 'ai';
   if (S.balance) return 'balance';
@@ -2382,7 +2390,11 @@ function toggleScan() {
   haltSearch();
   updateAll();
   schedule(180);
-  toast(T('tScanOn'));
+  /* multi-thread scans truly never stop; the single-thread fallback can only
+     run fixed chunks, and the toast says so */
+  toast(S.engineBuild === 'multi'
+    ? T('tScanOn')
+    : T('tScanChunk', { n: Math.round(scanBudget() / 1000) }));
 }
 
 /* the middle key of the step row: compute one move and play it right away */

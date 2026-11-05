@@ -995,9 +995,10 @@ function startSearch(job) {
      YXNBEST N is the strict multi-PV path: one engine PV per rank. */
   send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
-     iteration can run long past it), so the scan gets an explicit wall-clock
-     fence. STOP produces the final frame through finishSearch. */
-  if (active.scan) {
+     iteration can run long past it), so the single-thread fallback gets an
+     explicit wall-clock fence and restarts a fresh chunk. A multi-thread scan
+     is infinite: only STOP finishes it. */
+  if (active.scan && !active.infinite) {
     scanTimer = setTimeout(() => {
       if (active && active.scan && !active.stopping) stopSearch();
     }, Math.max(300, job.timeMs | 0));
