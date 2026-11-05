@@ -70,17 +70,24 @@ html[data-theme="dark"] .icon-btn .icon-sun{display:block}
   outline:1px solid rgba(20,30,20,.10);outline-offset:-1px;background:var(--board);margin:0 auto}
 html[data-theme="dark"] #board{outline-color:rgba(0,0,0,.45)}
 
-.stepbar{display:flex;align-items:stretch;gap:5px;margin:8px auto 0}
+.stepbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:8px auto 0}
+/* the balance key is a little narrower so the scan key fits on one row */
+.stepbar.six{grid-template-columns:1fr 1fr 1fr .8fr 1fr 1fr}
+.stepbar.six .step-btn{width:100%;flex:none}
 .step-btn{display:flex;align-items:center;justify-content:center;gap:3px;flex:1 1 0;min-width:0;min-height:44px;
   padding:0 4px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--sub);
   font-size:11.5px;font-weight:600;white-space:nowrap;transition:.15s}
 .step-btn svg{width:16px;height:16px;display:block;flex:0 0 auto}
+.step-btn .step-txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .step-btn:hover:not(:disabled){border-color:var(--btn-border-hover);color:var(--ink);background:var(--nav-hover)}
 .step-btn:disabled{opacity:.42;cursor:default}
 .step-btn.play{flex:1.15 1 0;color:var(--accent-d);border-color:var(--chip-border);background:var(--accent-l)}
 .step-btn.play:hover:not(:disabled){border-color:var(--accent);color:var(--accent-d);background:var(--accent-l)}
 .step-btn.play:disabled{opacity:.42}
 .step-btn.play[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-btn[aria-pressed="true"],.step-btn.key-scan[aria-pressed="true"]{
+  border-color:var(--accent);background:var(--accent-l);color:var(--accent-d)}
+.step-btn.key-balance{font-size:11px}
 .step-btn.danger{flex:1 1 0;color:#9c3131;border-color:#f0cccc;background:#fdf4f4;padding:0 4px}
 html[data-theme="dark"] .step-btn.danger{color:#f0a4a4;border-color:#5b2c2c;background:#251618}
 .step-btn.danger.confirm{background:#c9463c;border-color:#c9463c;color:#fff}
@@ -134,17 +141,16 @@ body.xf-open .xf-panel{pointer-events:auto}
 
 .tools{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px auto 8px}
 .tools{max-width:100%}
-.tool-group{display:flex;grid-column:span 2;gap:1px;min-width:0;background:var(--line);border:1px solid var(--line);
-  border-radius:9px;overflow:hidden;box-shadow:0 1px 2px rgba(20,40,70,.03)}
-.tool-group .tool,.tool-group .bal-count{border:0;border-radius:0;box-shadow:none;background:var(--btn-bg)}
-.tool-group .bal-main{flex:2 1 0;min-width:0}
-.tool-group .bal-count{flex:1 1 0}
 .bal-count{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--mute);font-size:9.5px;
+  min-height:54px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--mute);font-size:9.5px;
   font-weight:600;line-height:1.1;padding:4px 2px;transition:.16s;box-shadow:0 1px 2px rgba(20,40,70,.03)}
 .bal-count b{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);line-height:1}
 .bal-count:hover{border-color:var(--btn-border-hover)}
 .bal-count:active{transform:translateY(1px)}
+.tool.danger{color:#9c3131;border-color:#f0cccc;background:#fdf4f4}
+html[data-theme="dark"] .tool.danger{color:#f0a4a4;border-color:#5b2c2c;background:#251618}
+.tool.danger.confirm{background:#c9463c;border-color:#c9463c;color:#fff}
+html[data-theme="dark"] .tool.danger.confirm{background:#b53d34;border-color:#b53d34;color:#fff}
 .tool{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
   min-width:0;min-height:54px;padding:5px 2px 4px;border:1px solid var(--line);border-radius:9px;
   background:var(--btn-bg);color:var(--sub);transition:.16s;box-shadow:0 1px 2px rgba(20,40,70,.03)}
@@ -276,6 +282,8 @@ html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
 .wr-eval{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;max-width:100%;
   margin:0;font-family:var(--mono);font-size:12px;line-height:1;color:var(--sub);white-space:nowrap;
   overflow:hidden;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+/* a fresh number must never move the chip: no scale, no shake, no flash —
+   only the text is replaced, so the border and label stay pixel-stable */
 .wr-eval .side{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 9px;
   height:28px;border-radius:8px;border:.5px solid var(--line);background:var(--chip-gray-bg);font-size:12.5px}
 .wr-eval .side i{width:6px;height:6px;border-radius:50%;display:inline-block;flex:0 0 auto}
@@ -283,15 +291,10 @@ html[data-theme="dark"] .wrbar{background:rgba(120,145,180,.14)}
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.72)}
 .wr-eval .side.w{border-color:rgba(79,143,214,.66);background:rgba(79,143,214,.12);
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.72)}
-/* a fresh number flashes its own chip for a moment; the other chip is untouched */
-.wr-eval .side.fresh{animation:scoreFlash .95s ease}
-@keyframes scoreFlash{
-  0%{box-shadow:0 0 0 2px rgba(47,111,176,.55);filter:brightness(1.18)}
-  100%{box-shadow:0 0 0 0 rgba(47,111,176,0);filter:none}
-}
 .wr-eval .side.b i{background:#14171a;border:.5px solid rgba(255,255,255,.35)}
 .wr-eval .side.w i{background:#faf9f5;border:.5px solid rgba(0,0,0,.25)}
-.wr-eval b{display:inline-block;min-width:3.6ch;text-align:center;font-weight:700;color:var(--ink)}
+.wr-eval b{display:inline-block;min-width:3.6ch;text-align:center;font-weight:700;color:var(--ink);
+  font-variant-numeric:tabular-nums;transition:none}
 html[data-theme="dark"] .wr-eval .side.b i{background:#0c1014;border-color:rgba(255,255,255,.28)}
 html[data-theme="dark"] .wr-eval .side.b{background:rgba(122,90,248,.16);
   box-shadow:inset 0 0 0 .5px rgba(255,255,255,.16)}
@@ -395,8 +398,6 @@ html[data-theme="dark"] .switch .knob{background:#e8eef7}
 .switch.sw-sm .knob{top:2px;left:2px;width:16px;height:16px}
 .switch.sw-sm[aria-checked="true"] .knob{transform:translateX(16px)}
 .set-label .set-title-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.set-label .scan-tag{font-size:10.5px;color:var(--sub);font-weight:600;letter-spacing:.01em}
-.set-label .scan-note{font-size:10.5px;color:var(--accent-d);font-weight:600;line-height:1.5}
 .seg[hidden]{display:none!important}
 .debug{margin-top:11px;padding:8px 10px;border:1px dashed var(--line);border-radius:9px;background:var(--bg);
   font-family:var(--mono);font-size:10.5px;line-height:1.75;color:var(--sub);overflow-wrap:anywhere}
@@ -471,6 +472,11 @@ html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);bord
 .loader.lazy .loader-actions{margin-top:9px}
 .loader.lazy .loader-actions .mini-btn{height:30px;font-size:11px}
 
+@media (max-width:560px){
+  /* six keys never fit one narrow row without clipping: two rows of three,
+     keeping the reading order 上一步 / 计算分析 / 扫描分析 · 平衡点 / 下一步 / 变换 */
+  .stepbar.six{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 @media (max-width:360px){
   .app{padding-left:6px;padding-right:6px}
   .brand-txt h1{font-size:15px}

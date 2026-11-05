@@ -54,14 +54,22 @@
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
   </section>
 
-  <div class="stepbar" role="group" aria-label="行棋步数">
+  <div class="stepbar six" role="group" aria-label="行棋控制">
     <button id="btnUndo" class="step-btn" type="button" disabled data-i18n-title="tipUndo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/></svg>
       <span data-i18n="undo">上一步</span>
     </button>
-    <button id="btnStep" class="step-btn play" type="button" data-i18n-title="tipPlay">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.6 19 12 5 19.4Z"/></svg>
-      <span data-i18n="playOne">计算一手</span>
+    <button id="btnAnalysis" class="step-btn key-analysis" type="button" aria-pressed="false" data-i18n-title="tipAnalysis">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 13h3l2-6 3 12 3-9 2 3h4"/></svg>
+      <span class="step-txt" data-i18n="analysis">计算分析</span>
+    </button>
+    <button id="btnScan" class="step-btn key-scan" type="button" aria-pressed="false" data-i18n-title="tipScan" aria-label="扫描分析">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.4" y="3.4" width="7" height="7" rx="1.2"/><rect x="13.6" y="3.4" width="7" height="7" rx="1.2"/><rect x="3.4" y="13.6" width="7" height="7" rx="1.2"/><path d="M13.6 13.6h7v7h-7z"/></svg>
+      <span class="step-txt" data-i18n="scanLabel">扫描分析</span>
+    </button>
+    <button id="btnBalance" class="step-btn key-balance" type="button" aria-pressed="false" data-i18n-title="tipBalance">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M4 7h16M7 7l-3.5 8h7L7 7ZM17 7l-3.5 8h7L17 7Z"/></svg>
+      <span data-i18n="balance">平衡点</span>
     </button>
     <button id="btnRedo" class="step-btn" type="button" disabled data-i18n-title="tipRedo">
       <span data-i18n="redo">下一步</span>
@@ -71,7 +79,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/><path d="M13 7.5h4.5M17.5 7.5 15.5 5.5M17.5 7.5l-2 2"/></svg>
       <span data-i18n="transform">变换</span>
     </button>
-    <button id="btnRestart" class="step-btn danger" type="button" data-i18n-title="tipRestart" data-i18n="restart">重开一局</button>
   </div>
 
   <div id="xfPanel" class="xf-panel" role="dialog" aria-modal="false" aria-labelledby="xfTitle">
@@ -106,23 +113,16 @@
       </span>
       <span class="tool-txt" data-i18n="aiW">AI执白</span>
     </button>
-    <button id="btnAnalysis" class="tool" type="button" aria-pressed="false" data-i18n-title="tipAnalysis">
+    <button id="btnStep" class="tool play" type="button" data-i18n-title="tipPlay">
       <span class="tool-ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 13h3l2-6 3 12 3-9 2 3h4"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.6 19 12 5 19.4Z"/></svg>
       </span>
-      <span class="tool-txt" data-i18n="analysis">计算分析</span>
+      <span class="tool-txt" data-i18n="playOne">计算一手</span>
     </button>
-    <div class="tool-group">
-      <button id="btnBalance" class="tool bal-main" type="button" aria-pressed="false" data-i18n-title="tipBalance">
-        <span class="tool-ico">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M4 7h16M7 7l-3.5 8h7L7 7ZM17 7l-3.5 8h7L17 7Z"/></svg>
-        </span>
-        <span class="tool-txt" data-i18n="balance">平衡点</span>
-      </button>
-      <button id="balCount" class="bal-count" type="button" data-i18n-title="tipBalCount">
-        <b id="balCountNum">1</b><span data-i18n="points">点</span>
-      </button>
-    </div>
+    <button id="btnRestart" class="tool danger" type="button" data-i18n-title="tipRestart" data-i18n="restart">重开一局</button>
+    <button id="balCount" class="bal-count" type="button" data-i18n-title="tipBalCount">
+      <b id="balCountNum">1</b><span data-i18n="points">点</span>
+    </button>
   </nav>
 
   <section class="stats" aria-label="搜索统计">
@@ -276,14 +276,8 @@
 
     <div class="set-row">
       <div class="set-label">
-        <span class="set-title-line">
-          <b data-i18n="pointsLabel">分析点数</b>
-          <button id="swScan" class="switch sw-sm" type="button" role="switch" aria-checked="false"
-                  data-i18n-title="scanLabel" aria-label="扫描分析"><span class="knob"></span></button>
-          <span class="scan-tag" data-i18n="scanLabel">扫描分析 / Scan analysis</span>
-        </span>
+        <b data-i18n="pointsLabel">分析点数</b>
         <span data-i18n="pointsHint">严格输出 N 条候选与 N 条路线（1–8）</span>
-        <span id="scanNote" class="scan-note" hidden data-i18n="scanNoLimit">扫描模式下不限点数：评估全部空点，关闭后回到固定点数</span>
       </div>
       <div class="seg grid4" id="segPoints" role="group" aria-label="分析点数">
         <button type="button" data-v="1">1</button>
@@ -326,17 +320,10 @@
       <div class="set-label">
         <span class="set-title-line">
           <b data-i18n="ponder">后台思考 / Pondering</b>
-          <button id="swPonder" class="switch sw-sm" type="button" role="switch" aria-checked="true"
+          <button id="swPonder" class="switch sw-sm" type="button" role="switch" aria-checked="false"
                   data-i18n-title="ponder" aria-label="后台思考"><span class="knob"></span></button>
         </span>
         <span data-i18n="ponderHint">AI 落子后继续预读对手回应，命中即秒回；待机时会占用 CPU</span>
-      </div>
-    </div>
-
-    <div class="set-row">
-      <div class="set-label"><b data-i18n="netEval">网络评估</b><span data-i18n="netEvalHint">Rapfi NNUE 权重始终启用（协议没有关闭开关）</span></div>
-      <div class="seg" role="group" aria-label="网络评估">
-        <button type="button" class="on" disabled>NNUE</button>
       </div>
     </div>
 

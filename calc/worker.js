@@ -29,20 +29,41 @@ let lastStrength = { maxDepth: -1, maxNodes: -1, strength: -1, pondering: -1 };
 /* Rapfi drops every non-STOP command while `thinking` is true. If a stop is not
    acknowledged in time we assume the engine is still finishing an iteration and
    must prove it is idle before another job rewrites the board — otherwise the
-   board/YXNBEST lines are swallowed and the search never starts. YXHASHCLEAR is
-   the cheapest command the engine always answers, so its reply is that proof. */
+   board/YXNBEST lines are swallowed and the search never starts. The final
+   coordinate line of the aborted search is that proof (STOP always produces it);
+   never probe with YXHASHCLEAR here, because that wiped the transposition table
+   in the middle of a game and made the next search visibly shallower. */
 let engineDirty = false;
 let idleTimer = 0;
+let idleDeadline = 0;
+
+function releaseDirty() {
+  engineDirty = false;
+  clearTimeout(idleTimer);
+  idleTimer = 0;
+  if (resetReq) applyReset();
+  if (pending && !bal) startPending();
+}
 
 function waitEngineIdle(ms) {
   engineDirty = true;
   clearTimeout(idleTimer);
+  idleDeadline = Date.now() + Math.max(1000, ms || 4000);
   send('STOP');
-  send('YXHASHCLEAR');
-  idleTimer = setTimeout(() => {
+  const tick = () => {
     idleTimer = 0;
-    if (engineDirty) post({ t: 'stalled', msg: 'engine did not answer STOP' });
-  }, Math.max(1000, ms || 4000));
+    if (!engineDirty) return;
+    if (Date.now() >= idleDeadline) {
+      /* do not wedge the queue forever: release it and let the next board
+         command stop whatever is left */
+      post({ t: 'stalled', msg: 'engine did not answer STOP' });
+      releaseDirty();
+      return;
+    }
+    send('STOP');
+    idleTimer = setTimeout(tick, 400);
+  };
+  idleTimer = setTimeout(tick, 400);
 }
 
 function jobKey(job) {
@@ -558,6 +579,9 @@ function handleLine(raw) {
     const pts = parseIntegerList(line);
     if (bal) { finishBalance(pts, statsOf()); return; }
     if (active) { finishSearch(pts[0]); return; }
+    /* a forced stop was already reported to the page; this line is the engine
+       saying it really finished, so the queued board may now be written */
+    if (engineDirty) releaseDirty();
     return;
   }
   if (/^SWAP$/i.test(line)) {
@@ -575,13 +599,7 @@ function handleLine(raw) {
        queued job. */
     if (/transposition table cleared/i.test(text)) {
       post({ t: 'hashclear', text });
-      if (engineDirty) {
-        engineDirty = false;
-        clearTimeout(idleTimer);
-        idleTimer = 0;
-        if (resetReq) applyReset();
-        if (pending && !bal) startPending();
-      }
+      if (engineDirty) releaseDirty();
     }
     return;
   }
@@ -744,9 +762,9 @@ function finishSearch(best, forced) {
      before the next queued job (which may start a fresh search) */
   if (forced) {
     /* The engine ignored STOP long enough that we cannot trust it to be idle:
-       it is probably still finishing a long iteration (a 200+ PV scan can
-       overshoot by seconds) and would silently drop the next board/YXNBEST.
-       Prove idleness with the hash-clear reply before releasing the queue. */
+       it is probably still finishing a long iteration. Wait for its final
+       coordinate line (STOP always produces one) without touching the hash, so
+       strength is not sacrificed to release the queue. */
     post({ t: 'stderr', msg: 'forced stop after ' + Math.round((a.scan ? 2500 : 500) / 100) / 10 + ' s' });
     waitEngineIdle(a.scan ? 5000 : 2500);
     return;
@@ -776,9 +794,11 @@ function startSearch(job) {
   pvIdx = -1;
   curNumPv = 0;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
-  /* a scan must cover the whole board, so it forces Rapfi's widest candidate
-     range (5 = FULL_BOARD) for the duration of this job; the next job sends its
-     own caution factor again and rebuilds the board with it */
+  /* A scan covers the whole board, so it forces Rapfi's widest candidate range
+     (5 = FULL_BOARD) for its run; the next job restores the user's range. This
+     one option change makes Rapfi rebuild its board and clear the TT, so it is
+     the only hash reset a scan performs — STOP / mode switches no longer wipe
+     the table. */
   applyConfig(job.threads, job.hashMB, active.scan ? 5 : job.caution, job.rule, false);
   /* a scan owns every thread, so background pondering stays off for its run */
   applyStrength({
@@ -787,9 +807,9 @@ function startSearch(job) {
   });
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
   sendBoard(job.moves);
-  /* YXSEARCHDEFEND enumerates every empty point (Rapfi sets multiPV to
-     movesLeft()) and is what the scan switch asks for. YXNBEST N is the strict
-     multi-PV path: one engine PV per rank, no repeated main line. */
+  /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
+     movesLeft()); the candidate range still prunes far-away cells. YXNBEST N is
+     the strict multi-PV path: one engine PV per rank, no repeated main line. */
   send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
      iteration can run long past it), so the scan gets an explicit wall-clock

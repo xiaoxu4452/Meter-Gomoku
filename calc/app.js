@@ -58,15 +58,14 @@ const I18N = {
     showNum: '显示手数', showNumHint: '在棋子上标出第几手，最后一手标红', on: '开', off: '关',
     rule: '规则', hash: '哈希表大小（MB）', hashHint: '引擎置换表，单位 MB，越大越省重复计算',
     pointsLabel: '分析点数', pointsHint: '严格输出 N 条候选与 N 条路线（1–8）',
-    scanLabel: '扫描分析 / Scan analysis', scanHint: '评估棋盘上所有空点，不限制点数',
-    scanStop: '停止扫描',
-    scanNoLimit: '扫描模式下不限点数：评估全部空点，关闭后回到固定点数',
+    scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
     stScanning: '扫描中', stScanDone: '扫描完成',
+    scanPts: '扫描 {n} 点',
+    tipScan: '扫描分析开关：评估大量候选点，再点一次回到普通分析',
     maxDepth: '最大深度', maxDepthHint: '搜索深度上限；默认 64，通常先撞思考时间而不是深度',
     maxNodes: '节点上限', maxNodesHint: '0 = 不限；设上限可省电、降发热',
     nodesUnlimited: '不限',
     ponder: '后台思考 / Pondering', ponderHint: 'AI 落子后继续预读对手回应，命中即秒回；待机时会占用 CPU',
-    netEval: '网络评估', netEvalHint: 'Rapfi NNUE 权重始终启用（协议没有关闭开关）',
     tPonderOn: '后台思考已开启', tPonderOff: '后台思考已关闭', tStrengthSet: '引擎强度参数已更新',
     threads: '线程数', range: '选点范围', rangeHint: '引擎候选点筛选的谨慎程度',
     threadSingle: '未隔离，仅单线程可用', threadHintT: '硬件 {hc} 线程，可用上限 {max}',
@@ -148,15 +147,14 @@ const I18N = {
     showNum: 'Move numbers', showNumHint: 'Print the move number on each stone; the last one turns red', on: 'On', off: 'Off',
     rule: 'Rule', hash: 'Hash size (MB)', hashHint: 'Transposition table in MB — larger saves more re-search',
     pointsLabel: 'Multi-PV', pointsHint: 'Exactly N engine candidates and N route rows (1–8)',
-    scanLabel: 'Scan analysis', scanHint: 'Evaluate every empty point with no point limit',
-    scanStop: 'Stop scan',
-    scanNoLimit: 'Scan mode ignores the point count: every empty cell is evaluated; turn it off to return to N points',
+    scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
+    scanPts: 'Scan {n} pts',
+    tipScan: 'Scan analysis toggle — evaluate many candidates; click again for normal analysis',
     maxDepth: 'Max depth', maxDepthHint: 'Depth ceiling — 64 is the reference default; time is usually the real limit',
     maxNodes: 'Node limit', maxNodesHint: '0 = unlimited; a cap saves battery and heat',
     nodesUnlimited: 'Unlimited',
     ponder: 'Pondering', ponderHint: 'Keep pre-computing the opponent reply after the AI moves; instant on a hit, CPU cost while idle',
-    netEval: 'Network eval', netEvalHint: 'Rapfi NNUE weights are always on — the protocol has no off switch',
     tPonderOn: 'Pondering on', tPonderOff: 'Pondering off', tStrengthSet: 'Engine strength updated',
     threads: 'Threads', range: 'Move range', rangeHint: 'How cautious the candidate filter is',
     threadSingle: 'Not isolated — single thread only', threadHintT: 'Hardware {hc} threads, up to {max}',
@@ -349,6 +347,7 @@ const S = {
   scoreW: null,
   scoreSide: null,
   scanDone: false,          // the current position's scan already produced a final frame
+  scanRows: [],             // scan points, in engine rank order, updated in place
   routes: [],               // one PV per multipv rank, in engine order
   marks: [],
   forbidden: [],
@@ -457,7 +456,7 @@ function defaults() {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
     think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scan: false,
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
-    maxDepth: 64, maxNodes: 0, strength: 100, pondering: true,
+    maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
 }
 function defaultThreads() {
@@ -1471,7 +1470,7 @@ function onEngineMessage(ev) {
       S.trace.push([Math.round(Date.now() - S.searchT0), st.depth || 0, st.nodes || 0]);
       if (S.trace.length > 240) S.trace.shift();
     }
-    if (d.t === 'info' && d.stats && S.searchKind === 'ai') maybePonderHit(d.stats.depth || 0);
+    if (d.t === 'info' && d.stats && S.searchKind === 'ai') S.lastLiveDepth = d.stats.depth || S.lastLiveDepth;
     if (d.gen !== S.gen) {
       if (d.t === 'best') requestSync(0);
       return;
@@ -1490,13 +1489,6 @@ function onEngineMessage(ev) {
          it and do not start another scan until the position or settings change */
       if (d.scan && kind === 'analysis') S.scanDone = true;
       S.lastBestDepth = (d.stats && d.stats.depth) || S.lastBestDepth;
-      if (S.searchKind === null && kind === 'ai' && S.settings.pondering) {
-        /* Rapfi keeps pondering after the move; remember how deep it got so the
-           next search can return as soon as it re-reaches that depth */
-        S.ponderArmed = true;
-        S.ponderDepth = Math.max(S.ponderDepth, (d.stats && d.stats.depth) || 0);
-      }
-      if (S.ponderHitPending && kind === 'ai') { S.ponderHitPending = false; }
       updateState();
       renderDebug();
       // AI (or a single-thread chunk) continues here
@@ -1572,45 +1564,110 @@ function scheduleDebug() {
   debugTimer = setTimeout(() => { debugTimer = 0; renderDebug(); }, 350);
 }
 
+/* Scan marks: a point keeps its identity and position for the whole scan. New
+   points are appended in engine rank order (strongest first) at a bounded rate,
+   neighbouring points on the same line are dropped in favour of the stronger
+   one, and existing rows only take new numbers. Nothing is ever re-sorted, so
+   the board does not reshuffle on every engine frame. */
+const SCAN_MAX = 140;
+const SCAN_ADD_PER_FRAME = 30;
+/* two neighbouring points are the same idea when their scores are this close */
+const SCAN_DUP_GAP = 40;
+
+function scanKey(c) { return c.move[0] + ',' + c.move[1]; }
+
+function applyScanCandidates(cands) {
+  const fresh = new Map();
+  for (const c of cands) fresh.set(scanKey(c), c);
+  const known = new Map(S.scanRows.map((r) => [r.key, r]));
+  S.scanRows.forEach((r) => {
+    const c = fresh.get(r.key);
+    if (!c) return;
+    r.cand = c;
+    r.depth = c.depth;
+    r.wr = normWr(c.winrate);
+    r.ev = parseEval(c.eval);
+    r.evTxt = fmtEval(r.ev);
+    r.line = c.line;
+  });
+  /* The density grows with the search itself: about 8 more points per extra
+     ply, never more than SCAN_MAX. A shallow 3 s scan therefore keeps the
+     board readable while a 30 s scan fills it in further, and nothing is
+     removed once earned. */
+  const dmax = cands.reduce((m, c) => Math.max(m, c.depth || 0), 0);
+  const cap = Math.min(SCAN_MAX, 32 + dmax * 8);
+  const occupied = new Map(S.scanRows.map((r) => [r.x + ',' + r.y, r]));
+  let added = 0;
+  for (const c of cands) {
+    if (S.scanRows.length >= cap || added >= SCAN_ADD_PER_FRAME) break;
+    const key = scanKey(c);
+    if (known.has(key)) continue;
+    const x = c.move[0], y = 14 - c.move[1];
+    const ev = parseEval(c.eval);
+    /* Adjacent same-line point with an almost identical score: the two cells
+       carry the same tactical meaning, so keep the stronger one only. Points
+       whose scores differ are genuinely different moves and stay visible. */
+    let near = false;
+    for (let dx = -1; dx <= 1 && !near; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (!dx && !dy) continue;
+        const other = occupied.get((x + dx) + ',' + (y + dy));
+        if (other && ev != null && other.ev != null && Math.abs(other.ev - ev) <= SCAN_DUP_GAP) { near = true; break; }
+      }
+    }
+    if (near) continue;
+    const row = {
+      key, cand: c, x, y, depth: c.depth, wr: normWr(c.winrate),
+      ev, evTxt: fmtEval(ev), line: c.line,
+    };
+    S.scanRows.push(row);
+    known.set(key, row);
+    occupied.set(x + ',' + y, row);
+    added++;
+  }
+}
+
 function applyCandidates(cands, scan) {
   if (!cands || !cands.length) return;
-  /* Strict multi-PV: exactly the first N engine PVs, in engine rank order.
-     Neighbouring points are no longer merged, and each rank owns its own line.
-     A scan ignores N and shows every point the engine evaluated. */
-  const max = scan ? cands.length : Math.max(1, Math.min(8, S.settings.points || 1));
-  let src = cands.map((c, i) => ({ c, i }));
   if (scan) {
-    /* scan rows are sorted by evaluation; the tile grid shows the number too */
-    src.sort((a, b) => (parseEval(b.c.eval) || 0) - (parseEval(a.c.eval) || 0));
-  } else {
-    /* Pin both the ranking and the set from the first frame of this search:
-       deeper iterations may legitimately re-rank the root moves, but rows must
-       not swap places or change identity while the user is reading them. A
-       pinned point keeps its slot and takes the newest evaluation when it
-       reappears; a slot is re-filled only when its point leaves the engine's
-       PV list altogether. */
-    const keyOf = (c) => c.move[0] + ',' + c.move[1];
-    const fresh = new Map(src.map((o) => [keyOf(o.c), o.c]));
-    const pins = S.routePins;
-    if (!pins.length) {
-      for (const o of src.slice(0, max)) pins.push(o.c);
-    } else {
-      for (let i = 0; i < pins.length; i++) {
-        const newer = fresh.get(keyOf(pins[i]));
-        if (newer) pins[i] = newer;
-      }
-      const known = new Set(pins.map(keyOf));
-      for (const o of src) {
-        if (pins.length >= max) break;
-        if (!known.has(keyOf(o.c))) { pins.push(o.c); known.add(keyOf(o.c)); }
-      }
-      if (pins.length > max) pins.length = max;
-    }
-    src = pins.map((c, i) => ({ c, i }));
+    applyScanCandidates(cands);
+    S.marks = S.scanRows.map((r, n) => ({
+      kind: 'ana', rank: n, x: r.x, y: r.y, depth: r.depth,
+      wr: r.wr, ev: r.ev, evTxt: r.evTxt,
+    }));
+    drawBoard();
+    updateRoutes(S.scanRows.slice(0, 12).map((r) => r.cand), true);
+    return;
   }
-  const chosen = src.slice(0, max);
-  const pool = chosen.map((o, n) => {
-    const c = o.c;
+  /* Strict multi-PV: exactly the first N engine PVs, in engine rank order.
+     Neighbouring points are no longer merged, and each rank owns its own line. */
+  const max = Math.max(1, Math.min(8, S.settings.points || 1));
+  const src = cands.map((c, i) => ({ c, i }));
+  /* Pin both the ranking and the set from the first frame of this search:
+     deeper iterations may legitimately re-rank the root moves, but rows must
+     not swap places or change identity while the user is reading them. A
+     pinned point keeps its slot and takes the newest evaluation when it
+     reappears; a slot is re-filled only when its point leaves the engine's
+     PV list altogether. */
+  const keyOf = (c) => c.move[0] + ',' + c.move[1];
+  const fresh = new Map(src.map((o) => [keyOf(o.c), o.c]));
+  const pins = S.routePins;
+  if (!pins.length) {
+    for (const o of src.slice(0, max)) pins.push(o.c);
+  } else {
+    for (let i = 0; i < pins.length; i++) {
+      const newer = fresh.get(keyOf(pins[i]));
+      if (newer) pins[i] = newer;
+    }
+    const known = new Set(pins.map(keyOf));
+    for (const o of src) {
+      if (pins.length >= max) break;
+      if (!known.has(keyOf(o.c))) { pins.push(o.c); known.add(keyOf(o.c)); }
+    }
+    if (pins.length > max) pins.length = max;
+  }
+  const chosen = pins.slice(0, max);
+  const pool = chosen.map((c, n) => {
     const x = c.move[0], yUi = 14 - c.move[1];
     const ev = parseEval(c.eval);
     return {
@@ -1621,7 +1678,7 @@ function applyCandidates(cands, scan) {
   });
   S.marks = pool;
   drawBoard();
-  updateRoutes(chosen.map((o) => o.c), scan);
+  updateRoutes(chosen, false);
 }
 
 function normWr(v) {
@@ -1656,12 +1713,30 @@ function fmtScore(v) {
   return (v >= 0 ? '+' : '') + Math.round(v);
 }
 
-let scoreFlashTimer = 0;
-let scoreFlashSide = 0;
+/* The score chips are built once and then only their text nodes are replaced.
+   Rebuilding innerHTML on every engine frame made the border width follow the
+   number and flashed a scale/shake animation, which is what looked like the row
+   jumping. Fixed min-widths + tabular numerals keep both chips pixel-stable. */
+let scoreEls = null;
+function scoreChips() {
+  const el = $('wrEval');
+  if (!el) return null;
+  if (scoreEls && scoreEls.el === el && scoreEls.bv && scoreEls.bv.isConnected) return scoreEls;
+  el.innerHTML = '<span class="side b"><i></i><span class="sc-lbl"></span><b></b></span>' +
+    '<span class="side w"><i></i><span class="sc-lbl"></span><b></b></span>';
+  const b = el.querySelector('.side.b');
+  const w = el.querySelector('.side.w');
+  scoreEls = {
+    el, b, w,
+    bl: b.querySelector('.sc-lbl'), wl: w.querySelector('.sc-lbl'),
+    bv: b.querySelector('b'), wv: w.querySelector('b'),
+  };
+  return scoreEls;
+}
 
 function updateEvalScore() {
-  const el = $('wrEval');
-  if (!el) return;
+  const r = scoreChips();
+  if (!r) return;
   /* Both chips are always on screen, black then white: the numbers live in
      S.scoreB / S.scoreW between searches, so toggling an AI side, stopping the
      engine or opening the settings never blanks a score that is still valid.
@@ -1669,12 +1744,13 @@ function updateEvalScore() {
      different pasted/transformed position) clears the pair. */
   const val = { 1: S.scoreB, 2: S.scoreW };
   (S.balanceMarks || []).slice(0, 2).forEach((m) => { if (m.c === 1 || m.c === 2) val[m.c] = m.ev; });
-  const sides = [{ c: 1, v: val[1] }, { c: 2, v: val[2] }];
-  el.innerHTML = sides.map((s) =>
-    '<span class="side ' + (s.c === 1 ? 'b' : 'w') + (scoreFlashSide === s.c ? ' fresh' : '') +
-    '"><i></i><span>' + (s.c === 1 ? T('evalBlack') : T('evalWhite')) + '</span><b>' +
-    fmtScore(s.v) + '</b></span>'
-  ).join('');
+  const bl = T('evalBlack'), wl = T('evalWhite');
+  if (r.bl.textContent !== bl) r.bl.textContent = bl;
+  if (r.wl.textContent !== wl) r.wl.textContent = wl;
+  const bs = fmtScore(val[1]);
+  const ws = fmtScore(val[2]);
+  if (r.bv.textContent !== bs) r.bv.textContent = bs;
+  if (r.wv.textContent !== ws) r.wv.textContent = ws;
 }
 
 /* A new number for one colour refreshes that chip and leaves the other one
@@ -1684,22 +1760,11 @@ function updateEvalScore() {
    while a search is already reporting a score. */
 function setScoreData(value, side) {
   if (value == null || !Number.isFinite(value) || !side) return;
-  const prev = side === 1 ? S.scoreB : S.scoreW;
   if (side === 1) S.scoreB = value;
   else S.scoreW = value;
   if (S.scoreB == null) S.scoreB = side === 1 ? value : -value;
   if (S.scoreW == null) S.scoreW = side === 2 ? value : -value;
   S.scoreSide = side;
-  if (prev == null || (prev !== value && Date.now() - (S.scoreFlashAt || 0) > 700)) {
-    S.scoreFlashAt = Date.now();
-    scoreFlashSide = side;
-    clearTimeout(scoreFlashTimer);
-    scoreFlashTimer = setTimeout(() => {
-      scoreFlashTimer = 0;
-      scoreFlashSide = 0;
-      updateEvalScore();
-    }, 950);
-  }
   updateEvalScore();
 }
 
@@ -1709,9 +1774,6 @@ function clearScores() {
   S.scoreB = null;
   S.scoreW = null;
   S.scoreSide = null;
-  scoreFlashSide = 0;
-  clearTimeout(scoreFlashTimer);
-  scoreFlashTimer = 0;
   updateEvalScore();
 }
 
@@ -1799,13 +1861,11 @@ function launch(kind) {
 }
 
 let syncTimer = 0;
-/* a scan budget that follows the remaining board: a full board needs a little
-   longer than a nearly finished one, and the user's think time stays the cap */
+/* A scan is a bounded snapshot: it uses the same think budget the user picked
+   (1–30 s), so 3 s / 10 s / 30 s are directly measurable and the scan can never
+   run away with the CPU. Density is capped separately in applyScanCandidates. */
 function scanBudget() {
-  const empties = Math.max(1, SIZE * SIZE - S.moves.length);
-  const scaled = 900 + empties * 10;
-  const base = Math.max(1500, Math.min(4500, S.settings.think || 3000));
-  return Math.max(1200, Math.min(base, scaled));
+  return Math.max(1000, Math.min(30000, S.settings.think || 3000));
 }
 function desiredKind() {
   if (S.winner) return null;
@@ -1831,25 +1891,14 @@ function runSync() {
 /* kept for the many existing call sites; it now only debounces the scheduler */
 function schedule(delay) { requestSync(delay || 0); }
 
+/* A ponder search only warms the transposition table; the reply search always
+   runs its full budget. Stopping it early whenever it re-reached some depth left
+   the AI playing shallow moves, which is what weakened play after pondering was
+   introduced. */
 function resetPonder() {
   S.ponderArmed = false;
   S.ponderDepth = 0;
   S.ponderHitPending = false;
-}
-
-/* A ponder hit means the reply search re-reaches the depth the background
-   ponder had already worked out. We then stop immediately and play that move:
-   same depth as a cold search, a fraction of the wall-clock time. A miss
-   simply runs the normal budget, so nothing gets weaker. */
-function maybePonderHit(depth) {
-  if (!S.ponderArmed || S.ponderHitPending || !S.settings.pondering) return;
-  if (!S.searchT0 || S.ponderDepth <= 0) return;
-  const elapsed = Date.now() - S.searchT0;
-  if (elapsed < 180 || depth < S.ponderDepth) return;
-  S.ponderHitPending = true;
-  S.ponderHits++;
-  S.ponderHitMs = elapsed;
-  stopKeepResult();
 }
 
 /* like haltSearch, but keeps the current generation: the move the engine has
@@ -2209,6 +2258,32 @@ function toggleAnalysis() {
   schedule(120);
 }
 
+/* The scan key is a mode switch: on = evaluate a large candidate set, off =
+   back to the strict N-point analysis. It owns the same "analysis is running"
+   flag, so balance points, AI play and one-move play all stay mutually
+   exclusive, and every old marker/route is dropped on both transitions. */
+function toggleScan() {
+  if (S.winner) { toast(T('tGameOver')); return; }
+  if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
+  const on = !S.settings.scan;
+  S.settings.scan = on;
+  saveSettings();
+  S.scanDone = false;
+  S.marks = [];
+  S.stats = null;
+  if (S.balance) { S.balance = 0; S.balanceHeld = false; }
+  S.balanceMarks = [];
+  S.balanceInfo = null;
+  clearRouteView();
+  haltSearch();
+  drawBoard();
+  /* switching on starts a scan; switching off leaves ordinary analysis running */
+  if (on) S.analysis = true;
+  updateAll();
+  schedule(180);
+  toast(on ? T('tScanOn') : T('tScanOff'));
+}
+
 /* the middle key of the step row: compute one move and play it right away */
 function playOneMove() {
   if (S.winner) { toast(T('tGameOver')); return; }
@@ -2387,6 +2462,7 @@ function clearRouteView() {
   S.routePin = null;
   S.routeOrder = [];
   S.routePins = [];
+  S.scanRows = [];
   const row = $('routeRow');
   if (row) {
     row.className = 'route-row empty';
@@ -2433,7 +2509,8 @@ function updateRoutes(cands, scan) {
   if (meta) {
     meta.hidden = false;
     meta.innerHTML = '<b class="depth">d' + depth + '</b>' +
-      '<b class="eval' + cls + '">' + (ev == null ? '–' : fmtEval(ev)) + '</b>';
+      '<b class="eval' + cls + '">' + (ev == null ? '–' : fmtEval(ev)) + '</b>' +
+      (scan ? '<span class="panel-hint">' + T('scanPts', { n: S.scanRows.length }) + '</span>' : '');
   }
   if (S.preview) {
     const p = S.preview;
@@ -2499,9 +2576,15 @@ function updateAll() {
   $('btnAIW').setAttribute('aria-pressed', String(S.aiW));
   const an = $('btnAnalysis');
   an.setAttribute('aria-pressed', String(S.analysis));
-  an.querySelector('.tool-txt').textContent = S.analysis
+  an.querySelector('.step-txt').textContent = S.analysis
     ? (S.settings.scan ? T('scanStop') : T('analysisStop'))
     : T('analysis');
+  const sc = $('btnScan');
+  if (sc) {
+    sc.setAttribute('aria-pressed', String(!!S.settings.scan));
+    sc.setAttribute('aria-label', T('tipScan'));
+    sc.setAttribute('title', T('tipScan'));
+  }
   const bal = $('btnBalance');
   bal.setAttribute('aria-pressed', String(S.balance > 0 || S.balanceMarks.length > 0));
   const num = $('balCountNum');
@@ -2629,12 +2712,6 @@ function syncSettingsUI() {
     [...box.querySelectorAll('button')].forEach((b) => b.classList.toggle('on', String(v) === b.dataset.v));
   };
   seg('segHash', S.settings.hashMB);
-  const swScan = $('swScan');
-  if (swScan) swScan.setAttribute('aria-checked', String(!!S.settings.scan));
-  const segP = $('segPoints');
-  if (segP) segP.hidden = !!S.settings.scan;
-  const scanNote = $('scanNote');
-  if (scanNote) scanNote.hidden = !S.settings.scan;
   seg('segPoints', S.settings.points);
   seg('segRange', S.settings.caution);
   seg('segDepth', S.settings.maxDepth);
@@ -2834,8 +2911,7 @@ function initSettingsEvents() {
   if (swPonder) swPonder.addEventListener('click', () => setSetting('pondering', !S.settings.pondering));
   buildBoardSwatches();
   $('swNum').addEventListener('click', () => setSetting('showNum', !S.settings.showNum));
-  const swScan = $('swScan');
-  if (swScan) swScan.addEventListener('click', () => setSetting('scan', !S.settings.scan));
+  $('btnScan').addEventListener('click', toggleScan);
   const applyThink = () => {
     const raw = Math.round(+($('thinkInput').value || 0));
     const sec = Math.max(1, Math.min(120, raw || 3));
