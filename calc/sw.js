@@ -6,7 +6,7 @@
    make sure the engine cache survives shell updates. */
 'use strict';
 
-const VERSION = '20261105g';
+const VERSION = '20261105h';
 /* Keep the engine cache name stable across UI releases: worker.js stores the
    weights under this name, and a new shell must not throw 41 MB away. Bumped
    only when the weight entry itself changes. */
