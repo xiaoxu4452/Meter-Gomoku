@@ -470,8 +470,8 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 
   <figure class="shot" style="margin-top:26px">
     <div class="shot-bar"><i></i><i></i><i></i><span>Meter Gomoku</span></div>
-    <div class="shot-box" data-w="1320" data-h="1120">
-      <iframe src="preview/app-main-zh.html" data-zh="preview/app-main-zh.html" data-en="preview/app-main-en.html"
+    <div class="shot-box" data-w="1440" data-h="900">
+      <iframe data-zh="preview/app-main-zh" data-en="preview/app-main-en"
               scrolling="no" tabindex="-1" aria-hidden="true" title="Meter Gomoku main window"></iframe>
     </div>
   </figure>
@@ -508,14 +508,14 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   <h2><span class="num">02</span><span class="zh">界面导览</span><span class="en">Interface tour</span></h2>
   <figure class="shot">
     <div class="shot-bar"><i></i><i></i><i></i><span>Meter Gomoku</span></div>
-    <div class="shot-box" data-w="1320" data-h="1120">
-      <iframe src="preview/app-main-zh.html" data-zh="preview/app-main-zh.html" data-en="preview/app-main-en.html"
+    <div class="shot-box" data-w="1440" data-h="900">
+      <iframe data-zh="preview/app-main-zh" data-en="preview/app-main-en"
               scrolling="no" tabindex="-1" aria-hidden="true" title="Meter Gomoku main window"></iframe>
     </div>
   </figure>
   <figcaption>
-    <span class="zh"><b>图 1</b> 主界面：左＝引擎仪表盘，中＝棋盘，右＝对局设置。</span>
-    <span class="en"><b>Fig. 1</b> Main window: engine dashboard (left), board (centre), match settings (right).</span>
+    <span class="zh"><b>图 1</b> 主界面：左＝引擎仪表盘，中＝棋盘，右＝计算评估与路线列表。</span>
+    <span class="en"><b>Fig. 1</b> Main window: engine dashboard (left), board (centre), analysis panel (right).</span>
   </figcaption>
 
   <table class="ftable">
@@ -612,14 +612,14 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
 
   <figure class="shot">
     <div class="shot-bar"><i></i><i></i><i></i><span>Meter Gomoku · analysis</span></div>
-    <div class="shot-box" data-w="1320" data-h="1120">
-      <iframe src="preview/app-analysis-zh.html" data-zh="preview/app-analysis-zh.html" data-en="preview/app-analysis-en.html"
+    <div class="shot-box" data-w="1440" data-h="900">
+      <iframe data-zh="preview/app-analysis-zh" data-en="preview/app-analysis-en"
               scrolling="no" tabindex="-1" aria-hidden="true" title="Meter Gomoku analysis"></iframe>
     </div>
   </figure>
   <figcaption>
-    <span class="zh"><b>图 2</b> 多点分析：棋盘上三个候选点带排名与评分，仪表盘给出深度 20 / 1064 万节点 / 用时 5.2 s。</span>
-    <span class="en"><b>Fig. 2</b> Multi-PV analysis: three ranked candidates with scores; the dashboard reads depth 20 / 10.6 M nodes / 5.2 s.</span>
+    <span class="zh"><b>图 2</b> 分析中：全盘候选点按危险度铺成圆环，右侧路线列表按评分、深度、胜率、坐标串排列；仪表盘为深度 16 / 237 万节点 / 6.1 s。</span>
+    <span class="en"><b>Fig. 2</b> Analysis: defence-scan rings across the board, routes ranked by score, depth, win rate and coordinate string; dashboard reads depth 16 / 2.37 M nodes / 6.1 s.</span>
   </figcaption>
 
   <table class="tbl">
@@ -788,7 +788,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     <figure class="shot" style="margin:0">
       <div class="shot-bar"><i></i><i></i><i></i><span>Settings</span></div>
       <div class="shot-box" data-w="430" data-h="840">
-        <iframe src="preview/app-settings-zh.html" data-zh="preview/app-settings-zh.html" data-en="preview/app-settings-en.html"
+        <iframe data-zh="preview/app-settings-zh" data-en="preview/app-settings-en"
                 scrolling="no" tabindex="-1" aria-hidden="true" title="Meter Gomoku settings window"></iframe>
       </div>
       <figcaption style="padding-left:0"><span class="zh"><b>图 3</b> 设置窗（长页面，此处显示首屏）。</span><span class="en"><b>Fig. 3</b> Settings window (long page; first screen shown).</span></figcaption>
@@ -892,6 +892,19 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   var bZh = document.getElementById('lg-zh'), bEn = document.getElementById('lg-en');
   var TITLE = { zh: 'Meter Gomoku · 五子棋 AI 训练器', en: 'Meter Gomoku · Gomoku AI Trainer' };
 
+  /* the frozen preview pages are one file per language × theme, so switching
+     either simply swaps the iframe src — no script runs inside them */
+  function syncFrames() {
+    var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    var en = document.body.classList.contains('lang-en');
+    [].forEach.call(document.querySelectorAll('iframe[data-zh]'), function (f) {
+      var base = f.getAttribute(en ? 'data-en' : 'data-zh');
+      if (!base) return;
+      var src = base + '-' + theme + '.html';
+      if (f.getAttribute('src') !== src) f.setAttribute('src', src);
+    });
+  }
+
   function setLang(l) {
     var en = l === 'en';
     document.body.classList.toggle('lang-en', en);
@@ -899,13 +912,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
     document.title = TITLE[en ? 'en' : 'zh'];
     bZh.classList.toggle('on', !en); bEn.classList.toggle('on', en);
     bZh.setAttribute('aria-pressed', String(!en)); bEn.setAttribute('aria-pressed', String(en));
-    [].forEach.call(document.querySelectorAll('iframe[data-zh]'), function (f) {
-      var base = f.getAttribute(en ? 'data-en' : 'data-zh');
-      if (!base) return;
-      var theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-      var src = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'theme=' + theme;
-      if (f.getAttribute('src') !== src) f.setAttribute('src', src);
-    });
+    syncFrames();
     try { localStorage.setItem('mg.site.lang', l); localStorage.setItem('mgcalc.lang', l); } catch (e) {}
   }
   bZh.onclick = function () { setLang('zh'); };
@@ -921,6 +928,8 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   var q = (location.search.match(/[?&]lang=(zh|en)/) || [])[1];
   if (q) setLang(q);
   else if (saved === 'en' || (!saved && /^en/i.test(navigator.language || ''))) setLang('en');
+  /* the frames ship without a src so they never paint the wrong theme first */
+  syncFrames();
 
   /* ---------- preview scaling (real DOM, lossless) ---------- */
   function fit() {
@@ -931,7 +940,6 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
       box.style.height = Math.round(h * k) + 'px';
       f.style.width = w + 'px'; f.style.height = h + 'px';
       f.style.transform = 'scale(' + k + ')';
-      try { f.contentWindow.postMessage({ type: 'mg-theme', theme: document.documentElement.getAttribute('data-theme') }, '*'); } catch (e) {}
     });
   }
   window.addEventListener('resize', fit);
@@ -1080,9 +1088,7 @@ footer.foot{max-width:1000px; margin:0 auto; padding:8px 4px 40px; color:var(--m
   var themeBtn = document.getElementById('themeBtn');
   var themeMeta = document.querySelector('meta[name="theme-color"]');
   function syncPreviewTheme(t) {
-    [].forEach.call(document.querySelectorAll('iframe[data-zh]'), function (f) {
-      try { f.contentWindow.postMessage({ type: 'mg-theme', theme: t }, '*'); } catch (e) {}
-    });
+    syncFrames();
   }
   function applyTheme(t, save) {
     var dark = t === 'dark';

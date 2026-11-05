@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh" style="font-size: 13.5px;"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meter Gomoku</title>
+
+<link rel="stylesheet" href="calc.css">
+</head>
+<body data-theme="dark" class="setwin" data-lang="zh" style="--font: &quot;Source Han Sans SC&quot;,&quot;Source Han Sans CN&quot;,&quot;Noto Sans SC&quot;,&quot;思源黑体&quot;,&quot;PingFang SC&quot;,&quot;Hiragino Sans GB&quot;,&quot;Microsoft YaHei&quot;,system-ui,-apple-system,&quot;Segoe UI&quot;,sans-serif; --fontweight: 400; --fontstyle: normal; --logfont: &quot;Source Han Sans SC&quot;,&quot;Source Han Sans CN&quot;,&quot;Noto Sans SC&quot;,&quot;思源黑体&quot;,&quot;PingFang SC&quot;,&quot;Hiragino Sans GB&quot;,&quot;Microsoft YaHei&quot;,system-ui,-apple-system,&quot;Segoe UI&quot;,sans-serif; --logweight: 400; --logstyle: normal; --lbl-accent: rgb(92,184,242);">
+
+
+
+<header id="hdr">
+  <div class="brand">
+    <span id="t_title">Meter Gomoku</span>
+  </div>
+  <div class="hdr-actions">
+    <button id="btn_link" class="btn">连线</button>
+    <button id="btn_vis" class="btn">识图</button>
+    <button id="btn_review" class="btn">复盘</button>
+    <button id="btn_history" class="btn">历史</button>
+    <button id="btn_about" class="btn" data-tip="aboutTip" title="版本、使用方法、功能与开源许可">关于</button>
+    <button id="btn_settings" class="btn" title="设置">设置</button>
+  </div>
+</header>
+<main id="stage">
+  <div id="dockL" class="dock" data-dock="L"></div>
+  <aside id="visPane" hidden="">
+    <div class="vis-view" id="visView">
+      <div class="vis-imgbar">
+        <button id="btn_vis_upload" class="btn">上传图片</button>
+        <button id="btn_vis_shot" class="btn">屏幕截图</button>
+        <button id="btn_vis_crop" class="btn">裁剪</button>
+        <button id="btn_vis_prev" class="btn sq">&lt;</button>
+        <button id="visPos" class="pill vis-pill" title="点这里打开图片抽屉（选一张 / 移除）">0 / 0</button>
+        <button id="btn_vis_next" class="btn sq">&gt;</button>
+      </div>
+      <div class="vis-box" id="visBox">
+        <img id="visImg" alt="" hidden="">
+        <textarea id="visInput" spellcheck="false" wrap="soft"></textarea>
+        <button id="btn_vis_del" class="btn sq vis-del" title="移除这张" hidden="">✕</button>
+      </div>
+      <div class="vis-acts">
+        <button id="btn_vis_rec" class="btn accent">重新识别</button>
+        <button id="btn_vis_rc" class="btn" title="识别参数">识别参数</button>
+        <button id="btn_vis_load" class="btn">加载到练习</button>
+        <button id="btn_vis_vc" class="btn" title="算杀题模式：黑白子数不统一也可保存/加载（VCF/VCT 题面常见黑远多于白）；加载到练习后只预设进攻方，算杀由你点「VCF / VCT」自己开">VC 模式</button>
+        <button id="btn_vis_edit" class="btn">修改</button>
+      </div>
+      <div class="vis-rcbox" id="visRcBox" hidden=""></div>
+      <div class="vis-codebar" id="visCodeBar" hidden="">
+        <span class="hint vcl" id="t_visCode">棋盘代码</span>
+        <textarea id="visCode" spellcheck="false" wrap="soft" readonly=""></textarea>
+        <button id="btn_vis_codecopy" class="btn vd-mini">复制</button>
+      </div>
+      <div class="vis-msg hint" id="visMsg"></div>
+    </div>
+    <div id="visCrop" class="crop-mask" hidden="">
+      <div class="crop-panel" id="cropPanel">
+        <div class="crop-head">
+          <span class="ttl" id="t_visCropTitle">裁剪图片</span>
+          <span class="hint" id="t_visCropHint">拖动鼠标框选要保留的区域</span>
+          <span class="grow"></span>
+          <span class="hint" id="t_visCropSize"></span>
+        </div>
+        <div class="crop-stage" id="cropStage">
+          <img src="data:image/png;base64,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" style=";width:0px;height:0px;display:block" id="cropCanvas">
+        </div>
+        <div class="crop-acts">
+          <button id="btn_crop_reset" class="btn">重置</button>
+          <span class="grow"></span>
+          <button id="btn_crop_cancel" class="btn">取消</button>
+          <button id="btn_crop_ok" class="btn accent">确定</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <aside id="visDrawer" hidden="">
+    <div class="vd-head">
+      <span class="ttl" id="t_visDrawer">图片</span>
+      <span class="hint" id="vdCount">0</span>
+      <span class="grow"></span>
+      <button id="btn_vd_sel" class="btn vd-mini">选择</button>
+      <button id="btn_vd_all" class="btn vd-mini">全选</button>
+      <button id="btn_vd_del" class="btn vd-mini danger">删除</button>
+      <button id="btn_vd_close" class="btn sq" data-tip="visDrawerClose" title="收起抽屉">✕</button>
+    </div>
+    <div id="vdList" class="vd-list"></div>
+    <div class="vd-tip hint" id="t_vdTip">点缩略图选中 · ✕ 移除 · 点空白上传</div>
+  </aside>
+  <section id="boardCol">
+    <div id="boardWrap"><img src="data:image/png;base64,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" style=";width:0px;height:0px;display:block" id="board"></div>
+    <div id="visEditBar" hidden="">
+      <div class="ve-row">
+        <button id="btn_ve_swap" class="btn">交换黑白子</button>
+        <button id="btn_ve_del" class="btn">删除棋子</button>
+        <button id="btn_ve_fillb" class="btn">补充黑子</button>
+        <button id="btn_ve_fillw" class="btn">补充白子</button>
+        <button id="btn_ve_add" class="btn">添加黑白子</button>
+        <span id="veAddKeys" class="ve-pop" hidden="">
+          <button id="btn_ve_addb" class="btn">黑子开始</button>
+          <button id="btn_ve_addw" class="btn">白子开始</button>
+        </span>
+        <button id="btn_ve_undo" class="btn">撤销</button>
+      </div>
+    </div>
+    <div id="boardFoot">
+      <div class="bf-side bf-l">
+        <button id="btn_live" class="btn bfkey" title="">分析计算</button>
+      </div>
+      <div id="boardBtns">
+        <span class="bgroup nav-group">
+          <button id="btn_prev" class="btn ico" title="上一步">←</button>
+          <button id="btn_next" class="btn ico" title="下一步">→</button>
+        </span>
+        <button id="btn_reset" class="btn">重新开始</button>
+        <button id="btn_pause" class="btn ico" title="点击：AI 辅助计算一次并落子一着">❚❚</button>
+        <button id="btn_save" class="btn">保存局面</button>
+        <span class="bgroup lay-group">
+          <button id="btn_rot" class="btn ico" title="整体棋子顺时针旋转 90°（坐标轴不动）">↻</button>
+          <button id="btn_mirror" class="btn ico" title="翻转棋子布局">⇄</button>
+          <button id="btn_shift" class="btn ico" title="局面步进（整体平移一格）">✥</button>
+        </span>
+      </div>
+      <div id="mirrorPop" hidden="">
+        <span class="sp-ttl" id="t_mirrorTtl">翻转棋子布局</span>
+        <span class="sp-btns">
+          <button id="btn_mv_fv" class="btn" title="左右翻转">左右</button>
+          <button id="btn_mv_fh" class="btn" title="上下翻转">上下</button>
+          <button id="btn_mv_d1" class="btn" title="对角翻转（左上↔右下）">╲</button>
+          <button id="btn_mv_d2" class="btn" title="对角翻转（右上↔左下）">╱</button>
+          <button id="btn_mv_close" class="btn ico" title="关闭">✕</button>
+        </span>
+      </div>
+      <div id="shiftPop" hidden="">
+        <span class="sp-ttl" id="t_shiftTtl">局面平移</span>
+        <span class="sp-btns">
+          <button id="btn_mv_left" class="btn ico" title="整体向左平移一格">←</button>
+          <button id="btn_mv_up" class="btn ico" title="整体向上平移一格">↑</button>
+          <button id="btn_mv_down" class="btn ico" title="整体向下平移一格">↓</button>
+          <button id="btn_mv_right" class="btn ico" title="整体向右平移一格">→</button>
+          <button id="btn_shift_close" class="btn ico" title="关闭">✕</button>
+        </span>
+      </div>
+      <div id="aiSidePop" hidden="">
+        <span class="ai-grp">
+          <button id="ai_side_b" data-ai="b" class="tglbtn"><span class="tgl"><i></i></span><span class="tgl-txt">AI 执黑</span></button>
+          <button id="ai_side_w" data-ai="w" class="tglbtn"><span class="tgl"><i></i></span><span class="tgl-txt">AI 执白</span></button>
+        </span>
+        <span class="ai-grp">
+          <span class="ai-turn" id="t_aiTurn">思考时间</span>
+          <span class="numbox ainum">
+            <input id="num_turn2" type="number" min="0.2" max="300" step="0.1" value="2">
+            <span class="unit">s</span>
+          </span>
+        </span>
+        <button id="btn_ai_close" class="btn ico" title="关闭">✕</button>
+      </div>
+      <div class="bf-side bf-r">
+        <button id="btn_aiside" class="btn bfkey">AI 执子</button>
+      </div>
+    </div>
+    <div id="openBar" hidden=""><span class="hint" id="openHint"></span>
+      <button id="btn_ten" class="btn" hidden="">十打（叫 10 个候选点）</button><button id="btn_balcall" class="btn" hidden="" title="按官方平衡搜索（YXBALANCE）自动叫点">平衡打点</button><span id="yamaDecl" hidden=""></span><span id="taraSwap" hidden=""><button id="btn_tara_yes" class="btn">换手</button><button id="btn_tara_no" class="btn">继续</button></span></div>
+    <div id="egBar" hidden="">
+      <button id="btn_eg_ok" class="btn">确定</button>
+      <button id="btn_eg_seq" class="btn">顺序摆盘</button>
+      <button id="btn_eg_free" class="btn">任意摆盘</button>
+      <span id="egKeys" hidden="">
+        <button id="btn_eg_b" class="btn">黑子</button>
+        <button id="btn_eg_w" class="btn">白子</button>
+      </span>
+    </div>
+    <div id="swapPop" class="swappop" hidden="">
+      <span class="sp-ttl" id="t_swapTtl">交换完成 · 请选择你的先后手</span>
+      <span class="sp-btns">
+        <button id="btn_swap_first" class="btn">先手 · 执黑</button>
+        <button id="btn_swap_second" class="btn">后手 · 执白</button>
+      </span>
+    </div>
+    <div id="rvBar" hidden="">
+      <span id="rvGroup" hidden="">
+        <button id="btn_recite" class="btn">背诵复盘</button>
+        <button id="btn_replay" class="btn">回顾复盘</button>
+        <span id="rvMiss" class="missbox">背错 0</span>
+        <button id="btn_rv_prev" class="btn sq" data-tip="prev" hidden="" title="上一步">◀</button>
+        <span class="pill" id="rvPos" hidden="">0 / 0</span>
+        <button id="btn_rv_next" class="btn sq" data-tip="next" hidden="" title="下一步">▶</button>
+        <button id="btn_rv_play" class="btn sq" hidden="">播放</button>
+        <select id="rvSpeed" hidden="" data-tip="rvSpeedTtl" title="单步间隔 0.5~5 秒">
+          <option value="0.5">0.5s</option>
+          <option value="1">1s</option>
+          <option value="1.5">1.5s</option>
+          <option value="2">2s</option>
+          <option value="3">3s</option>
+          <option value="4">4s</option>
+          <option value="5">5s</option>
+        </select>
+        <button id="btn_rv_exit" class="btn" hidden="">退出复盘</button>
+      </span>
+      <button id="btn_rv_num" class="btn" title="在棋子上标出它是第几手 · Ctrl+Z 上一手 · Ctrl+R 重来（回到开局）">序号</button>
+      <button id="btn_redo_rv" class="btn">重来</button>
+      <button id="btn_save_rv" class="btn">保存局面</button>
+      <button id="btn_rv_hist" class="btn">历史</button>
+    </div>
+  </section>
+  <div id="dockR" class="dock" data-dock="R">
+    
+    <section class="card" data-id="analysis">
+      <div class="card-h">
+        <span class="ttl" id="t_analysis">计算评估</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="按住标题栏可拖动换位；点击小横杠折叠 / 展开卡片"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="analysis" title="关闭卡片">固定</button>
+      </div>
+      <div class="card-b">
+        <div class="anbtns">
+          <button id="btn_an_calc" class="btn" title="">分析计算</button>
+          <button id="btn_an_defend" class="btn" data-i18n="anDefend">扫描分析</button>
+          <span class="seg balseg" id="seg_bal">
+            <button id="btn_an_bal" class="segbtn" data-i18n="anBalBtn" title="持续平衡搜索；再点一次停止（结果保留）">平衡点</button>
+            <span class="seg-div" aria-hidden="true"></span>
+            <button id="btn_an_baln" class="segbtn seg-n" title="平衡点数：点击循环 1 点 ⇄ 2 点（空盘固定 3 手）">2 点</button>
+          </span>
+          <button id="btn_fwd_clear" class="btn" data-i18n="fwdClear" title="清除计算 / 平衡点 / 扫描分析 / 前瞻 · VCF · VCT 留在棋盘上的所有标记（不动局面）">清除计算</button>
+        </div>
+        <div class="routes-box" id="routesBox">
+          <div class="rt-head">
+            <span class="rt-ttl" data-i18n="rtTitle">分析路线</span>
+          </div>
+          <div class="rt-list" id="rtList"><div class="rt-empty"><div class="rt-empty-msg">点「多点分析 / 分析计算 / 平衡点」后，这里按点数列出每一条相关路线</div><div class="rt-empty-lg">评分 = 引擎评估值（正 = 该行首手方占优）· 深度 = 已完成整轮（d 值）· 胜率 = 该行首手一方视角</div></div></div>
+        </div>
+        <div class="fwdbox" id="fwdBox">
+          <div class="fwd-h">
+            <button id="btn_fwd" class="btn fwdkey" data-i18n="fwd">前瞻</button>
+            <button id="btn_fwd_vcf" class="btn fwdkey fwdmini" data-i18n="fwdFindVcf">VCF</button>
+            <button id="btn_fwd_vct" class="btn fwdkey fwdmini" data-i18n="fwdFindVct">VCT</button>
+            <span class="grow"></span>
+            <button id="btn_fwd_prev" class="btn sq2">&lt;</button>
+            <button id="btn_fwd_next" class="btn sq2">&gt;</button>
+          </div>
+          <div class="fwd-h fwd-h2">
+            <span class="fwd-lg" id="fwdLg" title="进攻方指示框（不可点）：紫框 = 黑子，浅蓝框 = 白子；自动 = 轮走方（算杀题面 = 子多一方）">
+              <span class="lgr lgfr-b" id="fwdLgB"><em data-i18n="fwdBlack">黑子</em></span>
+              <span class="lgr lgfr-w" id="fwdLgW"><em data-i18n="fwdWhite">白子</em></span>
+            </span>
+            <span class="grow"></span>
+            <button id="btn_fwd_ok" class="btn fwdok" data-i18n="fwdOk">确定</button>
+          </div>
+          <div class="fwd-body" id="fwdBody"><span class="hint" id="fwdMsg">点「前瞻」，从当前残局自动推演到五子连珠</span></div>
+          <div class="fwd-seq" id="fwdSeq"></div>
+        </div>
+        <div class="row nbestRow"><label id="t_nbest">分析点数</label>
+          <input id="num_nbest" type="number" min="1" max="8" step="1" value="3">
+        </div>
+      </div>
+    </section>
+    <section class="card" data-id="engine">
+      <div class="card-h">
+        <span class="ttl" id="t_engine">引擎仪表盘</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="按住标题栏可拖动换位；点击小横杠折叠 / 展开卡片"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="engine" title="关闭卡片">✕</button>
+      </div>
+      <div class="card-b">
+        <div class="grid2">
+          <div class="stat"><span class="k" id="t_depth">深度</span><span class="v" id="st_depth">-</span></div>
+          <div class="stat"><span class="k" id="t_speed">速度</span><span class="v" id="st_speed">-</span></div>
+          <div class="stat"><span class="k" id="t_nodes">节点</span><span class="v" id="st_nodes">-</span></div>
+          <div class="stat"><span class="k" id="t_time">用时</span><span class="v" id="st_time">-</span></div>
+          <div class="stat"><span class="k" id="t_eval" title="">评估</span><span class="v"><span id="st_eval">-</span></span></div>
+          <div class="stat"><span class="k" id="t_best">最佳</span><span class="v" id="st_best">-</span></div>
+        </div>
+        <div class="curve-head"><span id="t_curveTtl">评估曲线</span></div>
+        <div id="curveWrap">
+          <img src="data:image/png;base64,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" style="width: 30px; height: 216px;;width:0px;height:0px;display:block" id="curveAxis">
+          <div id="curveScroll"><img src="data:image/png;base64,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" style="width: 160px; height: 216px;;width:0px;height:0px;display:block" id="curve"><div id="curveHover" style="display: none;"></div></div>
+        </div>
+        <div class="curve-info" id="curveInfo">
+          <div class="ci cb" style="--wr: 0.00%;">
+            <span class="cih" id="t_blackCurve">黑子</span>
+            <span class="cir"><span class="k ci-score">分数</span><span class="v" id="ci_b_score">-</span></span>
+            <span class="cir"><span class="k ci-win">胜率</span><span class="v" id="ci_b_win">-</span></span>
+          </div>
+          <div class="ci cw" style="--wr: 0.00%;">
+            <span class="cih" id="t_whiteCurve">白子</span>
+            <span class="cir"><span class="k ci-score">分数</span><span class="v" id="ci_w_score">-</span></span>
+            <span class="cir"><span class="k ci-win">胜率</span><span class="v" id="ci_w_win">-</span></span>
+          </div>
+        </div>
+        <div class="eng-msg" id="engMsg">
+          <div class="line" id="st_line"></div>
+          <div class="pv-box" id="pvBox" hidden=""></div>
+        </div>
+        <div class="row col codeRow" id="codeRow">
+          <div class="codeHead">
+            <label id="t_code">局面代码</label>
+            <span class="grow"></span>
+            <button id="btn_copy" class="btn sq2 sym" title="复制" aria-label="复制"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.4" y="5.4" width="8.2" height="8.2" rx="1.5"></rect><path d="M10.6 5.4V3.8a1.5 1.5 0 0 0-1.5-1.5H3.8a1.5 1.5 0 0 0-1.5 1.5v5.3a1.5 1.5 0 0 0 1.5 1.5h1.6"></path></svg></button>
+            <button id="btn_paste" class="btn sq2 sym" title="粘贴并载入（回车也可载入）" aria-label="粘贴并载入（回车也可载入）"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.2" y="3.4" width="9.6" height="10.8" rx="1.6"></rect><path d="M6.1 3.4V2.7c0-.6.5-1.1 1.1-1.1h1.6c.6 0 1.1.5 1.1 1.1v.7"></path></svg></button>
+          </div>
+          <textarea id="inp_code" rows="4" spellcheck="false" placeholder="h8h9g7…" data-tip="codeTip" title="局面代码：小写列字母 + 行号，逐手拼接（与 gomocalc.com 同格式）"></textarea>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<div id="drawer" hidden="">
+  <div class="dr-head">
+    <div class="tabs">
+      <button class="tab on" data-tab="hist" id="t_history">历史</button>
+      <button class="tab" data-tab="saved" id="t_saved">保存历史</button>
+      <button id="dr_all" class="btn dr-allbtn">全部选中</button>
+    </div>
+    <span class="grow"></span>
+    <span class="hint" id="drCount">0 / 150</span>
+  </div>
+  <div class="dr-actions">
+    <button id="dr_open" class="btn">打开</button>
+    <button id="dr_save" class="btn accent">保存选中</button>
+    <button id="dr_del" class="btn danger">删除</button>
+    <button id="dr_imp" class="btn">导入</button>
+    <button id="dr_exp" class="btn">导出</button>
+    <button id="dr_close" class="btn">关闭</button>
+  </div>
+  <div class="dr-tip hint" id="t_drTip">勾选若干局，点「保存选中」→ 永久存入「保存历史」</div>
+  <div id="drList" class="dr-list"><div class="empty">—</div></div>
+</div>
+
+
+
+<div id="ctxMenu" class="ctx" hidden=""></div>
+<input id="file_imp" type="file" accept=".txt,text/plain" hidden="">
+<input id="file_vis" type="file" accept="image/*" multiple="" hidden="">
+
+
+
+<div id="setPane"><div class="sp-scroll"><div class="sp-rows"><div class="sp-row"><button id="sp_color" class="sp-key"><span class="sp-kn" id="t_spColor">主题</span></button><button id="sp_font" class="sp-key"><span class="sp-kn" id="t_spFont">字体</span></button><button id="sp_lang" class="sp-key sp-keylang"><b class="sp-v" id="spLangVal">EN</b></button></div><div class="sp-sec"><div class="sec-h"><span class="sec-t" id="t_spCards">窗口功能卡片展示</span></div><div class="sp-row"><button class="sp-tgl on" data-card="engine"><span class="sw"><i></i></span><span class="sp-kn" id="t_spEngine">引擎仪表盘</span></button><button class="sp-tgl on" data-card="analysis"><span class="sw"><i></i></span><span class="sp-kn" id="t_spAnalysis">计算评估</span></button><button class="sp-tgl" data-card="setup"><span class="sw"><i></i></span><span class="sp-kn" id="t_spSetup">对局设置</span></button></div></div></div><div class="sp-setup" id="spSetupBody"><section class="card sp-embed" data-id="setup">
+      <div class="card-h">
+        <span class="ttl" id="t_setup">对局设置</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="按住标题栏可拖动换位；点击小横杠折叠 / 展开卡片"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="setup" title="关闭卡片">固定</button>
+      </div>
+      <div class="card-b">
+        <div class="sec" data-sec="game">
+          <div class="sec-h"><span class="sec-t" id="t_secGame">对局</span></div>
+          <div class="sec-b">
+        <div id="modeGrp">
+          <div class="row head"><label id="t_mode">模式</label>
+            <div class="seg s3" id="seg_mode">
+              <button data-mode="pve" class="on">对弈</button>
+              <span class="subseg">
+                <button data-mode="place">摆盘</button>
+                <button data-mode="endgame">残局</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div id="sideGrp">
+          <div class="row head"><label id="t_side">AI 执子</label>
+            <div class="seg s2" id="seg_side">
+              <button data-ai="b" class="tglbtn" aria-pressed="false"><span class="tgl"><i></i></span><span class="tgl-txt">AI 执黑</span></button>
+              <button data-ai="w" class="tglbtn" aria-pressed="false"><span class="tgl"><i></i></span><span class="tgl-txt">AI 执白</span></button>
+            </div>
+          </div>
+          <div class="row"><span class="hint" id="sideHint">两个都不开：没有 AI，黑白双方都由你自己下</span></div>
+        </div>
+        <div class="row" id="turnRow"><label id="t_turn">思考时间</label>
+          <span class="field">
+            <span class="numbox">
+              <input id="num_turn" type="number" min="0.2" max="300" step="0.1" value="2">
+              <span class="unit">s</span>
+            </span>
+          </span>
+        </div>
+        <div class="row"><label id="t_bgThink">后台思考</label>
+          <button id="btn_bgThink" class="tglbtn" type="button" aria-pressed="false"><span class="tgl"><i></i></span></button>
+          <span class="hint" id="t_bgThinkHint" data-base="轮到你思考时，引擎在后台继续深算这一局面，你一落子就能更快给出应对">轮到你思考时，引擎在后台继续深算这一局面，你一落子就能更快给出应对</span>
+        </div>
+        <div class="row"><label id="t_dynTime">动态时间</label>
+          <button id="btn_dynTime" class="tglbtn on" type="button" aria-pressed="true"><span class="tgl"><i></i></span></button>
+          <span class="hint" id="t_dynTimeHint">自动分配每手思考时间：总时限充裕时用满设定，接近用光才提前收手，不会算超时</span>
+        </div>
+        <div class="row"><label id="t_rule">规则</label>
+          <select id="sel_rule">
+            <option value="0">无禁手</option>
+            <option value="1">无禁手 · 长连不赢</option>
+            <option value="2">连珠（有禁手）</option>
+          </select>
+        </div>
+        <div class="row"><span class="hint" id="ruleHint">无禁手：连成五子（含长连）即胜。最自由。</span></div>
+          </div>
+        </div>
+        <div class="sec" data-sec="engine">
+          <div class="sec-h"><span class="sec-t" id="t_secEngine">引擎</span></div>
+          <div class="sec-b">
+        <div class="row"><span class="hint" id="sysInfo"><div class="ab-sys"><div class="ab-sys-c"><div class="ab-sys-t">处理器</div><div class="ab-sys-v">AMD Ryzen 7 8845H w/ Radeon 780M Graphics</div><div class="ab-sys-s">8 核 16 线程 · 3.79GHz · L1 32KB · L2 1MB · L3 16MB</div></div><div class="ab-sys-c"><div class="ab-sys-t">指令集</div><div class="ab-sys-v">AVX2 ✓ · AVX-512 ✓ · VNNI ✓</div><div class="ab-sys-s">引擎变体 avx512vnni（原生引擎）</div></div><div class="ab-sys-c"><div class="ab-sys-t">系统内存</div><div class="ab-sys-v">31.3 GB</div><div class="ab-sys-s">已用 62% · 可用 11.8 GB</div></div></div><div class="ab-lic">Windows 10 Pro for Workstations (build 28000) · 磁盘可用 236GB</div></span></div>
+        <div class="grp" id="powerGrp">
+        <div class="row"><label id="t_cores">线程数</label>
+          <select id="sel_cores"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected="">8</option></select>
+          <span class="hint" id="coresHint">本机 16 线程 · 上限 8</span>
+        </div>
+        <div class="row"><label id="t_hash">哈希表</label>
+          <select id="sel_hash"><option value="128">128 MB</option><option value="256">256 MB</option><option value="512" selected="">512 MB</option><option value="1024">1024 MB</option><option value="1536">1536 MB</option><option value="2048">2048 MB</option><option value="2560">2560 MB</option><option value="3072">3072 MB</option><option value="3584">3584 MB</option><option value="4096">4096 MB</option></select>
+        </div>
+        </div>
+        <div class="grp" id="buildGrp">
+        <div class="row"><label id="t_variant">引擎变体</label>
+          <select id="sel_variant"><option value="" selected="" title="自动：按本机指令集 + 实测吞吐选最快（推荐）">自动（推荐）</option><option value="avx512vnni" title="AVX-512 VNNI：宽向量 + int8 点积，现代 CPU 通常最快">AVX-512 VNNI</option><option value="avx512" title="AVX-512：无 int8-VNNI 路径；Zen4 上与 VNNI 相当">AVX-512</option><option value="avx2" title="AVX2：无 512 位路径，本系列权重下明显偏慢（约 1/3 速度）">AVX2</option><option value="sse" title="SSE：最老兜底，仅应急">SSE</option></select>
+          <span class="hint" id="variantHint">自动：按本机指令集 + 实测吞吐选最快（推荐）</span>
+        </div>
+        <div class="row"><label id="t_weights">引擎权重</label>
+          <select id="sel_weights"><option value="nnue" selected="">NNUE（准确）</option><option value="classic">传统估值（快）</option></select>
+          <span class="hint" id="weightsHint">NNUE 评估更准；传统估值更快，快棋更划算</span>
+        </div>
+        </div>
+        <div class="grp" id="searchGrp">
+        <div class="row"><label id="t_candRange">选点范围</label>
+          <select id="sel_candRange" title="越大越不容易漏点，同时间算得更浅"><option value="0">0 · 最窄（5×5）</option><option value="1">1 · 偏窄（5×5+3线）</option><option value="2">2 · 中性（7×7）</option><option value="3" selected="">3 · 推荐（7×7+4线）</option><option value="4">4 · 偏宽（9×9）</option><option value="5">5 · 最宽（全盘）</option></select>
+          <span class="hint" id="candRangeHint">越大越不容易漏点，同时间算得更浅</span>
+        </div>
+        <div class="row"><label id="t_multiPv">分析点数</label>
+          <select id="sel_multiPv"><option value="1">1 个点</option><option value="2">2 个点</option><option value="3" selected="">3 个点</option><option value="4">4 个点</option><option value="5">5 个点</option><option value="6">6 个点</option><option value="7">7 个点</option><option value="8">8 个点</option></select>
+          <span class="hint" id="multiPvHint">「分析计算」最多给出的点数（与分析面板同一设置）</span>
+        </div>
+        <div class="row"><label id="t_maxDepth">最大深度</label>
+          <span class="duo"><select id="sel_maxDepth" title="4 ~ 128 的整数，留空 = 不限"><option value="0">不限</option><option value="24">24</option><option value="32">32</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option><option value="88">88</option><option value="100" selected="">100</option></select><input id="inp_maxDepth" class="num-in" type="number" min="4" max="128" step="1" inputmode="numeric" placeholder="不限" title="4 ~ 128 的整数，留空 = 不限"></span>
+        </div>
+        <div class="row"><label id="t_maxNodes">最大节点</label>
+          <span class="duo"><select id="sel_maxNodes" title="0.1 ~ 4096（单位 M），留空 = 不限"><option value="0" selected="">不限</option><option value="16000000">16M</option><option value="64000000">64M</option><option value="128000000">128M</option><option value="256000000">256M</option><option value="512000000">512M</option><option value="768000000">768M</option><option value="1024000000">1024M</option></select><input id="inp_maxNodes" class="num-in" type="number" min="0.1" max="4096" step="0.1" inputmode="decimal" placeholder="不限" title="0.1 ~ 4096（单位 M），留空 = 不限"><span class="unit">M</span></span>
+        </div>
+        </div>
+        <div class="row"><span class="hint" id="hashInfo"><div class="si-r"><span class="si-k">独占</span><span class="si-v">整档 512MB 给当前事件（落子 / 分析二选一）</span></div><div class="si-r"><span class="si-k">待机</span><span class="si-v">其余车道各 64MB 保活</span></div><div class="si-r"><span class="si-k">占用</span><span class="si-v">合计 640MB · 系统内存 31.3GB · 可用 11.8GB · 占内存 2.0%</span></div></span></div>
+          </div>
+        </div>
+        <div class="sec" data-sec="view">
+          <div class="sec-h"><span class="sec-t" id="t_secView">棋盘显示</span></div>
+          <div class="sec-b">
+        <div class="row"><label id="t_showNum">显示序号</label>
+          <input id="chk_num" class="chk-dot" type="checkbox">
+          <span class="hint" id="t_showNumHint">棋子上标出第几手</span>
+        </div>
+        <div class="row"><label id="t_preview">预览框</label>
+          <input id="chk_preview" class="chk-dot" type="checkbox">
+          <span class="hint" id="t_previewHint">鼠标悬停时显示的圆角方框</span>
+        </div>
+          </div>
+        </div>
+      </div>
+    </section></div></div><div class="sp-color" id="spColorBox"><div class="sp-color-h"><button id="sp_back" class="btn sq2">&lt;</button><span class="sp-ttl" id="t_spColorTtl">主题</span><button id="cp_custom" type="button" class="btn cp-custom sp-cust-key">自定义</button></div></div><div class="sp-font" id="spFontBox"><div class="sp-color-h"><button id="spf_back" class="btn sq2">&lt;</button><span class="sp-ttl" id="t_spFontTtl">字体设置</span></div><div class="spf-body"><div class="spf-size"><div class="spf-lbl" id="t_fontSize">字体大小</div><div class="spf-seg" id="spf_size"><button data-size="small" id="t_fontSmall">较小</button><button data-size="normal" id="t_fontNormal" class="on">合适</button><button data-size="large" id="t_fontLarge">较大</button></div></div><div class="spf-panel"><div class="spf-tabs" id="spf_tabs"><button type="button" data-tab="ui" id="t_fontTabUi" class="on">系统</button><button type="button" data-tab="log" id="t_fontTabLog">提示</button><button type="button" data-tab="num" id="t_fontTabNum">棋子</button></div><div class="spf-list" id="spf_list"><button type="button" class="spf-row spf-def on" data-v="" style="font-family: &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">系统默认</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Arial" style="font-family: Arial, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Arial</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Calibri" style="font-family: Calibri, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Calibri</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Cambria" style="font-family: Cambria, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Cambria</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Cascadia Mono" style="font-family: &quot;Cascadia Mono&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Cascadia Mono</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Consolas" style="font-family: Consolas, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Consolas</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="DengXian" style="font-family: DengXian, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">DengXian</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="FangSong" style="font-family: FangSong, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">FangSong</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Georgia" style="font-family: Georgia, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Georgia</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="KaiTi" style="font-family: KaiTi, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">KaiTi</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Microsoft JhengHei" style="font-family: &quot;Microsoft JhengHei&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Microsoft JhengHei</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Microsoft YaHei" style="font-family: &quot;Microsoft YaHei&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Microsoft YaHei</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Noto Sans SC" style="font-family: &quot;Noto Sans SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Noto Sans SC</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Noto Serif SC" style="font-family: &quot;Noto Serif SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Noto Serif SC</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Segoe UI" style="font-family: &quot;Segoe UI&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Segoe UI</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="SimHei" style="font-family: SimHei, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">SimHei</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="SimSun" style="font-family: SimSun, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">SimSun</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Source Han Sans SC" style="font-family: &quot;Source Han Sans SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Source Han Sans SC</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Source Han Serif SC" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Source Han Serif SC</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Tahoma" style="font-family: Tahoma, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Tahoma</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Times New Roman" style="font-family: &quot;Times New Roman&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Times New Roman</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Trebuchet MS" style="font-family: &quot;Trebuchet MS&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Trebuchet MS</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Verdana" style="font-family: Verdana, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Verdana</span><span class="spf-row-s">对局设置 · 分析计算 · 评估 Meter Gomoku 0123456789</span></button></div><div class="spf-foot"><div class="spf-fbar" id="spf_fbar1"><div class="spf-wlbl"><span class="spf-lbl2" id="t_fontWeight">粗细</span><b class="spf-wname" id="spf_wNow">常规</b></div><div class="spf-wsl" id="spf_weight" role="slider" aria-valuemin="1" aria-valuemax="5" aria-valuenow="2"><i class="spf-wsl-line"></i><button type="button" class="spf-wdot" data-weight="300" title="细" aria-label="细"></button><button type="button" class="spf-wdot on" data-weight="400" title="常规" aria-label="常规"></button><button type="button" class="spf-wdot" data-weight="500" title="中等" aria-label="中等"></button><button type="button" class="spf-wdot" data-weight="700" title="加粗" aria-label="加粗"></button><button type="button" class="spf-wdot" data-weight="900" title="特粗" aria-label="特粗"></button></div><button type="button" id="spf_italic" class="spf-it" aria-pressed="false">斜体</button><button type="button" id="spf_ok" class="btn spf-ok" style="min-width: 62px;">确定</button></div><div class="spf-fbar spf-fbar-stone" id="spf_stoneRow" hidden="" style="display: none;"><div class="spf-stones real" id="spf_stones" hidden="" style="display: none;"><div class="spf-stone blk"><span id="spf_stone_b" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Noto Serif SC&quot;, &quot;Noto Serif CJK SC&quot;, 思源宋体, SimSun, serif; font-weight: 700; font-style: normal; font-size: 1.161rem;">1</span></div><div class="spf-stone wht"><span id="spf_stone_w" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Noto Serif SC&quot;, &quot;Noto Serif CJK SC&quot;, 思源宋体, SimSun, serif; font-weight: 700; font-style: normal; font-size: 1.161rem;">2</span></div></div><div class="spf-seg spf-numseg" id="spf_numsize" hidden="" style="display: none;"><button type="button" data-numsize="small" id="t_fontNumSmall">小</button><button type="button" data-numsize="normal" id="t_fontNumNormal" class="on">中</button><button type="button" data-numsize="large" id="t_fontNumLarge">大</button></div><div class="spf-seg spf-stoneseg" id="spf_stonestyle" hidden="" style="display: none;"><button type="button" data-stone="real" id="t_fontStoneReal" class="on">仿真</button><button type="button" data-stone="jade" id="t_fontStoneJade">玉石</button><button type="button" data-stone="flat" id="t_fontStoneFlat">扁平</button></div></div></div></div></div></div></div></body></html>

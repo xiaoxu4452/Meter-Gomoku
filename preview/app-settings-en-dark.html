@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en" style="font-size: 13.5px;"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meter Gomoku</title>
+
+<link rel="stylesheet" href="calc.css">
+</head>
+<body data-theme="dark" class="setwin" data-lang="en" style="--font: &quot;Source Han Sans SC&quot;,&quot;Source Han Sans CN&quot;,&quot;Noto Sans SC&quot;,&quot;思源黑体&quot;,&quot;PingFang SC&quot;,&quot;Hiragino Sans GB&quot;,&quot;Microsoft YaHei&quot;,system-ui,-apple-system,&quot;Segoe UI&quot;,sans-serif; --fontweight: 400; --fontstyle: normal; --logfont: &quot;Source Han Sans SC&quot;,&quot;Source Han Sans CN&quot;,&quot;Noto Sans SC&quot;,&quot;思源黑体&quot;,&quot;PingFang SC&quot;,&quot;Hiragino Sans GB&quot;,&quot;Microsoft YaHei&quot;,system-ui,-apple-system,&quot;Segoe UI&quot;,sans-serif; --logweight: 400; --logstyle: normal; --lbl-accent: rgb(92,184,242);">
+
+
+
+<header id="hdr">
+  <div class="brand">
+    <span id="t_title">Meter Gomoku</span>
+  </div>
+  <div class="hdr-actions">
+    <button id="btn_link" class="btn">Link</button>
+    <button id="btn_vis" class="btn">Vision</button>
+    <button id="btn_review" class="btn">Review</button>
+    <button id="btn_history" class="btn">History</button>
+    <button id="btn_about" class="btn" data-tip="aboutTip" title="Version, how to use, features and open-source licences">About</button>
+    <button id="btn_settings" class="btn" title="Settings">Settings</button>
+  </div>
+</header>
+<main id="stage">
+  <div id="dockL" class="dock" data-dock="L"></div>
+  <aside id="visPane" hidden="">
+    <div class="vis-view" id="visView">
+      <div class="vis-imgbar">
+        <button id="btn_vis_upload" class="btn">Upload images</button>
+        <button id="btn_vis_shot" class="btn">Screenshot</button>
+        <button id="btn_vis_crop" class="btn">Crop</button>
+        <button id="btn_vis_prev" class="btn sq">&lt;</button>
+        <button id="visPos" class="pill vis-pill" title="Open the picture drawer (pick / remove)">0 / 0</button>
+        <button id="btn_vis_next" class="btn sq">&gt;</button>
+      </div>
+      <div class="vis-box" id="visBox">
+        <img id="visImg" alt="" hidden="">
+        <textarea id="visInput" spellcheck="false" wrap="soft"></textarea>
+        <button id="btn_vis_del" class="btn sq vis-del" title="Remove current" hidden="">✕</button>
+      </div>
+      <div class="vis-acts">
+        <button id="btn_vis_rec" class="btn accent">Re-recognize</button>
+        <button id="btn_vis_rc" class="btn" title="Recog params">Recog params</button>
+        <button id="btn_vis_load" class="btn">Load to practice</button>
+        <button id="btn_vis_vc" class="btn" title="Mate-puzzle mode: unbalanced stone counts may be saved/loaded (VCF/VCT diagrams often have far more black than white); loading only presets the attacker - you start the mate search yourself with VCF / VCT">VC Mode</button>
+        <button id="btn_vis_edit" class="btn">Edit</button>
+      </div>
+      <div class="vis-rcbox" id="visRcBox" hidden=""></div>
+      <div class="vis-codebar" id="visCodeBar" hidden="">
+        <span class="hint vcl" id="t_visCode">Board code</span>
+        <textarea id="visCode" spellcheck="false" wrap="soft" readonly=""></textarea>
+        <button id="btn_vis_codecopy" class="btn vd-mini">Copy</button>
+      </div>
+      <div class="vis-msg hint" id="visMsg"></div>
+    </div>
+    <div id="visCrop" class="crop-mask" hidden="">
+      <div class="crop-panel" id="cropPanel">
+        <div class="crop-head">
+          <span class="ttl" id="t_visCropTitle">Crop image</span>
+          <span class="hint" id="t_visCropHint">Drag to select the region to keep</span>
+          <span class="grow"></span>
+          <span class="hint" id="t_visCropSize"></span>
+        </div>
+        <div class="crop-stage" id="cropStage">
+          <img src="data:image/png;base64,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" style=";width:0px;height:0px;display:block" id="cropCanvas">
+        </div>
+        <div class="crop-acts">
+          <button id="btn_crop_reset" class="btn">Reset</button>
+          <span class="grow"></span>
+          <button id="btn_crop_cancel" class="btn">Cancel</button>
+          <button id="btn_crop_ok" class="btn accent">OK</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <aside id="visDrawer" hidden="">
+    <div class="vd-head">
+      <span class="ttl" id="t_visDrawer">Pictures</span>
+      <span class="hint" id="vdCount">0</span>
+      <span class="grow"></span>
+      <button id="btn_vd_sel" class="btn vd-mini">Select</button>
+      <button id="btn_vd_all" class="btn vd-mini">All</button>
+      <button id="btn_vd_del" class="btn vd-mini danger">Delete</button>
+      <button id="btn_vd_close" class="btn sq" data-tip="visDrawerClose" title="Close drawer">✕</button>
+    </div>
+    <div id="vdList" class="vd-list"></div>
+    <div class="vd-tip hint" id="t_vdTip">Click a thumbnail to select · ✕ removes · click blank to upload</div>
+  </aside>
+  <section id="boardCol">
+    <div id="boardWrap"><img src="data:image/png;base64,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" style=";width:0px;height:0px;display:block" id="board"></div>
+    <div id="visEditBar" hidden="">
+      <div class="ve-row">
+        <button id="btn_ve_swap" class="btn">Swap B/W</button>
+        <button id="btn_ve_del" class="btn">Remove stones</button>
+        <button id="btn_ve_fillb" class="btn">Add black</button>
+        <button id="btn_ve_fillw" class="btn">Add white</button>
+        <button id="btn_ve_add" class="btn">Add stones</button>
+        <span id="veAddKeys" class="ve-pop" hidden="">
+          <button id="btn_ve_addb" class="btn">Black first</button>
+          <button id="btn_ve_addw" class="btn">White first</button>
+        </span>
+        <button id="btn_ve_undo" class="btn">Undo</button>
+      </div>
+    </div>
+    <div id="boardFoot">
+      <div class="bf-side bf-l">
+        <button id="btn_live" class="btn bfkey" title="">Analyze</button>
+      </div>
+      <div id="boardBtns">
+        <span class="bgroup nav-group">
+          <button id="btn_prev" class="btn ico" title="Back">←</button>
+          <button id="btn_next" class="btn ico" title="Forward">→</button>
+        </span>
+        <button id="btn_reset" class="btn">Restart</button>
+        <button id="btn_pause" class="btn ico" title="Click: AI computes and plays one move for you">❚❚</button>
+        <button id="btn_save" class="btn">Save position</button>
+        <span class="bgroup lay-group">
+          <button id="btn_rot" class="btn ico" title="Rotate stones 90° clockwise (axes stay put)">↻</button>
+          <button id="btn_mirror" class="btn ico" title="Flip stone layout">⇄</button>
+          <button id="btn_shift" class="btn ico" title="Shift position (move all stones by one cell)">✥</button>
+        </span>
+      </div>
+      <div id="mirrorPop" hidden="">
+        <span class="sp-ttl" id="t_mirrorTtl">Flip stone layout</span>
+        <span class="sp-btns">
+          <button id="btn_mv_fv" class="btn" title="Flip left-right">L·R</button>
+          <button id="btn_mv_fh" class="btn" title="Flip up-down">U·D</button>
+          <button id="btn_mv_d1" class="btn" title="Diagonal flip (top-left↔bottom-right)">╲</button>
+          <button id="btn_mv_d2" class="btn" title="Diagonal flip (top-right↔bottom-left)">╱</button>
+          <button id="btn_mv_close" class="btn ico" title="Close">✕</button>
+        </span>
+      </div>
+      <div id="shiftPop" hidden="">
+        <span class="sp-ttl" id="t_shiftTtl">Shift position</span>
+        <span class="sp-btns">
+          <button id="btn_mv_left" class="btn ico" title="Shift all stones left by one cell">←</button>
+          <button id="btn_mv_up" class="btn ico" title="Shift all stones up by one cell">↑</button>
+          <button id="btn_mv_down" class="btn ico" title="Shift all stones down by one cell">↓</button>
+          <button id="btn_mv_right" class="btn ico" title="Shift all stones right by one cell">→</button>
+          <button id="btn_shift_close" class="btn ico" title="Close">✕</button>
+        </span>
+      </div>
+      <div id="aiSidePop" hidden="">
+        <span class="ai-grp">
+          <button id="ai_side_b" data-ai="b" class="tglbtn"><span class="tgl"><i></i></span><span class="tgl-txt">AI Black</span></button>
+          <button id="ai_side_w" data-ai="w" class="tglbtn"><span class="tgl"><i></i></span><span class="tgl-txt">AI White</span></button>
+        </span>
+        <span class="ai-grp">
+          <span class="ai-turn" id="t_aiTurn">Think time</span>
+          <span class="numbox ainum">
+            <input id="num_turn2" type="number" min="0.2" max="300" step="0.1" value="2">
+            <span class="unit">s</span>
+          </span>
+        </span>
+        <button id="btn_ai_close" class="btn ico" title="关闭">✕</button>
+      </div>
+      <div class="bf-side bf-r">
+        <button id="btn_aiside" class="btn bfkey">AI side</button>
+      </div>
+    </div>
+    <div id="openBar" hidden=""><span class="hint" id="openHint"></span>
+      <button id="btn_ten" class="btn" hidden="">Ten-call (10 candidates)</button><button id="btn_balcall" class="btn" hidden="" title="Auto-call picks via the official balance search (YXBALANCE)">Balance picks</button><span id="yamaDecl" hidden=""></span><span id="taraSwap" hidden=""><button id="btn_tara_yes" class="btn">Swap</button><button id="btn_tara_no" class="btn">Play on</button></span></div>
+    <div id="egBar" hidden="">
+      <button id="btn_eg_ok" class="btn">Confirm</button>
+      <button id="btn_eg_seq" class="btn">Sequential</button>
+      <button id="btn_eg_free" class="btn">Free color</button>
+      <span id="egKeys" hidden="">
+        <button id="btn_eg_b" class="btn">Black</button>
+        <button id="btn_eg_w" class="btn">White</button>
+      </span>
+    </div>
+    <div id="swapPop" class="swappop" hidden="">
+      <span class="sp-ttl" id="t_swapTtl">Swap finished · pick first or second</span>
+      <span class="sp-btns">
+        <button id="btn_swap_first" class="btn">先手 · 执黑</button>
+        <button id="btn_swap_second" class="btn">后手 · 执白</button>
+      </span>
+    </div>
+    <div id="rvBar" hidden="">
+      <span id="rvGroup" hidden="">
+        <button id="btn_recite" class="btn">Recite</button>
+        <button id="btn_replay" class="btn">Replay</button>
+        <span id="rvMiss" class="missbox">背错 0</span>
+        <button id="btn_rv_prev" class="btn sq" data-tip="prev" hidden="" title="Back">◀</button>
+        <span class="pill" id="rvPos" hidden="">0 / 0</span>
+        <button id="btn_rv_next" class="btn sq" data-tip="next" hidden="" title="Forward">▶</button>
+        <button id="btn_rv_play" class="btn sq" hidden="">播放</button>
+        <select id="rvSpeed" hidden="" data-tip="rvSpeedTtl" title="Step interval 0.5–5 s">
+          <option value="0.5">0.5s</option>
+          <option value="1">1s</option>
+          <option value="1.5">1.5s</option>
+          <option value="2">2s</option>
+          <option value="3">3s</option>
+          <option value="4">4s</option>
+          <option value="5">5s</option>
+        </select>
+        <button id="btn_rv_exit" class="btn" hidden="">Exit review</button>
+      </span>
+      <button id="btn_rv_num" class="btn" title="Mark each stone with its move number · Ctrl+Z previous · Ctrl+R restart">Numbers</button>
+      <button id="btn_redo_rv" class="btn">Redo</button>
+      <button id="btn_save_rv" class="btn">Save position</button>
+      <button id="btn_rv_hist" class="btn">History</button>
+    </div>
+  </section>
+  <div id="dockR" class="dock" data-dock="R">
+    
+    <section class="card" data-id="analysis">
+      <div class="card-h">
+        <span class="ttl" id="t_analysis">Analysis</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="Drag the title bar to move it; click the bar to fold / unfold the card"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="analysis" title="Close card">Pin</button>
+      </div>
+      <div class="card-b">
+        <div class="anbtns">
+          <button id="btn_an_calc" class="btn" title="">Analyze</button>
+          <button id="btn_an_defend" class="btn" data-i18n="anDefend">Scan</button>
+          <span class="seg balseg" id="seg_bal">
+            <button id="btn_an_bal" class="segbtn" data-i18n="anBalBtn" title="Continuous balance search; press again to stop (results kept)">Balance
+Point</button>
+            <span class="seg-div" aria-hidden="true"></span>
+            <button id="btn_an_baln" class="segbtn seg-n" title="Balance point count: click to cycle 1 ⇄ 2 points (3 fixed on an empty board)">2 pt</button>
+          </span>
+          <button id="btn_fwd_clear" class="btn" data-i18n="fwdClear" title="清除计算 / 平衡点 / 扫描分析 / 前瞻 · VCF · VCT 留在棋盘上的所有标记（不动局面）">Clear</button>
+        </div>
+        <div class="routes-box" id="routesBox">
+          <div class="rt-head">
+            <span class="rt-ttl" data-i18n="rtTitle">Routes</span>
+          </div>
+          <div class="rt-list" id="rtList"><div class="rt-empty"><div class="rt-empty-msg">Run Multi-point / Analyze / Balance and every point gets its own related route here</div><div class="rt-empty-lg">Score = engine eval (positive = that row’s first side is ahead) · Depth = completed full iteration (d value) · Win rate = view of the side playing that row’s first move</div></div></div>
+        </div>
+        <div class="fwdbox" id="fwdBox">
+          <div class="fwd-h">
+            <button id="btn_fwd" class="btn fwdkey" data-i18n="fwd">Look-ahead</button>
+            <button id="btn_fwd_vcf" class="btn fwdkey fwdmini" data-i18n="fwdFindVcf">VCF</button>
+            <button id="btn_fwd_vct" class="btn fwdkey fwdmini" data-i18n="fwdFindVct">VCT</button>
+            <span class="grow"></span>
+            <button id="btn_fwd_prev" class="btn sq2">&lt;</button>
+            <button id="btn_fwd_next" class="btn sq2">&gt;</button>
+          </div>
+          <div class="fwd-h fwd-h2">
+            <span class="fwd-lg" id="fwdLg" title="Attacker indicators (not clickable): purple = black, light blue = white; auto = side to move (majority side in mate puzzles)">
+              <span class="lgr lgfr-b" id="fwdLgB"><em data-i18n="fwdBlack">Black</em></span>
+              <span class="lgr lgfr-w" id="fwdLgW"><em data-i18n="fwdWhite">White</em></span>
+            </span>
+            <span class="grow"></span>
+            <button id="btn_fwd_ok" class="btn fwdok" data-i18n="fwdOk">Commit</button>
+          </div>
+          <div class="fwd-body" id="fwdBody"><span class="hint" id="fwdMsg">Press "Look-ahead" to auto-play from this position to five-in-a-row</span></div>
+          <div class="fwd-seq" id="fwdSeq"></div>
+        </div>
+        <div class="row nbestRow"><label id="t_nbest">Points</label>
+          <input id="num_nbest" type="number" min="1" max="8" step="1" value="3">
+        </div>
+      </div>
+    </section>
+    <section class="card" data-id="engine">
+      <div class="card-h">
+        <span class="ttl" id="t_engine">Engine</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="Drag the title bar to move it; click the bar to fold / unfold the card"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="engine" title="Close card">✕</button>
+      </div>
+      <div class="card-b">
+        <div class="grid2">
+          <div class="stat"><span class="k" id="t_depth">Depth</span><span class="v" id="st_depth">-</span></div>
+          <div class="stat"><span class="k" id="t_speed">Speed</span><span class="v" id="st_speed">-</span></div>
+          <div class="stat"><span class="k" id="t_nodes">Nodes</span><span class="v" id="st_nodes">-</span></div>
+          <div class="stat"><span class="k" id="t_time">Time</span><span class="v" id="st_time">-</span></div>
+          <div class="stat"><span class="k" id="t_eval" title="">Eval</span><span class="v"><span id="st_eval">-</span></span></div>
+          <div class="stat"><span class="k" id="t_best">Best</span><span class="v" id="st_best">-</span></div>
+        </div>
+        <div class="curve-head"><span id="t_curveTtl">Eval curve</span></div>
+        <div id="curveWrap">
+          <img src="data:image/png;base64,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" style="width: 30px; height: 216px;;width:0px;height:0px;display:block" id="curveAxis">
+          <div id="curveScroll"><img src="data:image/png;base64,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" style="width: 160px; height: 216px;;width:0px;height:0px;display:block" id="curve"><div id="curveHover" style="display: none;"></div></div>
+        </div>
+        <div class="curve-info" id="curveInfo">
+          <div class="ci cb" style="--wr: 0.00%;">
+            <span class="cih" id="t_blackCurve">Black</span>
+            <span class="cir"><span class="k ci-score">Score</span><span class="v" id="ci_b_score">-</span></span>
+            <span class="cir"><span class="k ci-win">Win rate</span><span class="v" id="ci_b_win">-</span></span>
+          </div>
+          <div class="ci cw" style="--wr: 0.00%;">
+            <span class="cih" id="t_whiteCurve">White</span>
+            <span class="cir"><span class="k ci-score">Score</span><span class="v" id="ci_w_score">-</span></span>
+            <span class="cir"><span class="k ci-win">Win rate</span><span class="v" id="ci_w_win">-</span></span>
+          </div>
+        </div>
+        <div class="eng-msg" id="engMsg">
+          <div class="line" id="st_line"></div>
+          <div class="pv-box" id="pvBox" hidden=""></div>
+        </div>
+        <div class="row col codeRow" id="codeRow">
+          <div class="codeHead">
+            <label id="t_code">Position code</label>
+            <span class="grow"></span>
+            <button id="btn_copy" class="btn sq2 sym" title="Copy" aria-label="Copy"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.4" y="5.4" width="8.2" height="8.2" rx="1.5"></rect><path d="M10.6 5.4V3.8a1.5 1.5 0 0 0-1.5-1.5H3.8a1.5 1.5 0 0 0-1.5 1.5v5.3a1.5 1.5 0 0 0 1.5 1.5h1.6"></path></svg></button>
+            <button id="btn_paste" class="btn sq2 sym" title="Paste and load (Enter also loads)" aria-label="Paste and load (Enter also loads)"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.2" y="3.4" width="9.6" height="10.8" rx="1.6"></rect><path d="M6.1 3.4V2.7c0-.6.5-1.1 1.1-1.1h1.6c.6 0 1.1.5 1.1 1.1v.7"></path></svg></button>
+          </div>
+          <textarea id="inp_code" rows="4" spellcheck="false" placeholder="h8h9g7…" data-tip="codeTip" title="Position code: lowercase column letter + row, moves concatenated (same format as gomocalc.com)"></textarea>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+<div id="drawer" hidden="">
+  <div class="dr-head">
+    <div class="tabs">
+      <button class="tab on" data-tab="hist" id="t_history">History</button>
+      <button class="tab" data-tab="saved" id="t_saved">Saved</button>
+      <button id="dr_all" class="btn dr-allbtn">Select all</button>
+    </div>
+    <span class="grow"></span>
+    <span class="hint" id="drCount">0 / 150</span>
+  </div>
+  <div class="dr-actions">
+    <button id="dr_open" class="btn">Open</button>
+    <button id="dr_save" class="btn accent">Save selected</button>
+    <button id="dr_del" class="btn danger">Delete</button>
+    <button id="dr_imp" class="btn">Import</button>
+    <button id="dr_exp" class="btn">Export</button>
+    <button id="dr_close" class="btn">Close</button>
+  </div>
+  <div class="dr-tip hint" id="t_drTip">Tick some games, then "Save selected" -&gt; they live forever under "Saved"</div>
+  <div id="drList" class="dr-list"><div class="empty">—</div></div>
+</div>
+
+
+
+<div id="ctxMenu" class="ctx" hidden=""></div>
+<input id="file_imp" type="file" accept=".txt,text/plain" hidden="">
+<input id="file_vis" type="file" accept="image/*" multiple="" hidden="">
+
+
+
+<div id="setPane"><div class="sp-scroll"><div class="sp-rows"><div class="sp-row"><button id="sp_color" class="sp-key"><span class="sp-kn" id="t_spColor">Themes</span></button><button id="sp_font" class="sp-key"><span class="sp-kn" id="t_spFont">Font</span></button><button id="sp_lang" class="sp-key sp-keylang"><b class="sp-v" id="spLangVal">中</b></button></div><div class="sp-sec"><div class="sec-h"><span class="sec-t" id="t_spCards">Window cards</span></div><div class="sp-row"><button class="sp-tgl on" data-card="engine"><span class="sw"><i></i></span><span class="sp-kn" id="t_spEngine">Engine</span></button><button class="sp-tgl on" data-card="analysis"><span class="sw"><i></i></span><span class="sp-kn" id="t_spAnalysis">Analysis</span></button><button class="sp-tgl" data-card="setup"><span class="sw"><i></i></span><span class="sp-kn" id="t_spSetup">Game setup</span></button></div></div></div><div class="sp-setup" id="spSetupBody"><section class="card sp-embed" data-id="setup">
+      <div class="card-h">
+        <span class="ttl" id="t_setup">Game setup</span>
+        <span class="grow"></span>
+        <span class="dash" data-tip="dragCard" title="Drag the title bar to move it; click the bar to fold / unfold the card"></span>
+        <button class="pinkey" data-tip="closeCard" data-pin="setup" title="Close card">Pin</button>
+      </div>
+      <div class="card-b">
+        <div class="sec" data-sec="game">
+          <div class="sec-h"><span class="sec-t" id="t_secGame">Game</span></div>
+          <div class="sec-b">
+        <div id="modeGrp">
+          <div class="row head"><label id="t_mode">Mode</label>
+            <div class="seg s3" id="seg_mode">
+              <button data-mode="pve" class="on">Play</button>
+              <span class="subseg">
+                <button data-mode="place">Free</button>
+                <button data-mode="endgame">Endgame</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div id="sideGrp">
+          <div class="row head"><label id="t_side">AI plays</label>
+            <div class="seg s2" id="seg_side">
+              <button data-ai="b" class="tglbtn" aria-pressed="false"><span class="tgl"><i></i></span><span class="tgl-txt">AI plays Black</span></button>
+              <button data-ai="w" class="tglbtn" aria-pressed="false"><span class="tgl"><i></i></span><span class="tgl-txt">AI plays White</span></button>
+            </div>
+          </div>
+          <div class="row"><span class="hint" id="sideHint">Both off: no AI — you play both colours yourself</span></div>
+        </div>
+        <div class="row" id="turnRow"><label id="t_turn">Think time</label>
+          <span class="field">
+            <span class="numbox">
+              <input id="num_turn" type="number" min="0.2" max="300" step="0.1" value="2">
+              <span class="unit">s</span>
+            </span>
+          </span>
+        </div>
+        <div class="row"><label id="t_bgThink">Background thinking</label>
+          <button id="btn_bgThink" class="tglbtn" type="button" aria-pressed="false"><span class="tgl"><i></i></span></button>
+          <span class="hint" id="t_bgThinkHint" data-base="While you think about your move, the engine keeps analysing in the background so it can reply faster once you play">While you think about your move, the engine keeps analysing in the background so it can reply faster once you play</span>
+        </div>
+        <div class="row"><label id="t_dynTime">Dynamic time</label>
+          <button id="btn_dynTime" class="tglbtn on" type="button" aria-pressed="true"><span class="tgl"><i></i></span></button>
+          <span class="hint" id="t_dynTimeHint">Adjusts thinking time automatically: use the full per-move time while the match clock is ample, and stop a little earlier as it runs low</span>
+        </div>
+        <div class="row"><label id="t_rule">Rules</label>
+          <select id="sel_rule">
+            <option value="0">Freestyle</option>
+            <option value="1">Freestyle · overline loses</option>
+            <option value="2">Renju (forbidden)</option>
+          </select>
+        </div>
+        <div class="row"><span class="hint" id="ruleHint">Freestyle: five or more in a row wins.</span></div>
+          </div>
+        </div>
+        <div class="sec" data-sec="engine">
+          <div class="sec-h"><span class="sec-t" id="t_secEngine">Engine</span></div>
+          <div class="sec-b">
+        <div class="row"><span class="hint" id="sysInfo"><div class="ab-sys"><div class="ab-sys-c"><div class="ab-sys-t">CPU</div><div class="ab-sys-v">AMD Ryzen 7 8845H w/ Radeon 780M Graphics</div><div class="ab-sys-s">8C 16T · 3.79GHz · L1 32KB · L2 1MB · L3 16MB</div></div><div class="ab-sys-c"><div class="ab-sys-t">ISA</div><div class="ab-sys-v">AVX2 ✓ · AVX-512 ✓ · VNNI ✓</div><div class="ab-sys-s">Engine build avx512vnni（Native）</div></div><div class="ab-sys-c"><div class="ab-sys-t">Memory</div><div class="ab-sys-v">31.3 GB</div><div class="ab-sys-s">62% used · 11.8 GB free</div></div></div><div class="ab-lic">Windows 10 Pro for Workstations (build 28000) · disk free 236GB</div></span></div>
+        <div class="grp" id="powerGrp">
+        <div class="row"><label id="t_cores">Threads</label>
+          <select id="sel_cores"><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected="">8</option></select>
+          <span class="hint" id="coresHint">16 threads on this PC · max 8</span>
+        </div>
+        <div class="row"><label id="t_hash">Hash</label>
+          <select id="sel_hash"><option value="128">128 MB</option><option value="256">256 MB</option><option value="512" selected="">512 MB</option><option value="1024">1024 MB</option><option value="1536">1536 MB</option><option value="2048">2048 MB</option><option value="2560">2560 MB</option><option value="3072">3072 MB</option><option value="3584">3584 MB</option><option value="4096">4096 MB</option></select>
+        </div>
+        </div>
+        <div class="grp" id="buildGrp">
+        <div class="row"><label id="t_variant">Engine variant</label>
+          <select id="sel_variant"><option value="" selected="" title="自动：按本机指令集 + 实测吞吐选最快（推荐）">自动（推荐）</option><option value="avx512vnni" title="AVX-512 VNNI：宽向量 + int8 点积，现代 CPU 通常最快">AVX-512 VNNI</option><option value="avx512" title="AVX-512：无 int8-VNNI 路径；Zen4 上与 VNNI 相当">AVX-512</option><option value="avx2" title="AVX2：无 512 位路径，本系列权重下明显偏慢（约 1/3 速度）">AVX2</option><option value="sse" title="SSE：最老兜底，仅应急">SSE</option></select>
+          <span class="hint" id="variantHint">自动：按本机指令集 + 实测吞吐选最快（推荐）</span>
+        </div>
+        <div class="row"><label id="t_weights">Weights</label>
+          <select id="sel_weights"><option value="nnue" selected="">NNUE（准确）</option><option value="classic">传统估值（快）</option></select>
+          <span class="hint" id="weightsHint">NNUE is sharper; classical is faster (better in fast games)</span>
+        </div>
+        </div>
+        <div class="grp" id="searchGrp">
+        <div class="row"><label id="t_candRange">Candidate range</label>
+          <select id="sel_candRange" title="Wider never misses a point but searches shallower in the same time"><option value="0">0 · 最窄（5×5）</option><option value="1">1 · 偏窄（5×5+3线）</option><option value="2">2 · 中性（7×7）</option><option value="3" selected="">3 · 推荐（7×7+4线）</option><option value="4">4 · 偏宽（9×9）</option><option value="5">5 · 最宽（全盘）</option></select>
+          <span class="hint" id="candRangeHint">Wider never misses a point but searches shallower in the same time</span>
+        </div>
+        <div class="row"><label id="t_multiPv">Analysis points</label>
+          <select id="sel_multiPv"><option value="1">1 pts</option><option value="2">2 pts</option><option value="3" selected="">3 pts</option><option value="4">4 pts</option><option value="5">5 pts</option><option value="6">6 pts</option><option value="7">7 pts</option><option value="8">8 pts</option></select>
+          <span class="hint" id="multiPvHint">Max points shown by Analyze (same setting as the panel)</span>
+        </div>
+        <div class="row"><label id="t_maxDepth">Max depth</label>
+          <span class="duo"><select id="sel_maxDepth" title="Integer 4 ~ 128, empty = no limit"><option value="0">不限</option><option value="24">24</option><option value="32">32</option><option value="40">40</option><option value="48">48</option><option value="56">56</option><option value="64">64</option><option value="72">72</option><option value="88">88</option><option value="100" selected="">100</option></select><input id="inp_maxDepth" class="num-in" type="number" min="4" max="128" step="1" inputmode="numeric" placeholder="No limit" title="Integer 4 ~ 128, empty = no limit"></span>
+        </div>
+        <div class="row"><label id="t_maxNodes">Max nodes</label>
+          <span class="duo"><select id="sel_maxNodes" title="0.1 ~ 4096 (in M), empty = no limit"><option value="0" selected="">不限</option><option value="16000000">16M</option><option value="64000000">64M</option><option value="128000000">128M</option><option value="256000000">256M</option><option value="512000000">512M</option><option value="768000000">768M</option><option value="1024000000">1024M</option></select><input id="inp_maxNodes" class="num-in" type="number" min="0.1" max="4096" step="0.1" inputmode="decimal" placeholder="No limit" title="0.1 ~ 4096 (in M), empty = no limit"><span class="unit">M</span></span>
+        </div>
+        </div>
+        <div class="row"><span class="hint" id="hashInfo"><div class="si-r"><span class="si-k">Active</span><span class="si-v">the whole 512MB goes to the running event (move / analysis)</span></div><div class="si-r"><span class="si-k">Idle</span><span class="si-v">other lanes keep 64MB each</span></div><div class="si-r"><span class="si-k">Usage</span><span class="si-v">Total 640MB · Memory 31.3GB · free 11.8GB · of RAM 2.0%</span></div></span></div>
+          </div>
+        </div>
+        <div class="sec" data-sec="view">
+          <div class="sec-h"><span class="sec-t" id="t_secView">Board display</span></div>
+          <div class="sec-b">
+        <div class="row"><label id="t_showNum">Move numbers</label>
+          <input id="chk_num" class="chk-dot" type="checkbox">
+          <span class="hint" id="t_showNumHint">Mark each stone with its move number</span>
+        </div>
+        <div class="row"><label id="t_preview">Hover box</label>
+          <input id="chk_preview" class="chk-dot" type="checkbox">
+          <span class="hint" id="t_previewHint">Rounded box shown when hovering the board</span>
+        </div>
+          </div>
+        </div>
+      </div>
+    </section></div></div><div class="sp-color" id="spColorBox"><div class="sp-color-h"><button id="sp_back" class="btn sq2">&lt;</button><span class="sp-ttl" id="t_spColorTtl">Themes</span><button id="cp_custom" type="button" class="btn cp-custom sp-cust-key">Custom</button></div></div><div class="sp-font" id="spFontBox"><div class="sp-color-h"><button id="spf_back" class="btn sq2">&lt;</button><span class="sp-ttl" id="t_spFontTtl">Font settings</span></div><div class="spf-body"><div class="spf-size"><div class="spf-lbl" id="t_fontSize">Font size</div><div class="spf-seg" id="spf_size"><button data-size="small" id="t_fontSmall">Small</button><button data-size="normal" id="t_fontNormal" class="on">Normal</button><button data-size="large" id="t_fontLarge">Large</button></div></div><div class="spf-panel"><div class="spf-tabs" id="spf_tabs"><button type="button" data-tab="ui" id="t_fontTabUi" class="on">System</button><button type="button" data-tab="log" id="t_fontTabLog">Hints</button><button type="button" data-tab="num" id="t_fontTabNum">Stones</button></div><div class="spf-list" id="spf_list"><button type="button" class="spf-row spf-def on" data-v="" style="font-family: &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">System default</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Arial" style="font-family: Arial, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Arial</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Calibri" style="font-family: Calibri, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Calibri</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Cambria" style="font-family: Cambria, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Cambria</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Cascadia Mono" style="font-family: &quot;Cascadia Mono&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Cascadia Mono</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Consolas" style="font-family: Consolas, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Consolas</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="DengXian" style="font-family: DengXian, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">DengXian</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="FangSong" style="font-family: FangSong, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">FangSong</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Georgia" style="font-family: Georgia, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Georgia</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="KaiTi" style="font-family: KaiTi, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">KaiTi</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Microsoft JhengHei" style="font-family: &quot;Microsoft JhengHei&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Microsoft JhengHei</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Microsoft YaHei" style="font-family: &quot;Microsoft YaHei&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Microsoft YaHei</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Noto Sans SC" style="font-family: &quot;Noto Sans SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Noto Sans SC</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Noto Serif SC" style="font-family: &quot;Noto Serif SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Noto Serif SC</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Segoe UI" style="font-family: &quot;Segoe UI&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Segoe UI</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="SimHei" style="font-family: SimHei, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">SimHei</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="SimSun" style="font-family: SimSun, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">SimSun</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Source Han Sans SC" style="font-family: &quot;Source Han Sans SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Source Han Sans SC</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Source Han Serif SC" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Source Han Serif SC</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Tahoma" style="font-family: Tahoma, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Tahoma</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Times New Roman" style="font-family: &quot;Times New Roman&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Times New Roman</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Trebuchet MS" style="font-family: &quot;Trebuchet MS&quot;, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Trebuchet MS</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button><button type="button" class="spf-row" data-v="Verdana" style="font-family: Verdana, &quot;Source Han Sans SC&quot;, &quot;Source Han Sans CN&quot;, &quot;Noto Sans SC&quot;, 思源黑体, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Microsoft YaHei&quot;, system-ui, -apple-system, &quot;Segoe UI&quot;, sans-serif; font-weight: 400; font-style: normal;"><span class="spf-row-n">Verdana</span><span class="spf-row-s">Setup · Live analysis · Eval  Meter Gomoku 0123456789</span></button></div><div class="spf-foot"><div class="spf-fbar" id="spf_fbar1"><div class="spf-wlbl"><span class="spf-lbl2" id="t_fontWeight">Weight</span><b class="spf-wname" id="spf_wNow">Regular</b></div><div class="spf-wsl" id="spf_weight" role="slider" aria-valuemin="1" aria-valuemax="5" aria-valuenow="2"><i class="spf-wsl-line"></i><button type="button" class="spf-wdot" data-weight="300" title="Light" aria-label="Light"></button><button type="button" class="spf-wdot on" data-weight="400" title="Regular" aria-label="Regular"></button><button type="button" class="spf-wdot" data-weight="500" title="Medium" aria-label="Medium"></button><button type="button" class="spf-wdot" data-weight="700" title="Bold" aria-label="Bold"></button><button type="button" class="spf-wdot" data-weight="900" title="Black" aria-label="Black"></button></div><button type="button" id="spf_italic" class="spf-it" aria-pressed="false">Italic</button><button type="button" id="spf_ok" class="btn spf-ok" style="min-width: 70px;">OK</button></div><div class="spf-fbar spf-fbar-stone" id="spf_stoneRow" hidden="" style="display: none;"><div class="spf-stones real" id="spf_stones" hidden="" style="display: none;"><div class="spf-stone blk"><span id="spf_stone_b" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Noto Serif SC&quot;, &quot;Noto Serif CJK SC&quot;, 思源宋体, SimSun, serif; font-weight: 700; font-style: normal; font-size: 1.161rem;">1</span></div><div class="spf-stone wht"><span id="spf_stone_w" style="font-family: &quot;Source Han Serif SC&quot;, &quot;Noto Serif SC&quot;, &quot;Noto Serif CJK SC&quot;, 思源宋体, SimSun, serif; font-weight: 700; font-style: normal; font-size: 1.161rem;">2</span></div></div><div class="spf-seg spf-numseg" id="spf_numsize" hidden="" style="display: none;"><button type="button" data-numsize="small" id="t_fontNumSmall">S</button><button type="button" data-numsize="normal" id="t_fontNumNormal" class="on">M</button><button type="button" data-numsize="large" id="t_fontNumLarge">L</button></div><div class="spf-seg spf-stoneseg" id="spf_stonestyle" hidden="" style="display: none;"><button type="button" data-stone="real" id="t_fontStoneReal" class="on">Real</button><button type="button" data-stone="jade" id="t_fontStoneJade">Jade</button><button type="button" data-stone="flat" id="t_fontStoneFlat">Flat</button></div></div></div></div></div></div></div></body></html>
