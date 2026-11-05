@@ -39,7 +39,7 @@ const I18N = {
   zh: {
     title: '五子棋计算器', subtitle: 'Meter Gomoku · Web',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
-    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止并落子', balance: '平衡点', points: '点',
+    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止落子', balance: '平衡点', points: '点',
     playOne: '计算一手',
     depth: '深度', speed: '速度', nodes: '节点', time: '用时',
     codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标', codeAltLabel: '坐标',
@@ -59,9 +59,11 @@ const I18N = {
     rule: '规则', hash: '哈希表大小（MB）', hashHint: '引擎置换表，单位 MB，越大越省重复计算',
     pointsLabel: '分析点数', pointsHint: '严格输出 N 条候选与 N 条路线（1–8）',
     scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
+    scanFmtLabel: '扫描显示格式', scanFmtHint: '方形标记内显示分数或胜率，仅影响扫描',
+    scanScore: '分数', scanWr: '胜率',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
-    tipScan: '扫描分析开关：评估大量候选点，再点一次回到普通分析',
+    tipScan: '扫描分析：评估大量候选点；再点一次停止扫描并落最佳点',
     maxDepth: '最大深度', maxDepthHint: '搜索深度上限；默认 64，通常先撞思考时间而不是深度',
     maxNodes: '节点上限', maxNodesHint: '0 = 不限；设上限可省电、降发热',
     nodesUnlimited: '不限',
@@ -103,7 +105,8 @@ const I18N = {
     tBoardSet: '棋盘颜色：{n}',
     tBalPoints: '平衡点点数：{n}', tBalanceNoResult: '还没有平衡点结果',
     tScanOn: '扫描分析已开启：评估全部空点', tScanOff: '扫描分析已关闭：回到固定点数',
-    tScanStop: '扫描已停止，结果已清除',
+    tScanStop: '扫描已停止，结果已清除', tScanPlayed: '已停止扫描并落下最优点 {p}',
+    tScanNoBest: '扫描已停止：没有可用最优点',
     hashCleared: '置换表已清空',
     tHashClamp: '哈希表超过引擎上限 {n} MB，已自动收敛',
     tFallback: '多线程不可用，已降级为单线程模式',
@@ -148,9 +151,11 @@ const I18N = {
     rule: 'Rule', hash: 'Hash size (MB)', hashHint: 'Transposition table in MB — larger saves more re-search',
     pointsLabel: 'Multi-PV', pointsHint: 'Exactly N engine candidates and N route rows (1–8)',
     scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
+    scanFmtLabel: 'Scan labels', scanFmtHint: 'Show score or win rate inside the scan tiles',
+    scanScore: 'Score', scanWr: 'Win rate',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
-    tipScan: 'Scan analysis toggle — evaluate many candidates; click again for normal analysis',
+    tipScan: 'Scan analysis — evaluate many candidates; click again to stop and play the best point',
     maxDepth: 'Max depth', maxDepthHint: 'Depth ceiling — 64 is the reference default; time is usually the real limit',
     maxNodes: 'Node limit', maxNodesHint: '0 = unlimited; a cap saves battery and heat',
     nodesUnlimited: 'Unlimited',
@@ -193,7 +198,8 @@ const I18N = {
     tBoardSet: 'Board colour: {n}',
     tBalPoints: 'Balance points: {n}', tBalanceNoResult: 'No balance result yet',
     tScanOn: 'Scan analysis on: evaluating every empty point', tScanOff: 'Scan analysis off: back to N points',
-    tScanStop: 'Scan stopped; results cleared',
+    tScanStop: 'Scan stopped; results cleared', tScanPlayed: 'Scan stopped, best point {p} played',
+    tScanNoBest: 'Scan stopped: no valid best point',
     hashCleared: 'Transposition table cleared',
     tHashClamp: 'Hash clamped to the engine limit of {n} MB',
     tFallback: 'Multi-threading unavailable — running single-threaded',
@@ -346,8 +352,11 @@ const S = {
   scoreB: null,
   scoreW: null,
   scoreSide: null,
+  scanOn: false,            // scan mode is its own toggle, independent of analysis
   scanDone: false,          // the current position's scan already produced a final frame
   scanRows: [],             // scan points, in engine rank order, updated in place
+  scanBest: null,           // strongest scanned row, played when the key is pressed again
+  anaCands: [],             // last multi-PV candidate set, used to pad a short frame
   routes: [],               // one PV per multipv rank, in engine order
   marks: [],
   forbidden: [],
@@ -356,7 +365,6 @@ const S = {
   pv: [],                   // main line, used by the hover preview
   preview: null,            // { i } — index in pv being previewed
   routePin: -1,             // click-pinned PV move, survives hover-out and redraws
-  routeOrder: [],           // move keys in first-seen order; keeps rows from jumping
   oneShot: false,           // the "play one" button is computing a single move
   pendingOne: false,        // "play one" asked before the lazy engine finished booting
   wrGame: { value: 0.5, track: [0.5] },   // black-perspective win rate, kept for the whole game
@@ -454,7 +462,7 @@ function retryLoad() {
 function defaults() {
   return {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
-    think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scan: false,
+    think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scanFmt: 'score',
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
     maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
@@ -494,7 +502,7 @@ function loadSettings() {
     if (raw.stone === 'flat' || raw.stone === 'real') d.stone = raw.stone;
     if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
-    if (raw.scan === true || raw.scan === false) d.scan = raw.scan;
+    if (raw.scanFmt === 'score' || raw.scanFmt === 'wr') d.scanFmt = raw.scanFmt;
     if (Number.isFinite(raw.maxDepth) && raw.maxDepth >= 8 && raw.maxDepth <= 255) d.maxDepth = raw.maxDepth;
     if (Number.isFinite(raw.maxNodes) && raw.maxNodes >= 0) d.maxNodes = raw.maxNodes;
     if (raw.pondering === true || raw.pondering === false) d.pondering = raw.pondering;
@@ -821,6 +829,22 @@ function fitFont(text, maxW, want, min) {
   return s;
 }
 
+/* The scan tiles use a continuous ramp instead of fixed buckets:
+   red (losing) -> yellow-green (balanced) -> green (winning) -> teal (best).
+   Hue is interpolated from the mover's win rate, saturation grows with the
+   distance from 50% so equal positions stay quiet and strong ones stand out.
+   The best point (engine rank 0) is pinned to teal so it is always identifiable. */
+function scanP(mk) {
+  if (mk.wr != null) return Math.max(0, Math.min(1, mk.wr));
+  if (mk.ev != null) return 1 / (1 + Math.exp(-mk.ev / 200));
+  return 0.5;
+}
+function scanHue(p) {
+  if (p <= 0.5) return (p / 0.5) * 80;                       // red -> yellow-green
+  if (p <= 0.68) return 80 + ((p - 0.5) / 0.18) * 60;        // yellow-green -> green
+  return 140 + Math.min(1, (p - 0.68) / 0.32) * 45;          // green -> teal
+}
+
 function drawMarks() {
   const marks = S.marks.concat(S.balanceMarks);
   if (!marks.length) return;
@@ -831,10 +855,9 @@ function drawMarks() {
   const ringW = Math.max(1.6 * DPR, geo.cell * 0.055);
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   /* A scan paints every empty cell, so the full ring/two-number marker would
-     overlap its neighbours. In that case each point becomes a compact cell
-     tile tinted by its evaluation and showing the score; the route list below
-     keeps the exact numbers. */
-  const scanMode = S.marks.length > 8;
+     overlap its neighbours. It is its own mode flag, never inferred from the
+     mark count. */
+  const scanMode = !!S.scanOn;
   marks.forEach((mk) => {
     bctx.globalAlpha = baseAlpha;
     const cx = snapDev(geo.pad + mk.x * geo.cell);
@@ -842,28 +865,30 @@ function drawMarks() {
     if (scanMode && mk.kind === 'ana') {
       const side = geo.cell * 0.92;
       const x0 = cx - side / 2, y0 = cy - side / 2;
-      const pos = mk.ev == null ? null : mk.ev >= 0;
+      const p = scanP(mk);
+      const best = mk.rank === 0;
+      const hue = best ? 186 : scanHue(p);
+      const dev = Math.min(1, Math.abs(p - 0.5) * 2);
+      const sat = best ? 72 : 32 + 52 * dev;
+      const l = dark ? 44 : 58;
       bctx.beginPath();
       bctx.rect(x0, y0, side, side);
-      bctx.fillStyle = pos === true
-        ? (dark ? 'rgba(64,190,132,.32)' : 'rgba(38,158,102,.20)')
-        : pos === false
-          ? (dark ? 'rgba(218,96,96,.30)' : 'rgba(196,70,70,.18)')
-          : (dark ? 'rgba(140,160,180,.24)' : 'rgba(120,140,160,.16)');
+      bctx.fillStyle = 'hsla(' + hue.toFixed(1) + ',' + sat.toFixed(1) + '%,' + l + '%,.80)';
       bctx.fill();
       bctx.lineWidth = Math.max(1 * DPR, geo.cell * 0.028);
-      bctx.strokeStyle = pos === true
-        ? (dark ? 'rgba(96,220,160,.75)' : 'rgba(30,132,84,.55)')
-        : pos === false
-          ? (dark ? 'rgba(240,130,130,.75)' : 'rgba(168,52,52,.55)')
-          : 'rgba(120,140,160,.55)';
+      bctx.strokeStyle = 'hsl(' + hue.toFixed(1) + ',' + Math.max(sat, 45).toFixed(1) + '%,' + (dark ? 30 : 36) + '%)';
       bctx.stroke();
       bctx.textAlign = 'center';
       bctx.textBaseline = 'middle';
-      const txt = mk.ev == null ? '–' : (mk.ev >= 0 ? '+' : '') + Math.round(mk.ev);
-      const fs = Math.max(5.4 * DPR, geo.cell * 0.31);
+      const txt = S.settings.scanFmt === 'wr'
+        ? (mk.wr == null ? '–' : (Math.round(p * 1000) / 10).toFixed(1) + '%')
+        : (mk.evTxt || '–');
+      const fs = fitFont(txt, side * 0.92, geo.cell * 0.30, 5.2 * DPR);
       bctx.font = '700 ' + fs + 'px "Cascadia Code",Consolas,monospace';
-      bctx.fillStyle = dark ? '#eaf4ff' : '#10241a';
+      bctx.lineWidth = Math.max(1 * DPR, fs * 0.16);
+      bctx.strokeStyle = dark ? 'rgba(6,16,26,.72)' : 'rgba(255,255,255,.82)';
+      bctx.strokeText(txt, cx, cy + 0.4 * DPR);
+      bctx.fillStyle = l >= 52 ? '#0b1a14' : '#f5fbff';
       bctx.fillText(txt, cx, cy + 0.4 * DPR);
       return;
     }
@@ -1206,6 +1231,9 @@ function bootEngine() {
     caution: S.settings.caution,
     rule: S.settings.rule,
     cacheName: ENGINE_CACHE,
+    /* diagnostic only: ?src=single forces the own-origin copy so the multi-source
+       loader can be compared against a plain single-stream download */
+    single: /(?:[?&])src=single(?:&|$)/.test(location.search),
     maxDepth: S.settings.maxDepth,
     maxNodes: S.settings.maxNodes,
     strength: S.settings.strength,
@@ -1334,7 +1362,7 @@ function prewarmEngine() {
 
 /* does anything currently need the engine? */
 function engineWanted() {
-  if (S.analysis || S.balance || S.pendingOne) return true;
+  if (S.analysis || S.scanOn || S.balance || S.pendingOne) return true;
   const side = sideToMove();
   return !!(side === 1 ? S.aiB : S.aiW);
 }
@@ -1484,10 +1512,10 @@ function onEngineMessage(ev) {
       S.searching = false;
       const kind = S.searchKind;
       S.searchKind = null;
-      if ((!S.marks.length) && d.best && d.candidates && d.candidates.length) applyCandidates(d.candidates, !!d.scan);
+      if (d.best && d.candidates && d.candidates.length) applyCandidates(d.candidates, !!d.scan);
       /* a scan is a bounded snapshot: once the final frame is in, keep showing
          it and do not start another scan until the position or settings change */
-      if (d.scan && kind === 'analysis') S.scanDone = true;
+      if (d.scan && S.scanOn) S.scanDone = true;
       S.lastBestDepth = (d.stats && d.stats.depth) || S.lastBestDepth;
       updateState();
       renderDebug();
@@ -1564,121 +1592,91 @@ function scheduleDebug() {
   debugTimer = setTimeout(() => { debugTimer = 0; renderDebug(); }, 350);
 }
 
-/* Scan marks: a point keeps its identity and position for the whole scan. New
-   points are appended in engine rank order (strongest first) at a bounded rate,
-   neighbouring points on the same line are dropped in favour of the stronger
-   one, and existing rows only take new numbers. Nothing is ever re-sorted, so
-   the board does not reshuffle on every engine frame. */
-const SCAN_MAX = 140;
-const SCAN_ADD_PER_FRAME = 30;
-/* two neighbouring points are the same idea when their scores are this close */
-const SCAN_DUP_GAP = 40;
+/* ============================================================ candidate pipelines
+   Analysis and scan are two independent pipelines:
 
-function scanKey(c) { return c.move[0] + ',' + c.move[1]; }
+   - analysis (multi-PV): exactly the first N *distinct* root moves of the
+     current engine frame, in engine rank order. The set is rebuilt on every
+     frame, so as Rapfi re-sorts its root moves a weaker point is replaced by a
+     stronger one and both the marker and its route migrate. De-duplicating by
+     the first move is the fix for the old double-marker bug: a stale PV slot
+     may repeat an existing root move, and taking N array entries verbatim then
+     painted two markers on one crossing.
+   - scan: every candidate the engine kept in this frame (up to 224 = 15x15-1),
+     again in engine rank order. Rows are keyed by the root move, refreshed in
+     place, and dropped when the engine prunes the move. */
+
+const SCAN_MAX = 224;
+
+function candKey(c) { return c && c.move ? c.move[0] + ',' + c.move[1] : ''; }
 
 function applyScanCandidates(cands) {
-  const fresh = new Map();
-  for (const c of cands) fresh.set(scanKey(c), c);
-  const known = new Map(S.scanRows.map((r) => [r.key, r]));
-  S.scanRows.forEach((r) => {
-    const c = fresh.get(r.key);
-    if (!c) return;
+  const prev = new Map(S.scanRows.map((r) => [r.key, r]));
+  const rows = [];
+  const seen = new Set();
+  for (const c of cands) {
+    const key = candKey(c);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    let r = prev.get(key);
+    if (!r) r = { key, x: c.move[0], y: 14 - c.move[1] };
+    else { r.x = c.move[0]; r.y = 14 - c.move[1]; }
+    r.rank = rows.length;
     r.cand = c;
     r.depth = c.depth;
     r.wr = normWr(c.winrate);
     r.ev = parseEval(c.eval);
-    r.evTxt = fmtEval(r.ev);
+    r.evTxt = fmtScore(r.ev);
     r.line = c.line;
-  });
-  /* The density grows with the search itself: about 8 more points per extra
-     ply, never more than SCAN_MAX. A shallow 3 s scan therefore keeps the
-     board readable while a 30 s scan fills it in further, and nothing is
-     removed once earned. */
-  const dmax = cands.reduce((m, c) => Math.max(m, c.depth || 0), 0);
-  const cap = Math.min(SCAN_MAX, 32 + dmax * 8);
-  const occupied = new Map(S.scanRows.map((r) => [r.x + ',' + r.y, r]));
-  let added = 0;
-  for (const c of cands) {
-    if (S.scanRows.length >= cap || added >= SCAN_ADD_PER_FRAME) break;
-    const key = scanKey(c);
-    if (known.has(key)) continue;
-    const x = c.move[0], y = 14 - c.move[1];
-    const ev = parseEval(c.eval);
-    /* Adjacent same-line point with an almost identical score: the two cells
-       carry the same tactical meaning, so keep the stronger one only. Points
-       whose scores differ are genuinely different moves and stay visible. */
-    let near = false;
-    for (let dx = -1; dx <= 1 && !near; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (!dx && !dy) continue;
-        const other = occupied.get((x + dx) + ',' + (y + dy));
-        if (other && ev != null && other.ev != null && Math.abs(other.ev - ev) <= SCAN_DUP_GAP) { near = true; break; }
-      }
-    }
-    if (near) continue;
-    const row = {
-      key, cand: c, x, y, depth: c.depth, wr: normWr(c.winrate),
-      ev, evTxt: fmtEval(ev), line: c.line,
-    };
-    S.scanRows.push(row);
-    known.set(key, row);
-    occupied.set(x + ',' + y, row);
-    added++;
+    rows.push(r);
+    if (rows.length >= SCAN_MAX) break;
   }
+  S.scanRows = rows;
+  S.scanBest = rows[0] || null;
+  S.marks = rows.map((r, n) => ({
+    kind: 'ana', scan: true, rank: n, x: r.x, y: r.y, depth: r.depth,
+    wr: r.wr, ev: r.ev, evTxt: r.evTxt,
+  }));
+  drawBoard();
+  updateRoutes(rows.map((r) => r.cand), true);
 }
 
 function applyCandidates(cands, scan) {
   if (!cands || !cands.length) return;
-  if (scan) {
-    applyScanCandidates(cands);
-    S.marks = S.scanRows.map((r, n) => ({
-      kind: 'ana', rank: n, x: r.x, y: r.y, depth: r.depth,
-      wr: r.wr, ev: r.ev, evTxt: r.evTxt,
-    }));
-    drawBoard();
-    updateRoutes(S.scanRows.slice(0, 12).map((r) => r.cand), true);
-    return;
-  }
-  /* Strict multi-PV: exactly the first N engine PVs, in engine rank order.
-     Neighbouring points are no longer merged, and each rank owns its own line. */
+  if (scan) { applyScanCandidates(cands); return; }
   const max = Math.max(1, Math.min(8, S.settings.points || 1));
-  const src = cands.map((c, i) => ({ c, i }));
-  /* Pin both the ranking and the set from the first frame of this search:
-     deeper iterations may legitimately re-rank the root moves, but rows must
-     not swap places or change identity while the user is reading them. A
-     pinned point keeps its slot and takes the newest evaluation when it
-     reappears; a slot is re-filled only when its point leaves the engine's
-     PV list altogether. */
-  const keyOf = (c) => c.move[0] + ',' + c.move[1];
-  const fresh = new Map(src.map((o) => [keyOf(o.c), o.c]));
-  const pins = S.routePins;
-  if (!pins.length) {
-    for (const o of src.slice(0, max)) pins.push(o.c);
-  } else {
-    for (let i = 0; i < pins.length; i++) {
-      const newer = fresh.get(keyOf(pins[i]));
-      if (newer) pins[i] = newer;
-    }
-    const known = new Set(pins.map(keyOf));
-    for (const o of src) {
-      if (pins.length >= max) break;
-      if (!known.has(keyOf(o.c))) { pins.push(o.c); known.add(keyOf(o.c)); }
-    }
-    if (pins.length > max) pins.length = max;
+  const seen = new Set();
+  const list = [];
+  for (const c of cands) {
+    const key = candKey(c);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    list.push(c);
+    if (list.length >= max) break;
   }
-  const chosen = pins.slice(0, max);
-  const pool = chosen.map((c, n) => {
-    const x = c.move[0], yUi = 14 - c.move[1];
+  /* A very early frame can carry fewer than N distinct root moves. Fill the
+     remaining slots with the previous points, but never with a coordinate that
+     is already on the board, so the count is N and nothing overlaps. */
+  if (list.length < max) {
+    for (const c of S.anaCands) {
+      const key = candKey(c);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      list.push(c);
+      if (list.length >= max) break;
+    }
+  }
+  S.anaCands = list;
+  const pool = list.map((c, n) => {
     const ev = parseEval(c.eval);
     return {
-      kind: 'ana', rank: n, x, y: yUi, depth: c.depth,
-      wr: normWr(c.winrate),
-      ev, evTxt: fmtEval(ev),
+      kind: 'ana', rank: n, x: c.move[0], y: 14 - c.move[1], depth: c.depth,
+      wr: normWr(c.winrate), ev, evTxt: fmtScore(ev),
     };
   });
   S.marks = pool;
   drawBoard();
-  updateRoutes(chosen, false);
+  updateRoutes(list, false);
 }
 
 function normWr(v) {
@@ -1824,11 +1822,10 @@ function launch(kind) {
   S.oneShot = kind === 'move';
   S.searchT0 = Date.now();
   S.trace = [];
-  S.routeOrder = [];
   S.searchAnswered = false;
   S.lastProgress = Date.now();
   S.lastProgressNodes = 0;
-  const scan = kind === 'analysis' && !!S.settings.scan;
+  const scan = kind === 'scan';
   const job = {
     id: ++S.seq,
     seq: S.seq,
@@ -1870,10 +1867,13 @@ function scanBudget() {
 function desiredKind() {
   if (S.winner) return null;
   if (S.oneShot) return 'move';
+  /* scan is its own job: it owns all threads with the widest candidate range,
+     and the analysis job must never be launched while scan mode is active */
+  if (S.scanOn) return S.scanDone ? null : 'scan';
   const side = sideToMove();
   if (side === 1 ? S.aiB : S.aiW) return 'ai';
   if (S.balance) return 'balance';
-  if (S.analysis) return (S.settings.scan && S.scanDone) ? null : 'analysis';
+  if (S.analysis) return 'analysis';
   return null;
 }
 function requestSync(delay) {
@@ -1948,6 +1948,8 @@ function boardChanged(options) {
      side only. Only restartGame, a different pasted code and a code-changing
      transform call clearScores(). */
   S.scanDone = false;
+  S.scanBest = null;
+  S.anaCands = [];
   recompute();
   writeStats();
   drawBoard();
@@ -2188,6 +2190,9 @@ function clickBalance() {
   const n = S.settings.balPoints >= 2 ? 2 : 1;
   S.balance = n;
   S.analysis = false;
+  S.scanOn = false;
+  S.scanDone = false;
+  S.scanBest = null;
   S.balanceHeld = false;
   S.marks = [];
   clearRouteView();
@@ -2209,24 +2214,7 @@ function toggleAnalysis() {
   if (S.winner) { toast(T('tGameOver')); return; }
   if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
   if (S.analysis) {
-    // Second click = cancel. In scan mode it ends the scan without playing a
-    // move; a normal analysis plays the current best point, then stops.
-    if (S.settings.scan) {
-      S.analysis = false;
-      S.scanDone = false;
-      S.balance = 0;
-      S.balanceHeld = false;
-      S.balanceMarks = [];
-      S.balanceInfo = null;
-      haltSearch();
-      S.marks = [];
-      S.stats = null;
-      clearRouteView();
-      updateAll();
-      drawBoard();
-      toast(T('tScanStop'));
-      return;
-    }
+    // Second click = cancel. It plays the current best point, then stops.
     const best = S.marks[0] || null;
     S.analysis = false;
     S.scanDone = false;
@@ -2244,13 +2232,18 @@ function toggleAnalysis() {
     }
     return;
   }
-  S.analysis = true;
+  /* starting analysis cleanly stops scan mode: the two features never share
+     marks, rows, statistics or the running engine job */
+  S.scanOn = false;
   S.scanDone = false;
+  S.scanBest = null;
+  S.analysis = true;
   S.balanceHeld = false;
   S.balance = 0;
   S.balanceMarks = [];
   S.balanceInfo = null;
   S.marks = [];
+  S.anaCands = [];
   S.stats = null;
   clearRouteView();
   haltSearch();
@@ -2258,30 +2251,55 @@ function toggleAnalysis() {
   schedule(120);
 }
 
-/* The scan key is a mode switch: on = evaluate a large candidate set, off =
-   back to the strict N-point analysis. It owns the same "analysis is running"
-   flag, so balance points, AI play and one-move play all stay mutually
-   exclusive, and every old marker/route is dropped on both transitions. */
+/* The scan key is an independent mode, not a flavour of analysis:
+   - first click: stop analysis / balance / one-move, then run the full-board
+     candidate scan;
+   - second click: stop the scan and play the strongest scanned point. If there
+     is no legal point it only stops and shows a short notice. */
 function toggleScan() {
   if (S.winner) { toast(T('tGameOver')); return; }
   if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
-  const on = !S.settings.scan;
-  S.settings.scan = on;
-  saveSettings();
+  if (S.scanOn) {
+    const best = S.scanBest;
+    S.scanOn = false;
+    S.scanDone = false;
+    S.analysis = false;
+    S.oneShot = false;
+    S.balance = 0;
+    S.balanceHeld = false;
+    S.balanceMarks = [];
+    S.balanceInfo = null;
+    haltSearch();
+    S.scanBest = null;
+    S.scanRows = [];
+    if (best && canPlace(best.x, best.y)) {
+      commitMove(best.x, best.y, { fromAi: false });
+      toast(T('tScanPlayed', { p: coordName(best.x, best.y) }));
+    } else {
+      S.marks = [];
+      clearRouteView();
+      drawBoard();
+      updateAll();
+      toast(T('tScanNoBest'));
+    }
+    return;
+  }
+  S.scanOn = true;
   S.scanDone = false;
-  S.marks = [];
-  S.stats = null;
-  if (S.balance) { S.balance = 0; S.balanceHeld = false; }
+  S.analysis = false;
+  S.oneShot = false;
+  S.balance = 0;
+  S.balanceHeld = false;
   S.balanceMarks = [];
   S.balanceInfo = null;
+  S.marks = [];
+  S.anaCands = [];
+  S.stats = null;
   clearRouteView();
   haltSearch();
-  drawBoard();
-  /* switching on starts a scan; switching off leaves ordinary analysis running */
-  if (on) S.analysis = true;
   updateAll();
   schedule(180);
-  toast(on ? T('tScanOn') : T('tScanOff'));
+  toast(T('tScanOn'));
 }
 
 /* the middle key of the step row: compute one move and play it right away */
@@ -2289,11 +2307,15 @@ function playOneMove() {
   if (S.winner) { toast(T('tGameOver')); return; }
   haltSearch();
   S.analysis = false;
+  S.scanOn = false;
+  S.scanDone = false;
+  S.scanBest = null;
   S.balance = 0;
   S.balanceHeld = false;
   S.balanceMarks = [];
   S.balanceInfo = null;
   S.marks = [];
+  S.anaCands = [];
   clearRouteView();
   S.preview = null;
   if (!S.engineReady) {
@@ -2443,10 +2465,11 @@ function updateState() {
   let txt = T('stIdle');
   if (S.winner) txt = S.winner === 1 ? T('stWinB') : T('stWinW');
   else if (S.searching && S.searchKind === 'balance') txt = T('stBal');
-  else if (S.searching && S.searchKind === 'analysis') txt = (S.settings.scan ? T('stScanning') : T('stSearching')) + (S.stats && S.stats.depth ? ' · d' + S.stats.depth : '');
+  else if (S.searching && S.searchKind === 'scan') txt = T('stScanning') + (S.stats && S.stats.depth ? ' · d' + S.stats.depth : '');
+  else if (S.searching && S.searchKind === 'analysis') txt = T('stSearching') + (S.stats && S.stats.depth ? ' · d' + S.stats.depth : '');
   else if (S.searching && S.searchKind === 'ai') txt = T('stAi');
   else if (S.searching && S.searchKind === 'move') txt = T('stMove');
-  else if (S.analysis && S.settings.scan && S.scanDone) txt = T('stScanDone') + ' · ' + S.marks.length + T('points');
+  else if (S.scanOn && S.scanDone) txt = T('stScanDone') + ' · ' + S.marks.length + T('points');
   else if (S.analysis && S.stats) txt = T('stStopped') + ' · d' + S.stats.depth;
   else if (S.analysis) txt = T('stIdle');
   else if (S.balance) txt = T('stBal');
@@ -2460,8 +2483,6 @@ function clearRouteView() {
   S.pv = [];
   S.preview = null;
   S.routePin = null;
-  S.routeOrder = [];
-  S.routePins = [];
   S.scanRows = [];
   const row = $('routeRow');
   if (row) {
@@ -2480,14 +2501,23 @@ function pvOfCand(c, first) {
 }
 
 /* One row per engine PV, in the engine's multipv order. A normal analysis has
-   exactly N rows; a scan has one row per evaluated empty point. The order is
-   stable across refreshes because it follows the PV index, not a live sort. */
+   exactly N rows; a scan lists the strongest dozen evaluated points (the board
+   carries the rest). Rows are de-duplicated by their first move so two rows can
+   never point at the same coordinate sequence. */
 function updateRoutes(cands, scan) {
   const row = $('routeRow');
   const meta = $('routeMeta');
   const st = S.stats;
-  const max = scan ? (cands ? cands.length : 0) : Math.max(1, Math.min(8, S.settings.points || 1));
-  const list = (cands || []).slice(0, max);
+  const max = scan ? 12 : Math.max(1, Math.min(8, S.settings.points || 1));
+  const seen = new Set();
+  const list = [];
+  for (const c of (cands || [])) {
+    const key = candKey(c);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    list.push(c);
+    if (list.length >= max) break;
+  }
   if (!list.length) {
     if (row) {
       row.className = 'route-row empty';
@@ -2530,9 +2560,9 @@ function updateRoutes(cands, scan) {
       '<b class="mv" data-r="' + k + '" data-i="' + i + '">' + coordName(p.x, p.y) + '</b>'
     ).join('');
     return '<div class="route-line" data-r="' + k + '">' +
-      '<span class="rt-rank">' + (k + 1) + '</span>' +
-      '<span class="rt-moves">' + (chips || T('routeNone')) + '</span>' +
-      '<b class="rt-ev' + ec + '">' + (e == null ? '–' : fmtEval(e)) + '</b></div>';
+      '<span class="rt-rank">#' + (k + 1) + '</span>' +
+      '<b class="rt-ev' + ec + '">' + (e == null ? '–' : fmtScore(e)) + '</b>' +
+      '<span class="rt-moves">' + (chips || T('routeNone')) + '</span></div>';
   }).join('');
   /* restore a click-pinned move and the hover that is on screen right now */
   if (S.routePin) {
@@ -2576,12 +2606,12 @@ function updateAll() {
   $('btnAIW').setAttribute('aria-pressed', String(S.aiW));
   const an = $('btnAnalysis');
   an.setAttribute('aria-pressed', String(S.analysis));
-  an.querySelector('.step-txt').textContent = S.analysis
-    ? (S.settings.scan ? T('scanStop') : T('analysisStop'))
-    : T('analysis');
+  an.querySelector('.step-txt').textContent = S.analysis ? T('analysisStop') : T('analysis');
   const sc = $('btnScan');
   if (sc) {
-    sc.setAttribute('aria-pressed', String(!!S.settings.scan));
+    sc.setAttribute('aria-pressed', String(!!S.scanOn));
+    const scTxt = sc.querySelector('.step-txt');
+    if (scTxt) scTxt.textContent = S.scanOn ? T('scanStop') : T('scanLabel');
     sc.setAttribute('aria-label', T('tipScan'));
     sc.setAttribute('title', T('tipScan'));
   }
@@ -2716,6 +2746,7 @@ function syncSettingsUI() {
   seg('segRange', S.settings.caution);
   seg('segDepth', S.settings.maxDepth);
   seg('segNodes', S.settings.maxNodes);
+  seg('segScanFmt', S.settings.scanFmt);
   const swPonder = $('swPonder');
   if (swPonder) swPonder.setAttribute('aria-checked', String(!!S.settings.pondering));
   seg('segRule', S.settings.rule);
@@ -2797,22 +2828,9 @@ function setSetting(key, value, opts) {
       if (S.balance) { S.balance = value; haltSearch(); schedule(120); }
       return;
     }
-    if (key === 'scan') {
-      /* Scan is a mode of analysis, so it is mutually exclusive with balance
-         points; toggling it throws away every old circle/line and restarts the
-         analysis in the new mode, or stops if analysis was already off. */
-      S.scanDone = false;
-      S.marks = [];
-      S.stats = null;
-      S.balanceMarks = [];
-      S.balanceInfo = null;
-      if (S.balance) { S.balance = 0; S.balanceHeld = false; }
-      clearRouteView();
-      haltSearch();
+    if (key === 'scanFmt') {
+      /* display-only: repaint the tiles, never restart the running search */
       drawBoard();
-      updateAll();
-      if (S.analysis) schedule(200);
-      toast(value ? T('tScanOn') : T('tScanOff'));
       return;
     }
     haltSearch();
@@ -2907,6 +2925,7 @@ function initSettingsEvents() {
   segClick('segThreads', (v) => setSetting('threads', +v));
   segClick('segDepth', (v) => setSetting('maxDepth', +v));
   segClick('segNodes', (v) => setSetting('maxNodes', +v));
+  segClick('segScanFmt', (v) => setSetting('scanFmt', v));
   const swPonder = $('swPonder');
   if (swPonder) swPonder.addEventListener('click', () => setSetting('pondering', !S.settings.pondering));
   buildBoardSwatches();

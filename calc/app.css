@@ -70,28 +70,24 @@ html[data-theme="dark"] .icon-btn .icon-sun{display:block}
   outline:1px solid rgba(20,30,20,.10);outline-offset:-1px;background:var(--board);margin:0 auto}
 html[data-theme="dark"] #board{outline-color:rgba(0,0,0,.45)}
 
-.stepbar{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin:8px auto 0}
-/* the balance key is a little narrower so the scan key fits on one row */
-.stepbar.six{grid-template-columns:1fr 1fr 1fr .8fr 1fr 1fr}
-.stepbar.six .step-btn{width:100%;flex:none}
-.step-btn{display:flex;align-items:center;justify-content:center;gap:3px;flex:1 1 0;min-width:0;min-height:44px;
+.stepbar{display:grid;gap:5px;margin:8px auto 0}
+/* row 1: board controls, row 2: AI + analysis keys (slightly smaller) */
+.steps4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.steps5{grid-template-columns:repeat(5,minmax(0,1fr));margin-top:6px}
+.step-btn{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:44px;
   padding:0 4px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--sub);
   font-size:11.5px;font-weight:600;white-space:nowrap;transition:.15s}
+.steps5 .step-btn{min-height:40px;font-size:11px;gap:3px}
+.steps5 .step-btn svg{width:14px;height:14px}
 .step-btn svg{width:16px;height:16px;display:block;flex:0 0 auto}
 .step-btn .step-txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .step-btn:hover:not(:disabled){border-color:var(--btn-border-hover);color:var(--ink);background:var(--nav-hover)}
 .step-btn:disabled{opacity:.42;cursor:default}
-.step-btn.play{flex:1.15 1 0;color:var(--accent-d);border-color:var(--chip-border);background:var(--accent-l)}
-.step-btn.play:hover:not(:disabled){border-color:var(--accent);color:var(--accent-d);background:var(--accent-l)}
-.step-btn.play:disabled{opacity:.42}
-.step-btn.play[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.step-btn.key-play{color:var(--accent-d);border-color:var(--chip-border);background:var(--accent-l)}
+.step-btn.key-play:hover:not(:disabled){border-color:var(--accent);color:var(--accent-d)}
 .step-btn[aria-pressed="true"],.step-btn.key-scan[aria-pressed="true"]{
   border-color:var(--accent);background:var(--accent-l);color:var(--accent-d)}
 .step-btn.key-balance{font-size:11px}
-.step-btn.danger{flex:1 1 0;color:#9c3131;border-color:#f0cccc;background:#fdf4f4;padding:0 4px}
-html[data-theme="dark"] .step-btn.danger{color:#f0a4a4;border-color:#5b2c2c;background:#251618}
-.step-btn.danger.confirm{background:#c9463c;border-color:#c9463c;color:#fff}
-html[data-theme="dark"] .step-btn.danger.confirm{background:#b53d34;border-color:#b53d34;color:#fff}
 
 /* nine-way position transform, floating over the board in frosted glass */
 .xf-panel{position:fixed;z-index:70;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));
@@ -139,8 +135,7 @@ body.xf-open .xf-panel{pointer-events:auto}
   .set-link-txt span{font-size:10px}
 }
 
-.tools{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px auto 8px}
-.tools{max-width:100%}
+.tools{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:6px;margin:8px auto 8px;max-width:340px}
 .bal-count{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
   min-height:54px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--mute);font-size:9.5px;
   font-weight:600;line-height:1.1;padding:4px 2px;transition:.16s;box-shadow:0 1px 2px rgba(20,40,70,.03)}
@@ -160,16 +155,6 @@ html[data-theme="dark"] .tool.danger.confirm{background:#b53d34;border-color:#b5
 /* the black-side AI key is violet, the white-side one keeps the blue accent */
 #btnAIB[aria-pressed="true"]{background:#f2ecff;border-color:#a78bff;color:#5b3fd6}
 html[data-theme="dark"] #btnAIB[aria-pressed="true"]{background:#251d40;border-color:#6f52d8;color:#c9b8ff}
-.tool-ico{width:21px;height:21px;display:grid;place-items:center}
-.tool-ico svg{width:21px;height:21px;display:block}
-.tool-txt{font-size:11.5px;font-weight:600;line-height:1.2;white-space:nowrap;letter-spacing:.01em;
-  max-width:100%;overflow:hidden;text-overflow:ellipsis}
-.tool-badge{position:absolute;top:5px;right:7px;width:6px;height:6px;border-radius:50%;background:var(--accent);display:none}
-.tool[aria-pressed="true"] .tool-badge{display:block}
-.tool-badge.num{width:auto;height:auto;padding:0 4px;border-radius:5px;font-style:normal;font-size:9px;
-  line-height:13px;background:var(--accent);color:#fff;display:none}
-.tool[aria-pressed="true"] .tool-badge.num{display:block}
-
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);
   border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 auto}
 .stat{background:var(--paper);padding:7px 6px 8px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -210,9 +195,11 @@ html[data-theme="dark"] .code-input:focus{box-shadow:0 0 0 3px rgba(121,184,239,
 .route-row::-webkit-scrollbar-thumb{background:var(--line);border-radius:99px}
 .route-line{display:flex;align-items:flex-start;gap:7px;padding:3px 0;border-bottom:1px dashed var(--line-2)}
 .route-line:last-child{border-bottom:0}
-.rt-rank{flex:0 0 19px;text-align:right;font-size:10px;line-height:18px;color:var(--mute);font-weight:600}
+.rt-rank{flex:0 0 auto;font-size:10px;line-height:18px;color:var(--mute);font-weight:700;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
 .rt-moves{flex:1 1 auto;min-width:0;display:flex;flex-wrap:wrap;gap:4px 2px}
-.rt-ev{flex:0 0 auto;font-size:11px;line-height:18px;font-weight:700;color:var(--ink)}
+.rt-ev{flex:0 0 auto;min-width:3.4ch;text-align:left;font-size:11px;line-height:18px;font-weight:700;
+  color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap}
 .rt-ev.pos{color:#1d7a4b}
 .rt-ev.neg{color:#a63d3d}
 html[data-theme="dark"] .rt-ev.pos{color:#57c98a}
@@ -473,9 +460,8 @@ html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);bord
 .loader.lazy .loader-actions .mini-btn{height:30px;font-size:11px}
 
 @media (max-width:560px){
-  /* six keys never fit one narrow row without clipping: two rows of three,
-     keeping the reading order 上一步 / 计算分析 / 扫描分析 · 平衡点 / 下一步 / 变换 */
-  .stepbar.six{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* the five AI/analysis keys wrap as 3+2, order preserved */
+  .steps5{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media (max-width:360px){
   .app{padding-left:6px;padding-right:6px}
@@ -485,13 +471,11 @@ html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);bord
   .chip{font-size:9.5px;padding:0 7px;height:26px}
   .icon-btn{width:42px;height:42px}
   .tools{gap:5px}
-  .tool{min-height:53px}
-  .tool-txt{font-size:10.5px}
+  .tool{min-height:52px}
   .stat .v{font-size:12.5px}
   .route-row .route{font-size:12px}
-  .step-btn{font-size:11px;padding:0 4px;gap:2px}
-  .step-btn svg{width:14px;height:14px}
-  .step-btn.danger{padding:0 8px}
+  .step-btn{font-size:10.5px;padding:0 3px;gap:2px}
+  .step-btn svg{width:13px;height:13px}
   .route-row .mv{padding:1px 2px}
 }
 @media (min-width:900px){

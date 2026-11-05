@@ -16,6 +16,7 @@ let lastCfg = { threads: 0, hashMB: 0, caution: 0, rule: -1 };
 let stopTimer = 0;
 let scanTimer = 0;
 let booting = false;
+let forbidMirrors = false;   // ?src=single: own origin only, for loader benchmarks
 /* Serialisation: every job carries a monotonically increasing seq. A job whose
    seq is older than the newest accepted one is stale and must never reach the
    engine, so rapid clicking cannot stack searches. The newest queued job wins. */
@@ -130,20 +131,35 @@ function reqOpts(url, extra) {
   return o;
 }
 
-/* one-byte range probe: cheap, and it also tells us whether ranges are honoured.
-   `cap` shortens the timeout for the "is our own host healthy?" check. */
+/* 64 KB probe: cheap (about 0.1% of the weight package) but it measures real
+   throughput, not just a round trip. `cap` shortens the timeout for the
+   "is our own host healthy?" check. */
+const PROBE_BYTES = 64 * 1024;
 async function probeRoute(url, cap) {
   const t0 = Date.now();
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), cap || 6000);
   try {
-    const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=0-0' } }));
+    const res = await fetch(url, reqOpts(url, { signal: ctl.signal, headers: { Range: 'bytes=0-' + (PROBE_BYTES - 1) } }));
     if (!res.ok) return null;
     const cr = res.headers.get('content-range') || '';
     const total = cr ? (+cr.split('/')[1] || 0) : (+res.headers.get('content-length') || 0);
     const ranged = res.status === 206;
+    let got = 0;
+    const reader = res.body && res.body.getReader();
+    if (reader) {
+      while (got < PROBE_BYTES) {
+        const step = await reader.read();
+        if (step.done) break;
+        got += step.value.length;
+      }
+      try { await reader.cancel(); } catch (e) {}
+    } else {
+      got = Math.min(PROBE_BYTES, total);
+    }
+    const ms = Math.max(1, Date.now() - t0);
     try { ctl.abort(); } catch (e) {}
-    return { url, ms: Date.now() - t0, total, ranged };
+    return { url, ms, total, ranged, bytes: got, bps: got / ms * 1000 };
   } catch (err) {
     return null;
   } finally {
@@ -193,21 +209,42 @@ async function fetchWhole(url, from, to, meta) {
   }
 }
 
-/* pick the routes that answer, quickest first */
-async function rankRoutes(urls) {
-  const hits = (await Promise.all(urls.map(probeRoute))).filter(Boolean);
-  hits.sort((a, b) => a.ms - b.ms);
+/* pick the routes that answer, highest measured throughput first. Waiting for
+   a hanging mirror must not delay a fast origin, so the caller can cap the wait:
+   whatever has answered by then is ranked, late answers are ignored. */
+async function rankRoutes(urls, budget) {
+  const hits = [];
+  const slots = urls.map((u) => probeRoute(u, 5000).then((r) => { if (r) hits.push(r); return r; }).catch(() => null));
+  const all = Promise.all(slots);
+  if (budget) {
+    await Promise.race([all, new Promise((r) => setTimeout(r, budget))]);
+    /* On a high-latency link every probe can take longer than the budget. An
+       empty ranking used to fall through to "no routes" and fail the download
+       entirely; waiting for the probes (each capped at 5 s) is the only way to
+       know which origin can serve the file. */
+    if (!hits.length) await all;
+  } else {
+    await all;
+  }
+  hits.sort((a, b) => (b.bps - a.bps) || (a.ms - b.ms));
   return hits;
 }
 
 /* ---- ranged pull for the weight package -------------------------------
    The weights are one 40 MB stream, and on a lossy link a single connection
    crawls at 100–300 KB/s no matter how fast the line is. So the file is cut
-   into fixed chunks that several routes pull at the same time: each chunk can
-   fall back to another mirror on its own, and progress is reported as chunks
-   land, which keeps the bar moving smoothly instead of stalling. */
+   into fixed chunks that several routes pull at the same time. Each chunk is
+   assigned to the route that currently measures fastest, so a slow mirror is
+   automatically starved while a fast one gets more work. Completed chunks are
+   also written to Cache Storage: if the page is reloaded (or a retry happens
+   after a network error) they are reused instead of downloaded again. */
 const CHUNK_BYTES = 3 * 1024 * 1024;
-const LANES = 4;
+const LANES = 6;
+
+function chunkUrl(name, ver, k) {
+  return new URL('engine/.chunks/', self.location.href).href +
+    encodeURIComponent(name) + '.v' + encodeURIComponent(ver || 'x') + '.' + k;
+}
 
 async function fetchChunk(route, start, end) {
   const ctl = new AbortController();
@@ -226,7 +263,7 @@ async function fetchChunk(route, start, end) {
   }
 }
 
-async function fetchRanged(routes, meta, from, to) {
+async function fetchRanged(routes, meta, from, to, cache, name, ver) {
   const total = routes[0].total;
   const chunk = (meta && meta.chunk) || CHUNK_BYTES;
   /* the wasm is ~1.1 MB and the weights 40 MB: both are cut into ranges, with a
@@ -234,31 +271,94 @@ async function fetchRanged(routes, meta, from, to) {
   if (!total || total < Math.max(512 * 1024, chunk * 1.5)) return null;
   const n = Math.ceil(total / chunk);
   const out = new Uint8Array(total);
-  let next = 0;
+  const stats = routes.map((r) => ({
+    url: r.url, bps: r.bps || 0, chunks: 0, bytes: 0, ms: 0, fails: 0,
+    dead: false, inflight: 0,
+  }));
   let filled = 0;
+  const todo = [];
+  /* resume: every chunk that is already in Cache Storage is assembled without
+     touching the network */
+  if (cache) {
+    for (let k = 0; k < n; k++) {
+      const start = k * chunk;
+      const len = Math.min(total, start + chunk) - start;
+      const url = chunkUrl(name, ver, k);
+      try {
+        const hit = await cache.match(url);
+        if (hit) {
+          const b = new Uint8Array(await hit.arrayBuffer());
+          if (b.length === len) { out.set(b, start); filled += len; continue; }
+          try { cache.delete(url); } catch (e) {}
+        }
+      } catch (err) {}
+      todo.push(k);
+    }
+  } else {
+    for (let k = 0; k < n; k++) todo.push(k);
+  }
+  if (filled) postLoad(from + (to - from) * (filled / total), null);
+  const cacheWrites = [];
+  const pick = () => {
+    let best = null;
+    let score = -1;
+    for (const s of stats) {
+      if (s.dead) continue;
+      const sc = s.bps / (1 + s.inflight * 1.5);
+      if (sc > score) { score = sc; best = s; }
+    }
+    return best;
+  };
   let dead = null;
-  const lanes = Math.max(1, Math.min(LANES, routes.length * 2, n));
-  const lane = async (seed) => {
+  let cursor = 0;
+  const lanes = Math.max(1, Math.min(LANES, todo.length, Math.max(2, stats.length * 2)));
+  const lane = async () => {
     for (;;) {
       if (dead) return;
-      const k = next++;
-      if (k >= n) return;
-      const start = k * chunk;
+      const k = cursor++;
+      if (k >= todo.length) return;
+      const idx = todo[k];
+      const start = idx * chunk;
       const end = Math.min(total, start + chunk);
-      let ok = false;
-      for (let t = 0; t < routes.length && !ok; t++) {
-        const route = routes[(seed + k + t) % routes.length];
+      let done = false;
+      let tries = 0;
+      while (!done && !dead) {
+        const s = pick();
+        if (!s) { dead = new Error('chunk ' + idx + ' failed on every route'); return; }
+        s.inflight++;
+        const t0 = Date.now();
         try {
-          out.set(await fetchChunk(route, start, end), start);
-          ok = true;
-        } catch (err) { /* next mirror takes this chunk */ }
+          const b = await fetchChunk({ url: s.url }, start, end);
+          if (b.length !== end - start) throw new Error('short chunk: ' + b.length);
+          out.set(b, start);
+          const dt = Math.max(1, Date.now() - t0);
+          s.chunks++;
+          s.bytes += b.length;
+          s.ms += dt;
+          const bps = b.length / dt * 1000;
+          s.bps = s.bps ? s.bps * 0.6 + bps * 0.4 : bps;
+          filled += b.length;
+          postLoad(from + (to - from) * (filled / total), null);
+          if (cache) {
+            cacheWrites.push(cache.put(chunkUrl(name, ver, idx), new Response(b, {
+              headers: { 'X-Size': String(b.length) },
+            })).catch(() => {}));
+          }
+          done = true;
+        } catch (err) {
+          s.fails++;
+          s.bps = s.bps / 8;
+          if (s.fails >= 3) s.dead = true;
+        } finally {
+          s.inflight--;
+        }
+        tries++;
+        if (tries > 24) { dead = new Error('chunk ' + idx + ' retry limit'); return; }
       }
-      if (!ok) { dead = new Error('chunk ' + k + ' failed on every route'); return; }
-      filled += end - start;
-      postLoad(from + (to - from) * (filled / total), null);
     }
   };
-  await Promise.all(Array.from({ length: lanes }, (_, i) => lane(i)));
+  await Promise.all(Array.from({ length: lanes }, () => lane()));
+  if (cacheWrites.length) { try { await Promise.all(cacheWrites); } catch (e) {} }
   if (dead) throw dead;
   const buf = out.buffer;
   if (meta.min && buf.byteLength < meta.min) throw new Error('short read: ' + buf.byteLength);
@@ -266,53 +366,54 @@ async function fetchRanged(routes, meta, from, to) {
     const m = new Uint8Array(buf, 0, 4);
     if (!(m[0] === 0 && m[1] === 0x61 && m[2] === 0x73 && m[3] === 0x6d)) throw new Error('not wasm');
   }
-  return buf;
+  return {
+    buf,
+    chunks: n,
+    routes: stats.map((s) => ({
+      url: s.url, bps: Math.round(s.bps), chunks: s.chunks, bytes: s.bytes, ms: s.ms, fails: s.fails,
+    })),
+  };
 }
 
-/* The site itself is tried first and trusted only when the bytes pass the size
-   and magic checks; public mirrors are the fallback for networks where GitHub
-   Pages is unreachable. Small files keep one plain stream; the 40 MB weight
-   package probes every route and then pulls ranged chunks in parallel. */
-async function downloadFrom(urls, meta, from, to) {
+async function dropChunks(cache, name, ver, n) {
+  if (!cache || !n) return;
+  const tasks = [];
+  for (let k = 0; k < n; k++) tasks.push(cache.delete(chunkUrl(name, ver, k)).catch(() => {}));
+  await Promise.all(tasks);
+}
+
+/* The site itself is probed together with every mirror; the fastest measured
+   route wins (a slow own-origin no longer blocks the mirror chain, and a fast
+   proxy is no longer skipped because GitHub Pages answered first). Small files
+   keep one plain stream. */
+async function downloadFrom(urls, meta, from, to, cache, name, ver) {
   const list = urls.slice();
   let last = null;
   if (!meta.big) {
     const first = list.shift();
     try {
-      return await fetchWhole(first, from, to, meta);
+      return { buf: await fetchWhole(first, from, to, meta), routes: [] };
     } catch (err) {
       last = err;
     }
     const small = await rankRoutes(list);
     for (const route of small) {
-      try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
+      try { return { buf: await fetchWhole(route.url, from, to, meta), routes: [] }; } catch (err) { last = err; }
     }
     throw last || new Error('download failed');
   }
-  /* Fast path: when our own origin answers a probe within half a second, go
-     straight to ranged chunks on it — no mirror probing, no waiting for the
-     proxy chain to time out (that wait was what made a warm CDN feel cold). */
-  const home = await probeRoute(list[0], 2500);
-  if (home && home.ranged && home.total) {
-    try {
-      const buf = await fetchRanged([home], meta, from, to);
-      if (buf) return buf;
-    } catch (err) {
-      last = err;
-    }
-  }
-  const routes = await rankRoutes(list);
+  const routes = await rankRoutes(list, 1600);
   const ranged = routes.filter((r) => r.ranged && r.total);
   if (ranged.length) {
     try {
-      const buf = await fetchRanged(ranged, meta, from, to);
-      if (buf) return buf;
+      const got = await fetchRanged(ranged, meta, from, to, cache, name, ver);
+      if (got) return got;
     } catch (err) {
       last = err;
     }
   }
   for (const route of routes) {
-    try { return await fetchWhole(route.url, from, to, meta); } catch (err) { last = err; }
+    try { return { buf: await fetchWhole(route.url, from, to, meta), routes: [] }; } catch (err) { last = err; }
   }
   throw last || new Error('download failed');
 }
@@ -380,12 +481,19 @@ async function cleanCaches(name, keepUrls) {
         continue;
       }
       const keep = new Set(keepUrls.map((u) => new URL(u, self.location.href).href.split('?')[0]));
+      /* partially downloaded weight chunks belong to the current release only:
+         they are keyed by file + version, so a release bump makes them stale and
+         the normal download path replaces them with no duplicate cache entries */
+      const ver = (() => {
+        try { return new URL(keepUrls[0], self.location.href).searchParams.get('v') || ''; } catch (e) { return ''; }
+      })();
       try {
         const c = await caches.open(k);
         for (const req of await c.keys()) {
           const base = req.url.split('?')[0];
           const isWasm = /rapfi-[a-z0-9-]+\.wasm$/.test(base);
-          if (!keep.has(base) && !isWasm) {
+          const isChunk = /\/\.chunks\//.test(base) && (!ver || base.indexOf('.v' + ver + '.') >= 0);
+          if (!keep.has(base) && !isWasm && !isChunk) {
             await c.delete(req);
             removed.push({ cache: k, reason: 'stale key', url: req.url });
           }
@@ -420,15 +528,26 @@ async function loadAsset(url, cache, from, to, reports) {
       }
     } catch (err) {}
   }
-  const urls = [abs].concat(MIRROR_ROOT.map((base) => base + name));
+  const urls = [abs].concat(forbidMirrors ? [] : MIRROR_ROOT.map((base) => base + name));
+  const ver = (() => {
+    try { return new URL(abs, self.location.href).searchParams.get('v') || ''; } catch (e) { return ''; }
+  })();
   let buf = null;
   let v = null;
+  let chunks = 0;
+  let routes = [];
   for (let attempt = 0; attempt < 2; attempt++) {
-    buf = await downloadFrom(urls, meta, from, to);
+    const got = await downloadFrom(urls, meta, from, to, cache, name, ver);
+    buf = got.buf;
+    chunks = got.chunks || 0;
+    routes = got.routes || [];
     if (!buf || !buf.byteLength) throw new Error('empty download');
     v = await verifyAsset(name, buf);
     if (v.ok) break;
     try { if (cache) await cache.delete(abs); } catch (e) {}
+    /* a chunk that passed its range-length check can still be a proxy error
+       page; keeping it would make every retry fail the same way */
+    await dropChunks(cache, name, ver, chunks);
     if (attempt === 0) post({ t: 'stderr', msg: 'integrity check failed for ' + name + ' (' + v.why + '), re-downloading' });
   }
   if (!v || !v.ok) throw new Error('integrity check failed: ' + (v && v.why));
@@ -437,9 +556,10 @@ async function loadAsset(url, cache, from, to, reports) {
       await cache.put(abs, new Response(buf, {
         headers: { 'Content-Type': 'application/octet-stream', 'X-Size': String(buf.byteLength) },
       }));
+      await dropChunks(cache, name, ver, chunks);
     } catch (err) {}
   }
-  assetReport(reports, { name, source: 'network', bytes: buf.byteLength, ms: Date.now() - t0, sha: v.sha || '' });
+  assetReport(reports, { name, source: 'network', bytes: buf.byteLength, ms: Date.now() - t0, sha: v.sha || '', routes });
   return buf;
 }
 
@@ -451,15 +571,70 @@ function parseIntegerList(text) {
   return out;
 }
 
+/* Rapfi prints only the PV line it just finished, then re-sorts the searched
+   prefix (search/ab/search.cpp sortRootMoves, called after every PV of the
+   MultiPV loop). The printed index is therefore the index *before* that sort, so
+   keeping INFO PV slots in arrival order leaves the table stale: a line that the
+   engine has just moved to #1 would still be shown as #4. Reproducing the sort
+   here — stable, by value, over [0, pvIdx] — keeps our rank order identical to
+   rootMoves, which is what makes the N markers and N route rows agree with the
+   engine. Unsearched tail slots stay where they were, exactly as in Rapfi. */
+function evalNum(v) {
+  if (typeof v === 'number') return v;
+  if (v == null || v === '') return null;
+  let s = String(v).trim();
+  let sign = 1;
+  if (s[0] === '-') { sign = -1; s = s.slice(1); }
+  else if (s[0] === '+') s = s.slice(1);
+  if (/^M/i.test(s)) return sign * (9900 + (parseInt(s.slice(1), 10) || 0));
+  const n = parseFloat(s);
+  return Number.isFinite(n) ? sign * n : null;
+}
+
+function sortPvs(upto) {
+  const list = [];
+  for (let i = 0; i <= upto && i < pvs.length; i++) if (pvs[i]) list.push(pvs[i]);
+  if (list.length < 2) return;
+  list.sort((a, b) => {
+    const va = evalNum(a.eval);
+    const vb = evalNum(b.eval);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return vb - va;
+  });
+  let j = 0;
+  for (let i = 0; i <= upto && i < pvs.length; i++) if (pvs[i]) pvs[i] = list[j++];
+}
+
+/* Root candidates of the frame that just finished. Rapfi prints the PVs of an
+   iteration one by one; a slot can be left over from a previous iteration or
+   repeat a root move, so the list is truncated to the current NUMPV and keyed
+   by the first move. Ranks stay 0..n-1 with no holes, which is what the page
+   shows as N distinct markers and N route rows. */
 function candidates() {
-  return pvs.map((p, i) => ({
-    rank: i,
-    depth: p.depth || 0,
-    eval: p.eval || '',
-    winrate: typeof p.winrate === 'number' ? p.winrate : 0.5,
-    line: parseIntegerList(p.bestline || ''),
-    move: parseIntegerList(p.bestline || '')[0] || null,
-  })).filter((c) => c.move);
+  const out = [];
+  const seen = new Set();
+  const n = curNumPv > 0 ? curNumPv : pvs.length;
+  for (let i = 0; i < pvs.length && i < n; i++) {
+    const p = pvs[i];
+    if (!p) continue;
+    const line = parseIntegerList(p.bestline || '');
+    const move = line[0];
+    if (!move) continue;
+    const key = move[0] + ',' + move[1];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      rank: out.length,
+      depth: p.depth || 0,
+      eval: p.eval || '',
+      winrate: typeof p.winrate === 'number' ? p.winrate : 0.5,
+      line,
+      move,
+    });
+  }
+  return out;
 }
 
 function statsOf() {
@@ -533,6 +708,8 @@ function handleLine(raw) {
 
   if (line === 'INFO PV DONE') {
     if (pvIdx >= 0 && pvs[pvIdx]) {
+      /* the engine re-sorted the searched prefix right after printing this line */
+      if (!bal) sortPvs(pvIdx);
       /* Rapfi completes and prints root PVs one by one inside an iteration, so
          emitting on every PV would combine a fresh rank 0 with stale lower
          ranks (and briefly show the same move twice). Emit only when the last
@@ -655,6 +832,7 @@ function applyConfig(threads, hashMB, caution, rule, force) {
 
 async function boot(opts) {
   booting = true;
+  forbidMirrors = !!opts.single;
   loadPct = -1;
   loadAt = 0;
   const bootT0 = Date.now();

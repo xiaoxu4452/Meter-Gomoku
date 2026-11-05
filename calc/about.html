@@ -2,44 +2,439 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>使用说明 · 五子棋计算器</title>
-<link rel="canonical" href="./guide.html">
-<meta name="robots" content="noindex">
-<meta http-equiv="refresh" content="0; url=./guide.html">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta id="themeColor" name="theme-color" content="#edf1f6">
+<title>关于 · 五子棋计算器</title>
+<meta name="description" content="关于 Meter Web 五子棋计算器：版本、Rapfi 引擎与 NNUE 权重、评分视角、授权与入口。">
 <link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
+<link rel="apple-touch-icon" href="../assets/calc.png">
 <script>
-/* the About page, the full manual and the quick guide are merged into
-   guide.html - this stub keeps old links, bookmarks and search results working */
+/* theme + language before first paint; keys are shared with the calculator and the site */
 (function () {
-  try {
-    var t = localStorage.getItem('mg.site.theme') || localStorage.getItem('mgcalc.theme') || '';
-    if (t !== 'light' && t !== 'dark') t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', t);
-    document.documentElement.style.colorScheme = t;
-  } catch (e) {}
-  location.replace('./guide.html' + location.hash);
+  var t = '';
+  try { t = localStorage.getItem('mg.site.theme') || localStorage.getItem('mgcalc.theme') || ''; } catch (e) {}
+  if (t !== 'light' && t !== 'dark') {
+    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-theme', t);
+  document.documentElement.style.colorScheme = t;
+  var m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', t === 'dark' ? '#0b1016' : '#edf1f6');
+  var l = '';
+  try { l = localStorage.getItem('mg.site.lang') || localStorage.getItem('mgcalc.lang') || ''; } catch (e) {}
+  if (l !== 'zh' && l !== 'en') l = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+  document.documentElement.setAttribute('lang', l === 'en' ? 'en' : 'zh-CN');
 })();
 </script>
 <style>
-:root{--bg:#edf1f6;--ink:#171b21;--sub:#5c6774;--line:#e3e8ef;--accent:#2f6fb0;--paper:#fff;
-  --sans:"Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif}
-html[data-theme="dark"]{--bg:#0a0f15;--ink:#e8eef7;--sub:#b6c2d1;--line:#2b3745;--accent:#79b8ef;--paper:#111820}
-body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--ink);
-  font-family:var(--sans);font-size:15px;line-height:1.7}
-.card{max-width:430px;width:100%;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px 24px;text-align:center}
-b{display:block;font-size:16px;margin-bottom:6px}
-p{margin:0 0 12px;color:var(--sub);font-size:13.5px}
-a{display:inline-block;margin-top:4px;padding:9px 16px;border-radius:10px;background:var(--accent);color:#fff;
-  text-decoration:none;font-weight:600;font-size:13.5px}
+*{box-sizing:border-box}
+:root{
+  --ink:#171b21; --sub:#5c6774; --mute:#8792a0; --body-text:#2b333c;
+  --line:#e3e8ef; --line-2:#eef2f7;
+  --accent:#2f6fb0; --accent-d:#1e4e80; --accent-l:#eaf3fc; --accent-ink:#fff;
+  --paper:#fff; --bg:#edf1f6;
+  --bg-glow-1:#dfeaf7; --bg-glow-2:#e7eef8;
+  --card-bg:#fcfdfe; --card-border-hover:#d5e2f0;
+  --code-bg:#f3f6fa;
+  --chip-border:#d6e6f7; --chip-gray-bg:#f3f5f8;
+  --btn-bg:#fff; --btn-border-hover:#c9d7e6;
+  --note-grad:linear-gradient(90deg,#f4f9ff,#fbfdff); --note-text:#31404f;
+  --nav-hover:#f2f6fb;
+  --actions-bg:rgba(255,255,255,.9);
+  --actions-shadow:0 8px 20px -14px rgba(20,40,70,.6);
+  --sheet-shadow:0 26px 60px -46px rgba(16,40,72,.55), 0 2px 6px rgba(16,40,72,.04);
+  --serif:"Source Han Serif SC","Songti SC",Georgia,"Times New Roman",serif;
+  --sans:"Source Han Sans SC","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Code",Consolas,"SF Mono",Menlo,monospace;
+  --r:14px;
+}
+html[data-theme="dark"]{
+  --ink:#e8eef7; --sub:#b6c2d1; --mute:#94a3b5; --body-text:#d7dfe9;
+  --line:#2b3745; --line-2:#232e3a;
+  --accent:#79b8ef; --accent-d:#a8d2f6; --accent-l:#17283a; --accent-ink:#fff;
+  --paper:#111820; --bg:#0a0f15;
+  --bg-glow-1:#132131; --bg-glow-2:#0f1720;
+  --card-bg:#151d27; --card-border-hover:#35485d;
+  --code-bg:#1a2532;
+  --chip-border:#2d4b68; --chip-gray-bg:#1a232e;
+  --btn-bg:#17212d; --btn-border-hover:#3d5167;
+  --note-grad:linear-gradient(90deg,#132130,#101820); --note-text:#d6e2ef;
+  --nav-hover:#17222e;
+  --actions-bg:rgba(14,21,30,.92);
+  --actions-shadow:0 8px 20px -14px rgba(0,0,0,.9);
+  --sheet-shadow:0 26px 60px -46px rgba(0,0,0,.95), 0 2px 6px rgba(0,0,0,.45);
+}
+html{scroll-behavior:smooth; color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
+body{
+  margin:0; background:
+    radial-gradient(1100px 600px at 78% -8%, var(--bg-glow-1) 0%, transparent 62%),
+    radial-gradient(900px 560px at 8% 8%, var(--bg-glow-2) 0%, transparent 58%),
+    var(--bg);
+  color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.8;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+a{color:var(--accent); text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit; color:inherit}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:6px}
+img{max-width:100%}
+
+/* ---------- top-right display controls: same design as the website ---------- */
+.actions{position:fixed; top:14px; right:18px; z-index:60; display:flex; align-items:center; gap:4px;
+  padding:3px; background:var(--actions-bg); border:1px solid var(--line); border-radius:999px;
+  box-shadow:var(--actions-shadow); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px)}
+.lang{display:flex; gap:2px; padding:0; background:transparent; border:0; border-radius:0; box-shadow:none}
+.lang button{min-height:40px; border:0; background:transparent; padding:6px 14px; border-radius:999px;
+  font:inherit; font-size:12.5px; font-weight:600; color:var(--sub); cursor:pointer; transition:.16s}
+.lang button:hover{background:var(--nav-hover); color:var(--accent-d)}
+.lang button.on{background:var(--accent); color:var(--accent-ink)}
+.theme{width:40px; height:40px; flex:0 0 auto; display:grid; place-items:center; padding:0; border:0;
+  border-radius:999px; background:transparent; color:var(--sub); cursor:pointer; transition:.16s}
+.theme:hover{background:var(--nav-hover); color:var(--accent)}
+.theme svg{width:19px; height:19px; display:block}
+.theme .icon-sun{display:none}
+html[data-theme="dark"] .theme .icon-moon{display:none}
+html[data-theme="dark"] .theme .icon-sun{display:block}
+
+/* ---------- page ---------- */
+/* two columns: the contents rail stays put, the sections scroll beside it */
+.wrap{width:100%; max-width:1180px; margin:0 auto; padding:34px 22px 70px;
+  display:grid; grid-template-columns:252px minmax(0,1fr); column-gap:26px; align-items:start}
+.dochead,.foot{grid-column:1 / -1}
+.doc-side{position:sticky; top:18px}
+.doc-side .toc{margin:0; max-height:calc(100vh - 36px); overflow-y:auto; scrollbar-width:thin;
+  scrollbar-color:var(--line) transparent}
+.doc-side .toc::-webkit-scrollbar{width:6px}
+.doc-side .toc::-webkit-scrollbar-thumb{background:var(--line); border-radius:99px}
+.doc-main{min-width:0}
+.dochead{display:flex; align-items:flex-start; gap:14px; padding-right:190px; margin-bottom:18px}
+.logo{width:46px; height:46px; border-radius:12px; display:block; object-fit:cover; flex:0 0 auto; margin-top:4px}
+.dochead .titles{min-width:0; flex:1 1 auto}
+.eyebrow{font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; color:var(--accent); margin:0 0 4px; font-weight:600}
+h1{margin:0 0 6px; font-size:clamp(26px,3.4vw,34px); line-height:1.2; letter-spacing:-.01em; color:var(--ink)}
+.docmeta{margin:0; font-size:12px; color:var(--mute); font-family:var(--mono)}
+.headbtns{display:flex; gap:8px; flex:0 0 auto; align-items:center; margin-top:4px}
+.btnline{display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:40px; padding:8px 15px;
+  border-radius:11px; border:1px solid var(--line); background:var(--btn-bg); color:var(--ink);
+  font-size:13px; font-weight:600; white-space:nowrap; transition:.16s}
+.btnline:hover{text-decoration:none; border-color:var(--btn-border-hover); background:var(--nav-hover)}
+.btnline.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.btnline.primary:hover{background:var(--accent-d); border-color:var(--accent-d); color:var(--accent-ink)}
+.btnline svg{width:15px; height:15px; flex:0 0 auto}
+
+.sheet{background:var(--paper); border:1px solid var(--line); border-radius:var(--r);
+  padding:26px 30px 30px; margin-bottom:18px; box-shadow:var(--sheet-shadow); scroll-margin-top:18px}
+.toc{padding:22px 26px 24px}
+.toc h2{margin:0 0 12px; font-size:16px; color:var(--accent-d)}
+.toc ol{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:1fr; gap:1px}
+.toc a{display:flex; align-items:baseline; gap:9px; padding:6px 8px; border-radius:8px; color:var(--ink); font-size:13.6px; line-height:1.4}
+.toc a:hover{background:var(--nav-hover); color:var(--accent-d); text-decoration:none}
+.toc a.on{background:var(--accent-l); color:var(--accent-d); font-weight:600}
+.toc a.on b{color:var(--accent)}
+.toc a b{font-family:var(--mono); font-size:11.5px; color:var(--mute); font-weight:600; min-width:18px}
+
+h2{font-size:22px; line-height:1.3; margin:0 0 10px; letter-spacing:-.01em}
+h2 .num{font-family:var(--mono); font-size:11.5px; color:var(--accent); letter-spacing:.14em; display:block; margin-bottom:6px; font-weight:600}
+h3{font-size:15.5px; line-height:1.45; margin:22px 0 6px; color:var(--accent-d)}
+p{margin:0 0 10px; color:var(--body-text); overflow-wrap:break-word}
+ul,ol{margin:0 0 10px; padding-left:20px}
+li{margin:3px 0; color:var(--body-text); overflow-wrap:anywhere}
+b{color:var(--ink)}
+code{font-family:var(--mono); font-size:12.6px; background:var(--code-bg); border:1px solid var(--line-2);
+  padding:1px 6px; border-radius:5px; color:var(--accent-d)}
+kbd{font-family:var(--mono); font-size:11.5px; padding:1px 6px; border:1px solid var(--line); border-bottom-width:2px;
+  border-radius:5px; background:var(--paper); color:var(--ink); white-space:nowrap}
+.chip{display:inline-flex; align-items:center; gap:6px; padding:2px 10px; border-radius:999px;
+  font-size:12px; font-weight:600; background:var(--accent-l); color:var(--accent-d); border:1px solid var(--chip-border)}
+.note{margin:12px 0 4px; padding:10px 14px; border:1px solid var(--chip-border); border-left-width:3px;
+  border-radius:8px; background:var(--note-grad); color:var(--note-text); font-size:13.4px}
+.grid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+.mini{background:var(--card-bg); border:1px solid var(--line); border-radius:11px; padding:12px 14px}
+.mini .k{font-family:var(--mono); font-size:10.5px; letter-spacing:.12em; color:var(--accent); font-weight:600}
+.mini p{margin:4px 0 0; font-size:13.6px; line-height:1.65}
+table{width:100%; border-collapse:collapse; margin:10px 0 14px; font-size:13.6px}
+th,td{padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; text-align:left}
+th{font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--mute); font-weight:600; background:var(--card-bg)}
+tr:last-child td{border-bottom:0}
+td:first-child{white-space:nowrap; font-weight:600; color:var(--ink)}
+td code{white-space:nowrap}
+
+/* nine transform grid */
+.xf{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0 6px}
+.xf div{border:1px solid var(--line); border-radius:10px; background:var(--card-bg); padding:10px 8px; text-align:center; font-size:12.6px; line-height:1.4}
+.xf div > span:first-child{display:block; font-family:var(--mono); font-size:15px; color:var(--accent); line-height:1; margin-bottom:4px}
+.links{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+.foot{margin-top:20px; padding:2px 4px 10px; color:var(--mute); font-size:12.3px; text-align:center; line-height:1.75}
+.footlinks{display:flex; flex-wrap:wrap; justify-content:center; gap:6px 16px; margin-bottom:8px}
+.footlinks a{color:var(--sub); font-weight:600}
+hr.sep{height:1px; border:0; background:var(--line); margin:24px 0}
+
+/* bilingual */
+.en{display:none}
+body.lang-en .zh{display:none}
+body.lang-en .en{display:revert}
+body.lang-en .toc a .zh{display:none}
+
+@media (max-width:900px){
+  .wrap{grid-template-columns:minmax(0,1fr); column-gap:0}
+  .doc-side{position:static; top:auto}
+  .doc-side .toc{max-height:none; overflow:visible; margin-bottom:16px}
+  .toc ol{grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 14px}
+}
+@media (max-width:760px){
+  .wrap{padding:22px 14px 56px}
+  .dochead{padding-right:0; padding-top:56px; gap:11px; flex-wrap:wrap}
+  .logo{width:38px; height:38px; margin-top:2px}
+  .sheet{padding:20px 17px 24px; border-radius:12px}
+  .toc{padding:18px 17px}
+  .toc ol{grid-template-columns:1fr; gap:2px}
+  .actions{top:calc(8px + env(safe-area-inset-top,0px)); right:9px}
+  .lang button{min-height:36px; padding:6px 11px; font-size:12px}
+  .theme{width:36px; height:36px}
+  .grid2{grid-template-columns:1fr}
+  table{font-size:13px}
+  th,td{padding:7px 8px}
+}
+@media (max-width:420px){
+  body{font-size:14.4px}
+  .dochead{padding-top:52px}
+  .headbtns{width:100%}
+  .headbtns .btnline{flex:1 1 auto; min-height:38px; font-size:12.5px}
+  .xf div{font-size:11.8px; padding:8px 4px}
+  .actions{padding:2px}
+  .lang button{padding:6px 9px; font-size:11.5px}
+}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto} *{transition:none!important}}
 </style>
 </head>
 <body>
-<div class="card">
-  <b>说明书已合并到「使用指南」</b>
-  <p>设置里的「关于」、完整说明书与使用指南现在合成一页，正在跳转…<br>
-     The manual and the About page are now one document — taking you there…</p>
-  <a href="./guide.html">打开使用指南 / Open the guide</a>
+<div class="wrap">
+
+  <div class="actions" role="group" aria-label="语言与主题 / Language and theme">
+    <nav class="lang" aria-label="语言 / Language">
+      <button type="button" id="lg-zh" class="on" aria-pressed="true">中文</button>
+      <button type="button" id="lg-en" aria-pressed="false">EN</button>
+    </nav>
+    <button id="themeBtn" class="theme" type="button" aria-label="切换到深色模式 / Switch to dark theme" title="切换到深色模式 / Switch to dark theme" aria-pressed="false">
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+    </button>
+  </div>
+
+  
+  <header class="dochead">
+    <img class="logo" src="../assets/calc.png" alt="" width="46" height="46">
+    <div class="titles">
+      <p class="eyebrow">METER GOMOKU · WEB</p>
+      <h1><span class="zh">关于</span><span class="en">About</span></h1>
+      <p class="docmeta">Meter Web Calculator · v20261104e · 15×15 · Rapfi NNUE / WASM</p>
+    </div>
+    <div class="headbtns">
+      <a class="btnline primary" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg><span class="zh">返回计算器</span><span class="en">Back to calculator</span></a>
+      <a class="btnline" href="./guide.html"><span class="zh">使用指南</span><span class="en">User guide</span></a>
+    </div>
+  </header>
+
+  <aside class="doc-side">
+  <nav class="sheet toc" aria-label="目录 / Contents">
+    <h2><span class="zh">目录</span><span class="en">Contents</span></h2>
+    <ol id="tocList"></ol>
+  </nav>
+  </aside>
+
+
+  <main class="doc-main">
+
+  <section class="sheet" id="about">
+    <h2><span class="num">01</span><span class="zh">关于计算器</span><span class="en">About the calculator</span></h2>
+    <p class="zh"><b>Meter Web 五子棋计算器</b>是 Meter Gomoku 项目的网页版本：棋盘、功能键、分析调度、计分与界面由本项目编写；搜索引擎使用 <b>Rapfi</b>（作者 dhbloo）的官方 WebAssembly 构建与 NNUE 权重。所有计算都在本机浏览器完成，棋局不会上传。</p>
+    <p class="en"><b>Meter Web Gomoku Calculator</b> is the web edition of the Meter Gomoku project: board, keys, search scheduling, scoring and UI are ours, while the engine is the official WebAssembly build of <b>Rapfi</b> (by dhbloo) with its NNUE weights. Everything runs in your browser and no position is uploaded.</p>
+    <div class="grid2">
+      <div class="mini"><div class="k">LOCAL</div><p class="zh">无需服务器，断网后已缓存的页面仍可打开。</p><p class="en">No server involved; a cached page still opens offline.</p></div>
+      <div class="mini"><div class="k">VERSION</div><p class="zh">网页计算器 <b>v20261104e</b>；桌面训练器 <b>v4.48</b>。</p><p class="en">Web calculator <b>v20261104e</b>; desktop trainer <b>v4.48</b>.</p></div>
+    </div>
+  </section>
+
+  <section class="sheet" id="engine">
+    <h2><span class="num">02</span><span class="zh">引擎与算法</span><span class="en">Engine &amp; algorithms</span></h2>
+    <p class="zh">普通分析使用多主变（multi-PV）：设置里的「分析点数」N 决定同时给出 N 个互不重合的根着法与 N 条路线；搜索加深时 Rapfi 会重排根着法，较早的次优点被更强的点替换，标记与路线随之迁移。扫描分析走独立的候选扫描通道，把大量空点用连续色阶标在棋盘上，再点一次扫描键会停止并落下最优点。</p>
+    <p class="en">Normal analysis uses multi-PV: the N in “Multi-PV” produces N distinct root moves and N lines. As the search deepens Rapfi re-sorts its root moves, so an early weaker point is replaced by a stronger one and the marker moves with its line. Scan analysis is a separate pipeline that paints many empty points with a continuous colour ramp; clicking the scan key again stops it and plays the best point.</p>
+    <table>
+      <tbody>
+        <tr><td>Engine</td><td>Rapfi NNUE · WebAssembly (official build)</td></tr>
+        <tr><td><span class="zh">权重</span><span class="en">Weights</span></td><td>NNUE 260809</td></tr>
+        <tr><td><span class="zh">评分视角</span><span class="en">Score view</span></td><td><span class="zh">行棋方；杀棋写作 +M57（距根 ply）</span><span class="en">Side to move; mates as +M57 (plies from root)</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="sheet" id="licence">
+    <h2><span class="num">03</span><span class="zh">授权与致谢</span><span class="en">Licence &amp; credits</span></h2>
+    <p class="zh">Rapfi 引擎与权重按其上游许可证 <b>GPL-3.0</b> 发布；仓库内附 NOTICE 与许可文本。网页界面、站点与文档归 Meter Gomoku 项目所有。感谢 Rapfi 作者 dhbloo 提供的引擎与权重，以及 YixinBoard 与 gomocalc 对扫描、多主变展示方式的公开参考。</p>
+    <p class="en">The Rapfi engine and weights are distributed under their upstream <b>GPL-3.0</b> licence; the repository includes the NOTICE and licence text. The web UI, site and documentation belong to the Meter Gomoku project. Thanks to Rapfi’s author dhbloo for the engine and weights, and to YixinBoard and gomocalc for their public references on scan and multi-PV presentation.</p>
+  </section>
+
+  <section class="sheet" id="links">
+    <h2><span class="num">04</span><span class="zh">入口与链接</span><span class="en">Links</span></h2>
+    <p class="zh">计算器、完整指南、项目主页与桌面版下载都在下面；设置里的「关于」直接打开本页。</p>
+    <p class="en">Calculator, full guide, project home and desktop download are below; the About entry in Settings opens this page.</p>
+    <div class="links">
+      <a class="btnline primary" href="./"><span class="zh">打开计算器</span><span class="en">Open calculator</span></a>
+      <a class="btnline" href="./guide.html"><span class="zh">使用指南</span><span class="en">User guide</span></a>
+      <a class="btnline" href="https://github.com/xiaoxu4452/Meter-Gomoku" target="_blank" rel="noopener">GitHub</a>
+      <a class="btnline" href="https://xiaoxu4452.github.io/Meter-Gomoku/" target="_blank" rel="noopener"><span class="zh">官网 / 桌面软件</span><span class="en">Website / desktop app</span></a>
+    </div>
+  </section>
+
+  </main>
+
+
+  <footer class="foot">
+    <div class="footlinks">
+      <a href="./"><span class="zh">计算器</span><span class="en">Calculator</span></a>
+      <a href="https://xiaoxu4452.github.io/Meter-Gomoku/">Meter Gomoku</a>
+    </div>
+    <span class="zh">Meter Gomoku · Web 计算器 · 2026</span>
+    <span class="en">Meter Gomoku · Web calculator · 2026</span>
+  </footer>
 </div>
+
+<script>
+(function () {
+  var THEME_KEYS = ['mg.site.theme', 'mgcalc.theme'];
+  var LANG_KEYS = ['mg.site.lang', 'mgcalc.lang'];
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var meta = document.getElementById('themeColor');
+  var themeBtn = document.getElementById('themeBtn');
+  var bZh = document.getElementById('lg-zh'), bEn = document.getElementById('lg-en');
+  var TITLE = { zh: '关于 · 五子棋计算器', en: 'About · Gomoku Calculator' };
+
+  function readTheme() {
+    var t = '';
+    try { t = localStorage.getItem(THEME_KEYS[0]) || localStorage.getItem(THEME_KEYS[1]) || ''; } catch (e) {}
+    if (t === 'light' || t === 'dark') return t;
+    return mq && mq.matches ? 'dark' : 'light';
+  }
+  function applyTheme(t) {
+    var dark = t === 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.style.colorScheme = t;
+    if (meta) meta.setAttribute('content', dark ? '#0b1016' : '#edf1f6');
+    if (themeBtn) {
+      var label = dark ? '切换到浅色模式 / Switch to light theme' : '切换到深色模式 / Switch to dark theme';
+      themeBtn.setAttribute('aria-label', label);
+      themeBtn.title = label;
+      themeBtn.setAttribute('aria-pressed', String(dark));
+    }
+  }
+  function saveTheme(t) {
+    try { localStorage.setItem(THEME_KEYS[0], t); localStorage.setItem(THEME_KEYS[1], t); } catch (e) {}
+    applyTheme(t);
+  }
+  function readLang() {
+    var l = '';
+    try { l = localStorage.getItem(LANG_KEYS[0]) || localStorage.getItem(LANG_KEYS[1]) || ''; } catch (e) {}
+    if (l !== 'zh' && l !== 'en') l = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+    return l;
+  }
+  function applyLang(l) {
+    var en = l === 'en';
+    document.documentElement.lang = en ? 'en' : 'zh-CN';
+    document.body.classList.toggle('lang-en', en);
+    document.title = TITLE[en ? 'en' : 'zh'];
+    if (bZh) { bZh.classList.toggle('on', !en); bZh.setAttribute('aria-pressed', String(!en)); }
+    if (bEn) { bEn.classList.toggle('on', en); bEn.setAttribute('aria-pressed', String(en)); }
+  }
+  function saveLang(l) {
+    try { localStorage.setItem(LANG_KEYS[0], l); localStorage.setItem(LANG_KEYS[1], l); } catch (e) {}
+    applyLang(l);
+  }
+
+  applyTheme(readTheme());
+  applyLang(readLang());
+
+  if (themeBtn) themeBtn.addEventListener('click', function () {
+    saveTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  if (bZh) bZh.addEventListener('click', function () { saveLang('zh'); });
+  if (bEn) bEn.addEventListener('click', function () { saveLang('en'); });
+
+  if (mq) {
+    var onSys = function () {
+      var saved = '';
+      try { saved = localStorage.getItem(THEME_KEYS[0]) || localStorage.getItem(THEME_KEYS[1]) || ''; } catch (e) {}
+      if (!saved) applyTheme(mq.matches ? 'dark' : 'light');
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onSys);
+    else if (mq.addListener) mq.addListener(onSys);
+  }
+
+  window.addEventListener('storage', function (e) {
+    if (e.key === null || THEME_KEYS.indexOf(e.key) >= 0) applyTheme(readTheme());
+    if (e.key === null || LANG_KEYS.indexOf(e.key) >= 0) applyLang(readLang());
+  });
+})();
+</script>
+
+<script>
+/* the contents rail is built from the sections, so adding a chapter extends the
+   rail without touching this list; the current chapter stays highlighted */
+(function () {
+  var list = document.getElementById('tocList');
+  if (!list) return;
+  var secs = [].slice.call(document.querySelectorAll('.doc-main > section[id]'));
+  var links = [];
+  secs.forEach(function (sec) {
+    var h = sec.querySelector('h2');
+    if (!h) return;
+    var num = h.querySelector('.num');
+    var zh = h.querySelector('.zh');
+    var en = h.querySelector('.en');
+    var li = document.createElement('li');
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    if (num) {
+      var b = document.createElement('b');
+      b.textContent = num.textContent.trim();
+      a.appendChild(b);
+    }
+    if (zh) {
+      var sz = document.createElement('span');
+      sz.className = 'zh';
+      sz.textContent = zh.textContent.trim();
+      a.appendChild(sz);
+    }
+    if (en) {
+      var se = document.createElement('span');
+      se.className = 'en';
+      se.textContent = en.textContent.trim();
+      a.appendChild(se);
+    }
+    li.appendChild(a);
+    list.appendChild(li);
+    links.push({ a: a, sec: sec });
+  });
+  if (!links.length) return;
+  var ticking = false;
+  function sync() {
+    ticking = false;
+    var line = window.innerHeight * 0.3;
+    var active = links[0];
+    for (var i = 0; i < links.length; i++) {
+      if (links[i].sec.getBoundingClientRect().top - line <= 0) active = links[i];
+    }
+    links.forEach(function (x) { x.a.classList.toggle('on', x === active); });
+  }
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(sync);
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  sync();
+})();
+</script>
 </body>
 </html>
