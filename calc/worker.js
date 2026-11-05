@@ -977,12 +977,12 @@ function startSearch(job) {
   pvIdx = -1;
   curNumPv = 0;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
-  /* A scan covers the whole board, so it forces Rapfi's widest candidate range
-     (5 = FULL_BOARD) for its run; the next job restores the user's range. This
-     one option change makes Rapfi rebuild its board and clear the TT, so it is
-     the only hash reset a scan performs — STOP / mode switches no longer wipe
-     the table. */
-  applyConfig(job.threads, job.hashMB, active.scan ? 5 : job.caution, job.rule, false);
+  /* YixinBoard runs YXSEARCHDEFEND with caution 3 = SQUARE3_LINE4 (its
+     config.toml default): candidate cells are a 7x7 square around every stone
+     plus the 8 lines out to 4 cells. That bounded set is what keeps a scan at
+     ~100 root moves instead of all 224 empties. The next job restores the
+     user's own range. */
+  applyConfig(job.threads, job.hashMB, active.scan ? 3 : job.caution, job.rule, false);
   /* a scan owns every thread, so background pondering stays off for its run */
   applyStrength({
     maxDepth: job.maxDepth, maxNodes: job.maxNodes, strength: job.strength,
@@ -991,8 +991,8 @@ function startSearch(job) {
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
   sendBoard(job.moves);
   /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
-     movesLeft()); the candidate range still prunes far-away cells. YXNBEST N is
-     the strict multi-PV path: one engine PV per rank, no repeated main line. */
+     movesLeft()); the SQUARE3_LINE4 range above bounds that list geometrically.
+     YXNBEST N is the strict multi-PV path: one engine PV per rank. */
   send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
      iteration can run long past it), so the scan gets an explicit wall-clock

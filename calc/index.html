@@ -54,7 +54,7 @@
     <canvas id="board" role="img" aria-label="15×15 五子棋棋盘"></canvas>
   </section>
 
-  <div class="stepbar steps4" role="group" aria-label="行棋控制">
+  <div class="stepbar steps5row" role="group" aria-label="行棋控制">
     <button id="btnUndo" class="step-btn" type="button" disabled data-i18n-title="tipUndo">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 7 4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 6 6"/></svg>
       <span class="step-txt" data-i18n="undo">上一步</span>
@@ -71,17 +71,23 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/><path d="M13 7.5h4.5M17.5 7.5 15.5 5.5M17.5 7.5l-2 2"/></svg>
       <span class="step-txt" data-i18n="transform">变换</span>
     </button>
+    <button id="btnRestart" class="step-btn key-danger" type="button" data-i18n-title="tipRestart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.2"/><path d="M3 4.5v4.8h4.8"/></svg>
+      <span class="step-txt" data-i18n="restart">重开一局</span>
+    </button>
   </div>
 
-  <div class="stepbar steps5" role="group" aria-label="分析功能键">
-    <button id="btnAIB" class="step-btn" type="button" aria-pressed="false" data-i18n-title="tipAiB">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.4" fill="#14171a" stroke="currentColor" stroke-width="1.6"/></svg>
-      <span class="step-txt" data-i18n="aiB">AI执黑</span>
-    </button>
-    <button id="btnAIW" class="step-btn" type="button" aria-pressed="false" data-i18n-title="tipAiW">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.4" fill="#faf9f5" stroke="currentColor" stroke-width="1.6"/></svg>
-      <span class="step-txt" data-i18n="aiW">AI执白</span>
-    </button>
+  <div class="stepbar steps6row" role="group" aria-label="分析功能键">
+    <div class="seg-block seg-ai">
+      <button id="btnAIB" class="step-btn seg-btn" type="button" aria-pressed="false" data-i18n-title="tipAiB">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.4" fill="#14171a" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="step-txt" data-i18n="aiB">AI执黑</span>
+      </button>
+      <button id="btnAIW" class="step-btn seg-btn" type="button" aria-pressed="false" data-i18n-title="tipAiW">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.4" fill="#faf9f5" stroke="currentColor" stroke-width="1.6"/></svg>
+        <span class="step-txt" data-i18n="aiW">AI执白</span>
+      </button>
+    </div>
     <button id="btnAnalysis" class="step-btn key-analysis" type="button" aria-pressed="false" data-i18n-title="tipAnalysis">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 13h3l2-6 3 12 3-9 2 3h4"/></svg>
       <span class="step-txt" data-i18n="analysis">计算分析</span>
@@ -90,10 +96,15 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.4" y="3.4" width="7" height="7" rx="1.2"/><rect x="13.6" y="3.4" width="7" height="7" rx="1.2"/><rect x="3.4" y="13.6" width="7" height="7" rx="1.2"/><path d="M13.6 13.6h7v7h-7z"/></svg>
       <span class="step-txt" data-i18n="scanLabel">扫描分析</span>
     </button>
-    <button id="btnBalance" class="step-btn key-balance" type="button" aria-pressed="false" data-i18n-title="tipBalance">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M4 7h16M7 7l-3.5 8h7L7 7ZM17 7l-3.5 8h7L17 7Z"/></svg>
-      <span class="step-txt" data-i18n="balance">平衡点</span>
-    </button>
+    <div class="seg-block seg-bal">
+      <button id="btnBalance" class="step-btn seg-btn" type="button" aria-pressed="false" data-i18n-title="tipBalance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M4 7h16M7 7l-3.5 8h7L7 7ZM17 7l-3.5 8h7L17 7Z"/></svg>
+        <span class="step-txt" data-i18n="balance">平衡点</span>
+      </button>
+      <button id="balCount" class="step-btn seg-btn bal-count" type="button" data-i18n-title="tipBalCount">
+        <b id="balCountNum">1</b><span class="step-txt" data-i18n="points">点</span>
+      </button>
+    </div>
   </div>
 
   <div id="xfPanel" class="xf-panel" role="dialog" aria-modal="false" aria-labelledby="xfTitle">
@@ -114,13 +125,6 @@
       <div class="xf-hint" data-i18n="xfHint">按对称性改变局面；手数与先后手保留，分析结果会按新局面重算</div>
     </div>
   </div>
-
-  <nav class="tools" aria-label="对局操作">
-    <button id="btnRestart" class="tool danger" type="button" data-i18n-title="tipRestart" data-i18n="restart">重开一局</button>
-    <button id="balCount" class="bal-count" type="button" data-i18n-title="tipBalCount">
-      <b id="balCountNum">1</b><span data-i18n="points">点</span>
-    </button>
-  </nav>
 
   <section class="stats" aria-label="搜索统计">
     <div class="stat"><span class="k" data-i18n="depth">深度</span><b id="stDepth" class="v">–</b></div>

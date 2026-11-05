@@ -39,7 +39,7 @@ const I18N = {
   zh: {
     title: '五子棋计算器', subtitle: 'Meter Gomoku · Web',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
-    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止并落子', balance: '平衡点', points: '点',
+    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止', balance: '平衡点', points: '点',
     playOne: '计算一手',
     depth: '深度', speed: '速度', nodes: '节点', time: '用时',
     codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标', codeAltLabel: '坐标',
@@ -79,7 +79,7 @@ const I18N = {
     transform: '变换', transformTitle: '变换局面', tipTransform: '按对称或平移改变当前局面',
     xfRot: '旋转 90°', xfFlipH: '左右翻转', xfFlipV: '上下翻转', xfDiag: '主对角', xfAnti: '副对角',
     xfLeft: '左移', xfRight: '右移', xfUp: '上移', xfDown: '下移',
-    xfHint: '按对称性改变局面；手数与先后手保留，分析结果会按新局面重算',
+    xfHint: '对称变换或逐格平移（每次一格）；手数与先后手保留，分析结果会按新局面重算',
     tTransformed: '局面已变换（第 {n} 手位置同步）', tXfEmpty: '空盘不需要变换', tXfNoRoom: '该方向已贴边，无法继续平移',
     evalBlack: '黑子', evalWhite: '白子',
     reset: '恢复默认参数', done: '完成',
@@ -131,7 +131,7 @@ const I18N = {
   en: {
     title: 'Gomoku Calculator', subtitle: 'Meter Gomoku · Web',
     undo: 'Undo', redo: 'Redo', restart: 'New game', restartConfirm: 'Confirm',
-    aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop & play', balance: 'Balance', points: 'pt',
+    aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop', balance: 'Balance', points: 'pt',
     playOne: 'Play one',
     depth: 'Depth', speed: 'Speed', nodes: 'Nodes', time: 'Time',
     codeTitle: 'Position code', codeHint: 'letters + number, or x,y', codeAltLabel: 'coords',
@@ -171,7 +171,7 @@ const I18N = {
     transform: 'Transform', transformTitle: 'Transform position', tipTransform: 'Rotate, flip or shift the position',
     xfRot: 'Rotate 90°', xfFlipH: 'Flip H', xfFlipV: 'Flip V', xfDiag: 'Main diag.', xfAnti: 'Anti diag.',
     xfLeft: 'Shift left', xfRight: 'Shift right', xfUp: 'Shift up', xfDown: 'Shift down',
-    xfHint: 'Changes the position by symmetry; move order and sides are kept, analysis restarts on the new position',
+    xfHint: 'Symmetry or one-cell steps; move order and sides are kept, analysis restarts on the new position',
     tTransformed: 'Position transformed (last move moved too)', tXfEmpty: 'Nothing to transform on an empty board', tXfNoRoom: 'Already touching that edge — cannot shift further',
     evalBlack: 'Black', evalWhite: 'White',
     reset: 'Reset defaults', done: 'Done',
@@ -871,9 +871,12 @@ function drawMarks() {
       const dev = Math.min(1, Math.abs(p - 0.5) * 2);
       const sat = best ? 72 : 32 + 52 * dev;
       const l = dark ? 44 : 58;
+      /* losing (red) tiles stay quieter so a busy board does not read as a wall
+         of red: the fill drops to .56 while the label keeps its full contrast */
+      const alpha = best ? 0.82 : (p <= 0.5 ? 0.56 : 0.72);
       bctx.beginPath();
       bctx.rect(x0, y0, side, side);
-      bctx.fillStyle = 'hsla(' + hue.toFixed(1) + ',' + sat.toFixed(1) + '%,' + l + '%,.80)';
+      bctx.fillStyle = 'hsla(' + hue.toFixed(1) + ',' + sat.toFixed(1) + '%,' + l + '%,' + alpha + ')';
       bctx.fill();
       bctx.lineWidth = Math.max(1 * DPR, geo.cell * 0.028);
       bctx.strokeStyle = 'hsl(' + hue.toFixed(1) + ',' + Math.max(sat, 45).toFixed(1) + '%,' + (dark ? 30 : 36) + '%)';
@@ -1602,35 +1605,80 @@ function scheduleDebug() {
      the first move is the fix for the old double-marker bug: a stale PV slot
      may repeat an existing root move, and taking N array entries verbatim then
      painted two markers on one crossing.
-   - scan: every candidate the engine kept in this frame (up to 224 = 15x15-1),
-     again in engine rank order. Rows are keyed by the root move, refreshed in
-     place, and dropped when the engine prunes the move. */
+   - scan: the strongest candidates the engine kept in this frame, but only
+     inside YixinBoard's SQUARE3_LINE4 candidate area and capped at SCAN_MAX.
+     Rows are keyed by the root move, refreshed in place, and dropped when the
+     engine prunes the move. */
 
-const SCAN_MAX = 224;
+/* YixinBoard's candidate geometry (Rapfi board.cpp expandCandArea): a 7x7
+   square around every stone plus the eight lines out to four cells. This is the
+   SQUARE3_LINE4 range the scan now sends as CAUTION_FACTOR 3, reproduced here so
+   the page can never paint a distant cell even if an older frame slips through.
+   Empty board: a 7x7 patch around the centre, so a first scan still has points. */
+const SCAN_LINE = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
+
+function scanAreaSet() {
+  const set = new Set();
+  if (!S.moves.length) {
+    for (let y = 4; y <= 10; y++) for (let x = 4; x <= 10; x++) set.add(x + ',' + y);
+    return set;
+  }
+  for (const s of S.moves) {
+    for (let dy = -3; dy <= 3; dy++) {
+      for (let dx = -3; dx <= 3; dx++) {
+        const x = s.x + dx, y = s.y + dy;
+        if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) set.add(x + ',' + y);
+      }
+    }
+    for (const [ux, uy] of SCAN_LINE) {
+      for (let d = 1; d <= 4; d++) {
+        const x = s.x + ux * d, y = s.y + uy * d;
+        if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) set.add(x + ',' + y);
+      }
+    }
+  }
+  return set;
+}
+
+/* display cap: rank the geometric set by win rate and keep the best 48, so a
+   busy board shows three dozen readable tiles instead of a wall of colour */
+const SCAN_MAX = 48;
 
 function candKey(c) { return c && c.move ? c.move[0] + ',' + c.move[1] : ''; }
 
 function applyScanCandidates(cands) {
-  const prev = new Map(S.scanRows.map((r) => [r.key, r]));
-  const rows = [];
+  /* A scan is cumulative: early frames carry the shallow evaluations of the
+     whole candidate set, while very deep frames often collapse to a single
+     forced line. Keeping only the newest frame would make dozens of tiles
+     disappear at once, so rows are merged by root move (refreshed in place) and
+     then ranked by strength before the cap. */
+  const area = scanAreaSet();
+  const occupied = new Set(S.moves.map((m) => m.x + ',' + m.y));
+  const rows = S.scanRows.filter((r) => area.has(r.key) && !occupied.has(r.key));
+  const byKey = new Map(rows.map((r) => [r.key, r]));
   const seen = new Set();
   for (const c of cands) {
     const key = candKey(c);
     if (!key || seen.has(key)) continue;
+    const x = c.move[0], y = 14 - c.move[1];
+    /* geometry + occupancy: only cells Rapfi's bounded candidate area would
+       contain. */
+    if (!area.has(x + ',' + y) || occupied.has(x + ',' + y)) continue;
     seen.add(key);
-    let r = prev.get(key);
-    if (!r) r = { key, x: c.move[0], y: 14 - c.move[1] };
-    else { r.x = c.move[0]; r.y = 14 - c.move[1]; }
-    r.rank = rows.length;
+    let r = byKey.get(key);
+    if (!r) { r = { key, x, y }; rows.push(r); byKey.set(key, r); }
+    else { r.x = x; r.y = y; }
     r.cand = c;
     r.depth = c.depth;
     r.wr = normWr(c.winrate);
     r.ev = parseEval(c.eval);
     r.evTxt = fmtScore(r.ev);
     r.line = c.line;
-    rows.push(r);
-    if (rows.length >= SCAN_MAX) break;
   }
+  const strength = (r) => (r.wr != null ? r.wr : (r.ev != null ? 1 / (1 + Math.exp(-r.ev / 200)) : 0));
+  rows.sort((a, b) => strength(b) - strength(a));
+  rows.length = Math.min(rows.length, SCAN_MAX);
+  rows.forEach((r, n) => { r.rank = n; });
   S.scanRows = rows;
   S.scanBest = rows[0] || null;
   S.marks = rows.map((r, n) => ({
@@ -2021,10 +2069,11 @@ function redoMove() {
 }
 
 /* ============================================================ transforms
-   Same nine operations as gomocalc: four sym metries plus shifts that push the
-   whole position against one edge. Move order (手数) and colours are untouched,
-   so undo/redo history stays valid; only the coordinates move. Analysis is
-   stopped first and restarted on the transformed position. */
+   Four symmetry operations plus a one-cell pan. Pan never jumps to the edge:
+   every click moves the whole position by exactly one grid step, and the
+   direction is disabled once a stone would leave the board. Move order (手数)
+   and colours are untouched, so undo/redo history stays valid; only the
+   coordinates move. Analysis is stopped first and restarted on the new position. */
 const XF_SYMMETRY = {
   rot: (x, y) => [SIZE - 1 - y, x],
   fliph: (x, y) => [SIZE - 1 - x, y],
@@ -2032,26 +2081,50 @@ const XF_SYMMETRY = {
   diag: (x, y) => [y, x],
   anti: (x, y) => [SIZE - 1 - y, SIZE - 1 - x],
 };
+const XF_PAN = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
+
+function xfHasRoom(kind) {
+  const all = S.moves.concat(S.redo);
+  if (!all.length) return false;
+  const minX = Math.min(...all.map((m) => m.x));
+  const maxX = Math.max(...all.map((m) => m.x));
+  const minY = Math.min(...all.map((m) => m.y));
+  const maxY = Math.max(...all.map((m) => m.y));
+  if (kind === 'left') return minX > 0;
+  if (kind === 'right') return maxX < SIZE - 1;
+  if (kind === 'up') return minY > 0;
+  if (kind === 'down') return maxY < SIZE - 1;
+  return true;
+}
+
+/* grey out a pan direction as soon as the position touches that edge */
+function updateXfBounds() {
+  for (const kind of Object.keys(XF_PAN)) {
+    const el = document.querySelector('[data-xf="' + kind + '"]');
+    if (el) {
+      const room = xfHasRoom(kind);
+      el.disabled = !room;
+      el.setAttribute('aria-disabled', String(!room));
+    }
+  }
+}
 
 function applyTransform(kind) {
   if (!S.moves.length && !S.redo.length) { toast(T('tXfEmpty')); return; }
-  haltSearch();
-  const before = formatCode();
   let map;
   if (XF_SYMMETRY[kind]) {
+    haltSearch();
     const f = XF_SYMMETRY[kind];
     map = (m) => ({ x: f(m.x, m.y)[0], y: f(m.x, m.y)[1], c: m.c });
-  } else {
-    const all = S.moves.concat(S.redo);
-    const minX = Math.min(...all.map((m) => m.x));
-    const maxX = Math.max(...all.map((m) => m.x));
-    const minY = Math.min(...all.map((m) => m.y));
-    const maxY = Math.max(...all.map((m) => m.y));
-    const dx = kind === 'left' ? -minX : kind === 'right' ? SIZE - 1 - maxX : 0;
-    const dy = kind === 'up' ? -minY : kind === 'down' ? SIZE - 1 - maxY : 0;
-    if (!dx && !dy) { toast(T('tXfNoRoom')); return; }
+  } else if (XF_PAN[kind]) {
+    if (!xfHasRoom(kind)) { toast(T('tXfNoRoom')); updateXfBounds(); return; }
+    haltSearch();
+    const [dx, dy] = XF_PAN[kind];
     map = (m) => ({ x: m.x + dx, y: m.y + dy, c: m.c });
+  } else {
+    return;
   }
+  const before = formatCode();
   S.moves = S.moves.map(map);
   S.redo = S.redo.map(map);
   /* a purely symmetric transform can leave the code untouched (e.g. a single
@@ -2069,6 +2142,7 @@ function applyTransform(kind) {
   resetPonder();
   enginePost({ t: 'reset', moves: engineMoves(), rule: S.settings.rule });
   boardChanged({ keepRedo: true });
+  updateXfBounds();
   toast(T('tTransformed', { n: S.moves.length }));
 }
 
@@ -2079,25 +2153,34 @@ function toggleXfPanel(open) {
   p.classList.toggle('open', want);
   document.body.classList.toggle('xf-open', want);
   if (b) b.setAttribute('aria-expanded', String(want));
+  if (want) updateXfBounds();
 }
 
+
+function setRestartLabel(text) {
+  const btn = $('btnRestart');
+  if (!btn) return;
+  const span = btn.querySelector('.step-txt');
+  if (span) span.textContent = text;
+  else btn.textContent = text;
+}
 
 function restartGame(force) {
   const btn = $('btnRestart');
   if (!force && S.moves.length && !S.winner && !btn.classList.contains('confirm')) {
     toast(T('tRestartConfirm'));
     btn.classList.add('confirm');
-    btn.textContent = T('restartConfirm');
+    setRestartLabel(T('restartConfirm'));
     clearTimeout(restartConfirmTimer);
     restartConfirmTimer = setTimeout(() => {
       btn.classList.remove('confirm');
-      btn.textContent = T('restart');
+      setRestartLabel(T('restart'));
     }, 2600);
     return;
   }
   clearTimeout(restartConfirmTimer);
   btn.classList.remove('confirm');
-  btn.textContent = T('restart');
+  setRestartLabel(T('restart'));
   haltSearch();
   S.analysis = false;
   S.balance = 0;
@@ -2424,7 +2507,7 @@ function applyLang(lang) {
   } else {
     chip.textContent = T('engineIdle');
   }
-  $('btnRestart').textContent = T('restart');
+  setRestartLabel(T('restart'));
   syncSettingsUI();
   updateAll();
   writeStats();

@@ -70,24 +70,43 @@ html[data-theme="dark"] .icon-btn .icon-sun{display:block}
   outline:1px solid rgba(20,30,20,.10);outline-offset:-1px;background:var(--board);margin:0 auto}
 html[data-theme="dark"] #board{outline-color:rgba(0,0,0,.45)}
 
-.stepbar{display:grid;gap:5px;margin:8px auto 0}
-/* row 1: board controls, row 2: AI + analysis keys (slightly smaller) */
-.steps4{grid-template-columns:repeat(4,minmax(0,1fr))}
-.steps5{grid-template-columns:repeat(5,minmax(0,1fr));margin-top:6px}
-.step-btn{display:flex;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:44px;
-  padding:0 4px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--sub);
-  font-size:11.5px;font-weight:600;white-space:nowrap;transition:.15s}
-.steps5 .step-btn{min-height:40px;font-size:11px;gap:3px}
-.steps5 .step-btn svg{width:14px;height:14px}
-.step-btn svg{width:16px;height:16px;display:block;flex:0 0 auto}
-.step-btn .step-txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.stepbar{display:grid;gap:4px;margin:8px auto 0}
+/* row 1: 5 board controls; row 2: a 6-cell grid whose AI and balance halves
+   are each one segmented block spanning two cells. Never wraps. */
+.steps5row{grid-template-columns:repeat(5,minmax(0,1fr))}
+.steps6row{grid-template-columns:repeat(6,minmax(0,1fr));margin-top:4px}
+.step-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;min-height:42px;
+  padding:2px 2px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--sub);
+  font-size:10.5px;font-weight:600;line-height:1.15;white-space:nowrap;transition:.15s}
+.step-btn svg{width:13px;height:13px;display:block;flex:0 0 auto}
+.step-btn .step-txt{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .step-btn:hover:not(:disabled){border-color:var(--btn-border-hover);color:var(--ink);background:var(--nav-hover)}
 .step-btn:disabled{opacity:.42;cursor:default}
 .step-btn.key-play{color:var(--accent-d);border-color:var(--chip-border);background:var(--accent-l)}
 .step-btn.key-play:hover:not(:disabled){border-color:var(--accent);color:var(--accent-d)}
 .step-btn[aria-pressed="true"],.step-btn.key-scan[aria-pressed="true"]{
   border-color:var(--accent);background:var(--accent-l);color:var(--accent-d)}
-.step-btn.key-balance{font-size:11px}
+.step-btn.key-danger{color:#9c3131;border-color:#f0cccc;background:#fdf4f4}
+html[data-theme="dark"] .step-btn.key-danger{color:#f0a4a4;border-color:#5b2c2c;background:#251618}
+.step-btn.key-danger.confirm{background:#c9463c;border-color:#c9463c;color:#fff}
+html[data-theme="dark"] .step-btn.key-danger.confirm{background:#b53d34;border-color:#b53d34;color:#fff}
+
+/* segmented block: two half-width keys sharing one frame, divided by the same
+   hairline the settings rows use. The active half keeps its own accent fill. */
+.seg-block{grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;min-width:0;
+  border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);overflow:hidden}
+.seg-btn{border:0;border-radius:0;background:transparent;min-height:40px;padding:2px 1px}
+.seg-btn + .seg-btn{border-left:1px solid var(--line)}
+.seg-block .seg-btn[aria-pressed="true"]{background:var(--accent-l);color:var(--accent-d)}
+.seg-block .seg-btn:hover:not(:disabled){background:var(--nav-hover);color:var(--ink)}
+.seg-block .seg-btn[aria-pressed="true"]:hover:not(:disabled){background:var(--accent-l);color:var(--accent-d)}
+.seg-bal .bal-count{color:var(--mute)}
+.seg-bal .bal-count b{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);line-height:1}
+.seg-bal .bal-count .step-txt{font-size:9px;line-height:1}
+.seg-bal .bal-count:hover b{color:var(--ink)}
+/* the black-side AI half is violet, the white-side half keeps the blue accent */
+#btnAIB[aria-pressed="true"]{background:#f2ecff;color:#5b3fd6}
+html[data-theme="dark"] #btnAIB[aria-pressed="true"]{background:#251d40;color:#c9b8ff}
 
 /* nine-way position transform, floating over the board in frosted glass */
 .xf-panel{position:fixed;z-index:70;left:50%;bottom:calc(16px + env(safe-area-inset-bottom));
@@ -111,6 +130,8 @@ html[data-theme="dark"] .xf-panel{background:color-mix(in srgb,var(--card-bg) 76
   font-size:11px;font-weight:600;line-height:1.2;white-space:nowrap;transition:.15s}
 .xf-key:hover{border-color:var(--btn-border-hover);color:var(--ink);background:var(--nav-hover)}
 .xf-key:active{transform:translateY(1px)}
+.xf-key:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.xf-key:disabled .g{color:var(--mute)}
 .xf-key .g{font-family:var(--mono);font-size:17px;line-height:1;color:var(--accent-d)}
 .xf-hint{grid-column:1/-1;font-size:10px;color:var(--mute);text-align:center;margin-top:1px}
 body.xf-open .xf-panel{pointer-events:auto}
@@ -135,26 +156,6 @@ body.xf-open .xf-panel{pointer-events:auto}
   .set-link-txt span{font-size:10px}
 }
 
-.tools{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:6px;margin:8px auto 8px;max-width:340px}
-.bal-count{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
-  min-height:54px;border:1px solid var(--line);border-radius:9px;background:var(--btn-bg);color:var(--mute);font-size:9.5px;
-  font-weight:600;line-height:1.1;padding:4px 2px;transition:.16s;box-shadow:0 1px 2px rgba(20,40,70,.03)}
-.bal-count b{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);line-height:1}
-.bal-count:hover{border-color:var(--btn-border-hover)}
-.bal-count:active{transform:translateY(1px)}
-.tool.danger{color:#9c3131;border-color:#f0cccc;background:#fdf4f4}
-html[data-theme="dark"] .tool.danger{color:#f0a4a4;border-color:#5b2c2c;background:#251618}
-.tool.danger.confirm{background:#c9463c;border-color:#c9463c;color:#fff}
-html[data-theme="dark"] .tool.danger.confirm{background:#b53d34;border-color:#b53d34;color:#fff}
-.tool{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-  min-width:0;min-height:54px;padding:5px 2px 4px;border:1px solid var(--line);border-radius:9px;
-  background:var(--btn-bg);color:var(--sub);transition:.16s;box-shadow:0 1px 2px rgba(20,40,70,.03)}
-.tool:hover{border-color:var(--btn-border-hover);color:var(--ink)}
-.tool:active{transform:translateY(1px)}
-.tool[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-l);color:var(--accent-d)}
-/* the black-side AI key is violet, the white-side one keeps the blue accent */
-#btnAIB[aria-pressed="true"]{background:#f2ecff;border-color:#a78bff;color:#5b3fd6}
-html[data-theme="dark"] #btnAIB[aria-pressed="true"]{background:#251d40;border-color:#6f52d8;color:#c9b8ff}
 .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:var(--line);
   border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin:0 auto}
 .stat{background:var(--paper);padding:7px 6px 8px;min-width:0;display:flex;flex-direction:column;align-items:center;gap:2px}
@@ -460,8 +461,9 @@ html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);bord
 .loader.lazy .loader-actions .mini-btn{height:30px;font-size:11px}
 
 @media (max-width:560px){
-  /* the five AI/analysis keys wrap as 3+2, order preserved */
-  .steps5{grid-template-columns:repeat(3,minmax(0,1fr))}
+  /* both key rows are fixed 5/6-column grids: no wrapping, no third row */
+  .steps5row{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .steps6row{grid-template-columns:repeat(6,minmax(0,1fr))}
 }
 @media (max-width:360px){
   .app{padding-left:6px;padding-right:6px}
@@ -470,12 +472,11 @@ html[data-theme="dark"] .loader.lazy .loader-card{background:var(--card-bg);bord
   .logo{width:31px;height:31px;font-size:15px}
   .chip{font-size:9.5px;padding:0 7px;height:26px}
   .icon-btn{width:42px;height:42px}
-  .tools{gap:5px}
-  .tool{min-height:52px}
   .stat .v{font-size:12.5px}
   .route-row .route{font-size:12px}
-  .step-btn{font-size:10.5px;padding:0 3px;gap:2px}
-  .step-btn svg{width:13px;height:13px}
+  .step-btn{font-size:10px;padding:2px 1px;gap:1px}
+  .step-btn svg{width:12px;height:12px}
+  .seg-btn{padding:2px 0}
   .route-row .mv{padding:1px 2px}
 }
 @media (min-width:900px){
