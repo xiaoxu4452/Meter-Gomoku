@@ -66,6 +66,14 @@ html[data-theme="dark"] .chip.warn{background:#2a2216;border-color:#584827;color
 html[data-theme="dark"] .icon-btn .icon-moon{display:none}
 html[data-theme="dark"] .icon-btn .icon-sun{display:block}
 .board-shell{position:relative;width:100%;margin:0 auto;display:flex;justify-content:center}
+/* retract pause badge: sits over the board's top-right corner, never catches
+   clicks, and disappears as soon as the user plays a stone */
+.pause-hud{position:absolute;z-index:6;top:8px;right:8px;pointer-events:none;
+  padding:4px 9px;border-radius:8px;font-size:11px;line-height:1.35;letter-spacing:.01em;
+  background:var(--paper);color:var(--sub);border:1px solid var(--line);
+  box-shadow:0 6px 16px -12px rgba(16,40,72,.65)}
+.pause-hud[hidden]{display:none}
+html[data-theme="dark"] .pause-hud{box-shadow:0 6px 16px -12px rgba(0,0,0,.9)}
 #board{display:block;width:100%;height:auto;aspect-ratio:1/1;border-radius:2px;touch-action:manipulation;
   outline:1px solid rgba(20,30,20,.10);outline-offset:-1px;background:var(--board);margin:0 auto}
 html[data-theme="dark"] #board{outline-color:rgba(0,0,0,.45)}

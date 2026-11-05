@@ -93,6 +93,7 @@ const I18N = {
     balWindowIn: '在官方平衡窗口内', balWindowOut: '已超出平衡窗口（最接近均势）',
     tCopied: '局面代码已复制', tManualCopy: '请手动复制', tLoaded: '已载入 {n} 手', tBadCode: '局面代码无法识别',
     tRestartConfirm: '再点一次「重开一局」确认', tRestarted: '已重新开局', tUndo: '已撤回 {p}',
+    tAiPaused: '已暂停 AI，落子后恢复',
     tWinB: '黑方获胜', tWinW: '白方获胜', tForbidden: '黑方禁手点，不能落子',
     tNoEngine: '引擎加载中，请稍候', tGameOver: '对局已结束，请重开一局', tNoBalance: '空盘没有稳定的平衡点（需开局库），请先落子',
     tEngineLazy: '正在按需加载引擎，就绪后自动开始…',
@@ -186,6 +187,7 @@ const I18N = {
     balWindowIn: 'inside the official balance window', balWindowOut: 'outside the window (closest to even)',
     tCopied: 'Position code copied', tManualCopy: 'Copy it manually', tLoaded: 'Loaded {n} moves', tBadCode: 'Unrecognised position code',
     tRestartConfirm: 'Press "New game" again to confirm', tRestarted: 'New game started', tUndo: 'Took back {p}',
+    tAiPaused: 'AI paused · resumes on your move',
     tWinB: 'Black wins', tWinW: 'White wins', tForbidden: 'Forbidden point for Black',
     tNoEngine: 'The engine is still loading', tGameOver: 'Game over — start a new game',
     tNoBalance: 'An empty board has no stable balance point — play a stone first',
@@ -309,6 +311,11 @@ const S = {
   redo: [],
   aiB: false,               // engine plays black
   aiW: false,               // engine plays white (both can be on)
+  /* set by every undo and cleared only by a human placement: while true the
+     scheduler never launches an 'ai' job, so the engine cannot take back the
+     stone the user is editing. Analysis / scan / balance (manual modes) still
+     run — they are explicitly requested by the user. */
+  pausedByRetract: false,
   analysis: false,
   balance: 0,               // 0 off, otherwise the number of balance points being searched
   balanceHeld: false,       // balance markers kept as reference while analysing
@@ -349,10 +356,9 @@ const S = {
   searchAnswered: false,    // has the engine said anything since?
   worker: null,
   stats: null,
-  /* one score per colour, kept independently: a new black evaluation never
-     overwrites white's last known number (and the other way round) */
+  /* ONE authoritative score, from Black's point of view; the White chip is
+     always its negation (see updateEvalScore) */
   scoreB: null,
-  scoreW: null,
   scoreSide: null,
   scanOn: false,            // scan mode is its own toggle, independent of analysis
   scanDone: false,          // the current position's scan already produced a final frame
@@ -1532,7 +1538,7 @@ function onEngineMessage(ev) {
         const mx = d.best[0], my = 14 - d.best[1];
         commitMove(mx, my, { fromAi: true });
         toast(T('tOnePlayed', { p: coordName(mx, my) }));
-      } else if (kind === 'ai' && aiOn && d.best) {
+      } else if (kind === 'ai' && aiOn && !S.pausedByRetract && d.best) {
         commitMove(d.best[0], 14 - d.best[1], { fromAi: true });
       }
       /* single-thread builds restart in short chunks; multi-thread keeps one
@@ -1672,8 +1678,9 @@ function applyScanCandidates(cands) {
     else { r.x = x; r.y = y; }
     r.cand = c;
     r.depth = c.depth;
-    r.wr = normWr(c.winrate);
-    r.ev = parseEval(c.eval);
+    const pair = candEvalPair(c);
+    r.wr = pair.wr;
+    r.ev = pair.ev;
     r.evTxt = fmtScore(r.ev);
     r.line = c.line;
   }
@@ -1718,10 +1725,10 @@ function applyCandidates(cands, scan) {
   }
   S.anaCands = list;
   const pool = list.map((c, n) => {
-    const ev = parseEval(c.eval);
+    const pair = candEvalPair(c);
     return {
       kind: 'ana', rank: n, x: c.move[0], y: 14 - c.move[1], depth: c.depth,
-      wr: normWr(c.winrate), ev, evTxt: fmtScore(ev),
+      wr: pair.wr, ev: pair.ev, evTxt: fmtScore(pair.ev),
     };
   });
   S.marks = pool;
@@ -1732,6 +1739,17 @@ function applyCandidates(cands, scan) {
 function normWr(v) {
   if (!Number.isFinite(v)) return null;
   return v > 1.5 ? v / 100 : v;
+}
+
+/* One candidate carries one evaluation: the win rate and the score drawn for
+   that candidate must come from the same frame. When the engine omits WINRATE
+   the score is converted with the same logistic the bar uses, so a tile can
+   never pair a score from one PV with a win rate from another. */
+function candEvalPair(c) {
+  const ev = parseEval(c && c.eval);
+  let wr = normWr(c && c.winrate);
+  if (wr == null && ev != null && Math.abs(ev) < 9900) wr = 1 / (1 + Math.exp(-ev / 200));
+  return { ev, wr };
 }
 
 function parseEval(v) {
@@ -1785,13 +1803,14 @@ function scoreChips() {
 function updateEvalScore() {
   const r = scoreChips();
   if (!r) return;
-  /* Both chips are always on screen, black then white: the numbers live in
-     S.scoreB / S.scoreW between searches, so toggling an AI side, stopping the
-     engine or opening the settings never blanks a score that is still valid.
-     A side without data keeps its previous value; only a brand new game (or a
-     different pasted/transformed position) clears the pair. */
-  const val = { 1: S.scoreB, 2: S.scoreW };
-  (S.balanceMarks || []).slice(0, 2).forEach((m) => { if (m.c === 1 || m.c === 2) val[m.c] = m.ev; });
+  /* Black's score is the stored value; White is always its negation, so the
+     pair can never drift apart (including mate scores: +M23 / -M23). Both chips
+     stay on screen between searches; toggling an AI side, stopping the engine or
+     opening the settings never blanks a score that is still valid. A side without
+     data keeps the previous pair; only a brand new game (or a different
+     pasted/transformed position) clears it. */
+  const black = S.scoreB;
+  const val = { 1: black, 2: black == null ? null : -black };
   const bl = T('evalBlack'), wl = T('evalWhite');
   if (r.bl.textContent !== bl) r.bl.textContent = bl;
   if (r.wl.textContent !== wl) r.wl.textContent = wl;
@@ -1801,17 +1820,21 @@ function updateEvalScore() {
   if (r.wv.textContent !== ws) r.wv.textContent = ws;
 }
 
-/* A new number for one colour refreshes that chip and leaves the other one
-   untouched — the engine speaks from the side to move, so the opposite colour's
-   last value is still the best information we have for it. The very first
-   evaluation mirrors onto the other chip once, so the row never flashes a dash
-   while a search is already reporting a score. */
+/* small HUD in the board's top-right corner: visible only while a retract is
+   holding the AI back and at least one side is enabled */
+function updatePauseHud() {
+  const el = $('pauseHud');
+  if (!el) return;
+  el.hidden = !(S.pausedByRetract && (S.aiB || S.aiW));
+}
+
+/* The engine speaks from the side to move, so there is ONE authoritative eval
+   per frame. Convert it to Black's point of view and derive White from it by
+   negation; keeping a separate last value per colour (the old behaviour) let the
+   two chips come from different frames/depths and stop being opposites. */
 function setScoreData(value, side) {
   if (value == null || !Number.isFinite(value) || !side) return;
-  if (side === 1) S.scoreB = value;
-  else S.scoreW = value;
-  if (S.scoreB == null) S.scoreB = side === 1 ? value : -value;
-  if (S.scoreW == null) S.scoreW = side === 2 ? value : -value;
+  S.scoreB = side === 1 ? value : -value;
   S.scoreSide = side;
   updateEvalScore();
 }
@@ -1820,7 +1843,6 @@ function setScoreData(value, side) {
    changed the code wipes both chips */
 function clearScores() {
   S.scoreB = null;
-  S.scoreW = null;
   S.scoreSide = null;
   updateEvalScore();
 }
@@ -1927,7 +1949,9 @@ function desiredKind() {
      and the analysis job must never be launched while scan mode is active */
   if (S.scanOn) return 'scan';
   const side = sideToMove();
-  if (side === 1 ? S.aiB : S.aiW) return 'ai';
+  /* a retract pauses the AI side only: an explicitly enabled analysis, scan or
+     balance job still runs while the user edits the position */
+  if (!S.pausedByRetract && (side === 1 ? S.aiB : S.aiW)) return 'ai';
   if (S.balance) return 'balance';
   if (S.analysis) return 'analysis';
   return null;
@@ -1973,6 +1997,11 @@ function haltSearch() {
   S.searching = false;
   S.searchKind = null;
   S.oneShot = false;
+  /* an INFO frame queued 120 ms ago belongs to the position we are leaving:
+     painting it after the move/undo would put a stale eval (and stale chips)
+     back on screen while the engine is already paused */
+  if (infoTimer) { clearTimeout(infoTimer); infoTimer = 0; }
+  infoPending = null;
   if (syncTimer) { clearTimeout(syncTimer); syncTimer = 0; }
   if (S.engineBusy) {
     if (!S.stopSent) {
@@ -1999,10 +2028,10 @@ function boardChanged(options) {
   S.balanceMarks = [];
   S.balanceInfo = null;
   S.preview = null;
-  /* scores deliberately survive move / undo / redo / transform: each colour
-     keeps the last number it was given, and the next search refreshes its own
-     side only. Only restartGame, a different pasted code and a code-changing
-     transform call clearScores(). */
+  /* scores deliberately survive move / undo / redo / transform: the pair stays
+     mutually opposite because both chips come from the same stored Black value.
+     Only restartGame, a different pasted code and a code-changing transform
+     call clearScores(). */
   S.scanDone = false;
   S.scanBest = null;
   S.anaCands = [];
@@ -2042,6 +2071,9 @@ function commitMove(x, y, opts) {
   }
   S.moves.push({ x, y, c: sideToMove() });
   S.redo = [];
+  /* a human placement is the only thing that lifts a retract pause: clear it
+     before boardChanged so the scheduler may immediately arm the AI again */
+  if (!o.fromAi) S.pausedByRetract = false;
   /* a new stone starts a new branch: drop the samples recorded for the ply that
      is being replaced, then keep the last value until the next analysis lands */
   S.wrGame.track.length = S.moves.length;
@@ -2064,6 +2096,10 @@ function undoMove() {
   const m = S.moves.pop();
   S.redo.push(m);
   S.lastAiMove = null;
+  /* taking a stone back is an edit: freeze the AI (even if a side is enabled)
+     until the user plays a stone of their own. Several undos in a row keep the
+     flag set, so the engine can never grab the position mid-editing. */
+  S.pausedByRetract = true;
   boardChanged({ keepRedo: true });
   toast(T('tUndo', { p: coordName(m.x, m.y) }));
 }
@@ -2196,6 +2232,7 @@ function restartGame(force) {
   S.statPly = -1;
   S.moves = [];
   S.redo = [];
+  S.pausedByRetract = false;
   S.winner = 0;
   S.forbidden = [];
   S.marks = [];
@@ -2223,8 +2260,8 @@ function restartGame(force) {
 function toggleAI(side) {
   if (side === 1) S.aiB = !S.aiB; else S.aiW = !S.aiW;
   haltSearch();
-  /* the score chips are intentionally not touched here: each colour keeps its
-     last known number across AI side switches */
+  /* the score chips are intentionally not touched here: the last known pair
+     survives AI side switches */
   S.stats = null;
   S.statsShown = false;
   S.statPly = -1;
@@ -2469,6 +2506,7 @@ function applyCode(text) {
   haltSearch();
   S.moves = moves;
   S.redo = [];
+  S.pausedByRetract = false;
   S.winner = 0;
   S.marks = [];
   clearRouteView();
@@ -2629,7 +2667,11 @@ function updateRoutes(cands, scan) {
   const first = sideToMove();
   S.routes = list.map((c) => ({ cand: c, pv: pvOfCand(c, first) }));
   const mk = S.marks[0];
-  const ev = mk && mk.ev != null ? mk.ev : parseEval(list[0].eval);
+  /* the panel header and the score chips must speak about one evaluation: the
+     INFO EVAL of this frame (mover perspective), not whichever candidate slot
+     happened to be repainted last */
+  const stEv = parseEval(st && st.eval);
+  const ev = stEv != null && !scan ? stEv : (mk && mk.ev != null ? mk.ev : parseEval(list[0].eval));
   const cls = ev == null ? '' : (ev >= 0 ? ' pos' : ' neg');
   const depth = (st && st.depth) || (mk && mk.depth) || 0;
   if (meta) {
@@ -2650,7 +2692,8 @@ function updateRoutes(cands, scan) {
   S.pv = (S.preview && S.routes[S.preview.r]) ? S.routes[S.preview.r].pv : S.routes[0].pv;
   row.className = 'route-row';
   row.innerHTML = S.routes.map((r, k) => {
-    const e = parseEval(r.cand.eval);
+    /* route #1 in a normal analysis carries the same INFO EVAL as the chips */
+    const e = (k === 0 && stEv != null && !scan) ? stEv : parseEval(r.cand.eval);
     const ec = e == null ? '' : (e >= 0 ? ' pos' : ' neg');
     const chips = r.pv.map((p, i) =>
       '<b class="mv" data-r="' + k + '" data-i="' + i + '">' + coordName(p.x, p.y) + '</b>'
@@ -2737,6 +2780,7 @@ function updateAll() {
   updateBalanceRow();
   updateWinBar();
   updateEvalScore();
+  updatePauseHud();
   renderDebug();
   syncSettingsUI();
 }
@@ -2950,6 +2994,7 @@ function setSetting(key, value, opts) {
       return;
     }
     if (key === 'rule') {
+      S.pausedByRetract = false;
       S.stats = null;
       S.statsShown = false;
       resetPonder();
