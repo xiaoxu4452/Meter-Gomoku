@@ -39,7 +39,7 @@ const I18N = {
   zh: {
     title: '五子棋计算器', subtitle: 'Meter Gomoku · Web',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
-    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止落子', balance: '平衡点', points: '点',
+    aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止并落子', balance: '平衡点', points: '点',
     playOne: '计算一手',
     depth: '深度', speed: '速度', nodes: '节点', time: '用时',
     codeTitle: '局面代码', codeHint: '列字母+行号 / 坐标', codeAltLabel: '坐标',
