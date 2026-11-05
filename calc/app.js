@@ -37,7 +37,7 @@ const RULES = [
 const LANG_KEY = 'mgcalc.lang';
 const I18N = {
   zh: {
-    title: 'Meter Gomoku Web', subtitle: '五子棋计算器 · Web 版',
+    title: 'Meter Gomoku Web',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
     aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止', balance: '平衡点', points: '点',
     playOne: '计算一手',
@@ -130,7 +130,7 @@ const I18N = {
     loadFailMsg: '所有线路都没连上，可以重试，或先用官方计算器',
   },
   en: {
-    title: 'Meter Gomoku Web', subtitle: 'Gomoku calculator · web edition',
+    title: 'Meter Gomoku Web',
     undo: 'Undo', redo: 'Redo', restart: 'New game', restartConfirm: 'Confirm',
     aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop', balance: 'Balance', points: 'pt',
     playOne: 'Play one',
