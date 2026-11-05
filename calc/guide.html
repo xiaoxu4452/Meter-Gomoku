@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta id="themeColor" name="theme-color" content="#edf1f6">
-<title>使用说明 · 五子棋计算器</title>
-<meta name="description" content="Meter Web 五子棋计算器完整使用说明：棋盘与落子、功能键、规则、设置、胜率与评分、九种变换、局面代码、快捷键、常见问题与关于。">
+<title>使用说明 · Meter Gomoku Web</title>
+<meta name="description" content="Meter Gomoku Web 完整使用说明：棋盘与落子、功能键、规则、设置、胜率与评分、九种变换、局面代码、快捷键、常见问题与关于。">
 <link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
 <link rel="apple-touch-icon" href="../assets/calc.png">
 <script>
@@ -227,7 +227,7 @@ body.lang-en .toc a .zh{display:none}
     <div class="titles">
       <p class="eyebrow">METER GOMOKU · WEB</p>
       <h1><span class="zh">使用说明</span><span class="en">User guide</span></h1>
-      <p class="docmeta">Meter Web Calculator · v20261104e · 15×15 · Rapfi NNUE / WASM</p>
+      <p class="docmeta">Meter Gomoku Web · v20261104e · 15×15 · Rapfi NNUE / WASM</p>
     </div>
     <div class="headbtns">
       <a class="btnline primary" href="./"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg><span class="zh">返回计算器</span><span class="en">Back to calculator</span></a>
@@ -485,8 +485,8 @@ body.lang-en .toc a .zh{display:none}
   <!-- 13 -->
   <section class="sheet" id="about">
     <h2><span class="num">13</span><span class="zh">关于与许可</span><span class="en">About &amp; licence</span></h2>
-    <p class="zh"><b>Meter Web 五子棋计算器</b>是 Meter Gomoku 项目的网页版本：界面、调度与计分由本项目编写，搜索引擎使用 <b>Rapfi</b>（作者 dhbloo）的官方 WebAssembly 构建与 NNUE 权重，搜索行为不做修改。</p>
-    <p class="en"><b>Meter Web Gomoku Calculator</b> is the web edition of the Meter Gomoku project: the interface, scheduling and scoring are ours, while the search engine is the official WebAssembly build of <b>Rapfi</b> (by dhbloo) with its NNUE weights; search behaviour is unmodified.</p>
+    <p class="zh"><b>Meter Gomoku Web</b> 是 Meter Gomoku 项目的网页版本：界面、调度与计分由本项目编写，搜索引擎使用 <b>Rapfi</b>（作者 dhbloo）的官方 WebAssembly 构建与 NNUE 权重，搜索行为不做修改。</p>
+    <p class="en"><b>Meter Gomoku Web</b> is the web edition of the Meter Gomoku project: the interface, scheduling and scoring are ours, while the search engine is the official WebAssembly build of <b>Rapfi</b> (by dhbloo) with its NNUE weights; search behaviour is unmodified.</p>
     <table>
       <tbody>
         <tr><td>Engine</td><td>Rapfi NNUE · WebAssembly (official build)</td></tr>
@@ -515,8 +515,8 @@ body.lang-en .toc a .zh{display:none}
       <a href="./"><span class="zh">计算器</span><span class="en">Calculator</span></a>
       <a href="https://xiaoxu4452.github.io/Meter-Gomoku/">Meter Gomoku</a>
     </div>
-    <span class="zh">Meter Gomoku · Web 计算器 · 2026</span>
-    <span class="en">Meter Gomoku · Web calculator · 2026</span>
+    <span class="zh">Meter Gomoku Web · 2026</span>
+    <span class="en">Meter Gomoku Web · 2026</span>
   </footer>
 </div>
 
@@ -528,7 +528,7 @@ body.lang-en .toc a .zh{display:none}
   var meta = document.getElementById('themeColor');
   var themeBtn = document.getElementById('themeBtn');
   var bZh = document.getElementById('lg-zh'), bEn = document.getElementById('lg-en');
-  var TITLE = { zh: '使用说明 · 五子棋计算器', en: 'User guide · Gomoku Calculator' };
+  var TITLE = { zh: '使用说明 · Meter Gomoku Web', en: 'User guide · Meter Gomoku Web' };
 
   function readTheme() {
     var t = '';

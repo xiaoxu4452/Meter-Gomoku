@@ -37,7 +37,7 @@ const RULES = [
 const LANG_KEY = 'mgcalc.lang';
 const I18N = {
   zh: {
-    title: '五子棋计算器', subtitle: 'Meter Gomoku · Web',
+    title: 'Meter Gomoku Web', subtitle: '五子棋计算器 · Web 版',
     undo: '上一步', redo: '下一步', restart: '重开一局', restartConfirm: '确认重开',
     aiB: 'AI执黑', aiW: 'AI执白', analysis: '计算分析', analysisStop: '停止', balance: '平衡点', points: '点',
     playOne: '计算一手',
@@ -130,7 +130,7 @@ const I18N = {
     loadFailMsg: '所有线路都没连上，可以重试，或先用官方计算器',
   },
   en: {
-    title: 'Gomoku Calculator', subtitle: 'Meter Gomoku · Web',
+    title: 'Meter Gomoku Web', subtitle: 'Gomoku calculator · web edition',
     undo: 'Undo', redo: 'Redo', restart: 'New game', restartConfirm: 'Confirm',
     aiB: 'AI black', aiW: 'AI white', analysis: 'Analyse', analysisStop: 'Stop', balance: 'Balance', points: 'pt',
     playOne: 'Play one',
@@ -2499,7 +2499,8 @@ function applyLang(lang) {
   if (tEl) { tEl.classList.remove('on'); tEl.textContent = ''; }
   try { localStorage.setItem(LANG_KEY, LANG); localStorage.setItem('mg.site.lang', LANG); } catch (e) {}
   document.documentElement.lang = LANG === 'en' ? 'en' : 'zh-CN';
-  document.title = LANG === 'en' ? 'Gomoku Calculator · Meter Gomoku' : '五子棋计算器 · Meter Gomoku';
+  /* the product name is fixed and does not follow the UI language */
+  document.title = 'Meter Gomoku Web';
   document.querySelectorAll('[data-i18n]').forEach((el) => {
     const k = el.getAttribute('data-i18n');
     if (I18N[LANG][k]) el.textContent = T(k);

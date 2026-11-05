@@ -104,11 +104,10 @@ html[data-theme="dark"] .step-btn.key-danger.confirm{background:#b53d34;border-c
 .seg-bal .bal-count b{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--ink);line-height:1}
 .seg-bal .bal-count .step-txt{font-size:9px;line-height:1}
 .seg-bal .bal-count:hover b{color:var(--ink)}
-/* the black-side AI half is violet, the white-side half a deeper sky blue:
-   a pale tint disappeared against the background, so the active half is now a
-   filled blue with white text (5.9:1 on light, 4.9:1 on dark) */
-#btnAIB[aria-pressed="true"]{background:#f2ecff;color:#5b3fd6}
-html[data-theme="dark"] #btnAIB[aria-pressed="true"]{background:#251d40;color:#c9b8ff}
+/* active AI halves are filled, not pale tints: violet for black (7.4:1 light,
+   6.1:1 dark) and sky blue for white (5.9:1 light, 4.9:1 dark), both white text */
+#btnAIB[aria-pressed="true"]{background:#5136c9;color:#fff}
+html[data-theme="dark"] #btnAIB[aria-pressed="true"]{background:#5b43d2;color:#fff}
 #btnAIW[aria-pressed="true"]{background:#2a66a4;color:#fff}
 html[data-theme="dark"] #btnAIW[aria-pressed="true"]{background:#3573b4;color:#fff}
 
