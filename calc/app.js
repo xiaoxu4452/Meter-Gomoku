@@ -1625,42 +1625,12 @@ function scheduleDebug() {
      the first move is the fix for the old double-marker bug: a stale PV slot
      may repeat an existing root move, and taking N array entries verbatim then
      painted two markers on one crossing.
-   - scan: the strongest candidates the engine kept in this frame, but only
-     inside YixinBoard's SQUARE3_LINE4 candidate area and capped at SCAN_MAX.
-     Rows are keyed by the root move, refreshed in place, and dropped when the
-     engine prunes the move. */
+   - scan: the strongest candidates the engine kept in this frame, across the
+     whole board (the worker forces FULL_BOARD for a scan), then capped at
+     SCAN_MAX for readability. Rows are keyed by the root move, refreshed in
+     place, and dropped when the engine prunes the move. */
 
-/* YixinBoard's candidate geometry (Rapfi board.cpp expandCandArea): a 7x7
-   square around every stone plus the eight lines out to four cells. This is the
-   SQUARE3_LINE4 range the scan now sends as CAUTION_FACTOR 3, reproduced here so
-   the page can never paint a distant cell even if an older frame slips through.
-   Empty board: a 7x7 patch around the centre, so a first scan still has points. */
-const SCAN_LINE = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
-
-function scanAreaSet() {
-  const set = new Set();
-  if (!S.moves.length) {
-    for (let y = 4; y <= 10; y++) for (let x = 4; x <= 10; x++) set.add(x + ',' + y);
-    return set;
-  }
-  for (const s of S.moves) {
-    for (let dy = -3; dy <= 3; dy++) {
-      for (let dx = -3; dx <= 3; dx++) {
-        const x = s.x + dx, y = s.y + dy;
-        if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) set.add(x + ',' + y);
-      }
-    }
-    for (const [ux, uy] of SCAN_LINE) {
-      for (let d = 1; d <= 4; d++) {
-        const x = s.x + ux * d, y = s.y + uy * d;
-        if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) set.add(x + ',' + y);
-      }
-    }
-  }
-  return set;
-}
-
-/* display cap: rank the geometric set by win rate and keep the best 48, so a
+/* display cap: rank every scanned point by win rate and keep the best 48, so a
    busy board shows three dozen readable tiles instead of a wall of colour */
 const SCAN_MAX = 48;
 
@@ -1672,18 +1642,15 @@ function applyScanCandidates(cands) {
      forced line. Keeping only the newest frame would make dozens of tiles
      disappear at once, so rows are merged by root move (refreshed in place) and
      then ranked by strength before the cap. */
-  const area = scanAreaSet();
   const occupied = new Set(S.moves.map((m) => m.x + ',' + m.y));
-  const rows = S.scanRows.filter((r) => area.has(r.key) && !occupied.has(r.key));
+  const rows = S.scanRows.filter((r) => !occupied.has(r.key));
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const seen = new Set();
   for (const c of cands) {
     const key = candKey(c);
     if (!key || seen.has(key)) continue;
     const x = c.move[0], y = 14 - c.move[1];
-    /* geometry + occupancy: only cells Rapfi's bounded candidate area would
-       contain. */
-    if (!area.has(x + ',' + y) || occupied.has(x + ',' + y)) continue;
+    if (occupied.has(x + ',' + y)) continue;
     seen.add(key);
     let r = byKey.get(key);
     if (!r) { r = { key, x, y }; rows.push(r); byKey.set(key, r); }
@@ -1830,6 +1797,16 @@ function updateEvalScore() {
   const ws = fmtScore(val[2]);
   if (r.bv.textContent !== bs) r.bv.textContent = bs;
   if (r.wv.textContent !== ws) r.wv.textContent = ws;
+}
+
+/* A pause belongs only to the undo that created it. Playing a stone, toggling
+   either AI side (including off and back on), redo, transform, paste, a rule
+   switch or a restart are explicit hand-offs: they end the edit and hand the
+   position back to the engine. */
+function resumeFromRetract() {
+  if (!S.pausedByRetract) return;
+  S.pausedByRetract = false;
+  updatePauseHud();
 }
 
 /* the retract-pause notice lives on the canvas beside the coordinate tag, so
@@ -2122,6 +2099,7 @@ function redoMove() {
   if (!S.redo.length) return;
   const m = S.redo.pop();
   if (stoneAt(m.x, m.y)) return;
+  resumeFromRetract();
   S.moves.push(m);
   boardChanged({ keepRedo: true });
 }
@@ -2197,6 +2175,7 @@ function applyTransform(kind) {
   /* the coordinates changed, so every cached engine line is worthless: a fresh
      search must start from an empty transposition table */
   S.statsShown = false;
+  resumeFromRetract();
   resetPonder();
   enginePost({ t: 'reset', moves: engineMoves(), rule: S.settings.rule });
   boardChanged({ keepRedo: true });
@@ -2273,6 +2252,8 @@ function restartGame(force) {
 /* ============================================================ AI / analysis / balance */
 function toggleAI(side) {
   if (side === 1) S.aiB = !S.aiB; else S.aiW = !S.aiW;
+  /* an AI-side click is an explicit hand-off, not part of the undo edit */
+  resumeFromRetract();
   haltSearch();
   /* the score chips are intentionally not touched here: the last known pair
      survives AI side switches */
