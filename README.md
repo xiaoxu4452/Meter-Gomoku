@@ -30,12 +30,14 @@ WebAssembly 构建并直接跑引擎协议，`sw.js` 注入 COOP/COEP（让 pthr
 
 ```
 calc/index.html   界面（竖屏棋盘在上、仪表盘在下；横屏两栏）
-calc/guide.html   使用说明小网页（中英对照）
+calc/guide.html   完整使用说明（中英对照，左侧目录随章节自动生成）
 calc/app.js       棋盘绘制、分析调度、设置与中英切换
 calc/worker.js    引擎桥接 + 资源预加载进度
 calc/sw.js        COOP/COEP 注入、外壳与引擎缓存、镜像回退
 calc/engine/      Rapfi WASM 与 NNUE 权重（约 41 MB）
 calc/serve.py     本地预览（带 COOP/COEP 头）
+calc/manifest.json、theme.js、icon-*.png
+                  可安装为独立应用（PWA 外壳、主题色与图标）
 ```
 
 

@@ -31,12 +31,14 @@ only — no play, review, vision or Link.
 
 ```
 calc/index.html   UI (board above the dashboard in portrait, two columns in landscape)
-calc/guide.html   printable guide page (Chinese + English)
+calc/guide.html   the full manual (bilingual, with a left-hand contents list built from the sections)
 calc/app.js       board drawing, search scheduling, settings, ZH/EN switching
 calc/worker.js    engine bridge + asset preloading progress
 calc/sw.js        COOP/COEP injection, shell and engine caches, mirror fallback
 calc/engine/      Rapfi WASM and NNUE weights (~41 MB)
 calc/serve.py     local preview with COOP/COEP headers
+calc/manifest.json, theme.js, icon-*.png
+                  installable as a standalone app (PWA shell, theme colour, icons)
 ```
 
 
