@@ -685,7 +685,6 @@ function stoneRadius() { return geo.cell * 0.485; }
 function drawLastTag(xs, ys, cell) {
   const last = S.moves[S.moves.length - 1];
   const h = S.hover;
-  if (!last && !h) return;
   const y = ys[0] - cell * 0.40;
   bctx.font = '600 ' + geo.fs + 'px "Cascadia Code",Consolas,monospace';
   bctx.textAlign = 'right';
@@ -703,8 +702,21 @@ function drawLastTag(xs, ys, cell) {
     bctx.globalAlpha = last ? 0.55 : 0.9;
     bctx.fillStyle = C.coord;
     bctx.fillText(txt, right, y);
+    right -= bctx.measureText(txt).width + cell * 0.30;
     bctx.restore();
   }
+  drawBoardHint(right, y);
+}
+
+/* Board-corner hints are plain text in the same face, colour and baseline as
+   the coordinate tag, sitting immediately to its left. Only the retract-pause
+   notice uses this slot; every other notice stays on the footer line. */
+function drawBoardHint(right, y) {
+  if (!pauseHintOn) return;
+  const txt = T('tAiPaused');
+  if (!txt) return;
+  bctx.fillStyle = C.coord;
+  bctx.fillText(txt, right, y);
 }
 
 /* paint one stone with the style picked in the settings.
@@ -1820,12 +1832,14 @@ function updateEvalScore() {
   if (r.wv.textContent !== ws) r.wv.textContent = ws;
 }
 
-/* small HUD in the board's top-right corner: visible only while a retract is
-   holding the AI back and at least one side is enabled */
+/* the retract-pause notice lives on the canvas beside the coordinate tag, so
+   it keeps the same face, colour and baseline instead of a boxed chip */
+let pauseHintOn = false;
 function updatePauseHud() {
-  const el = $('pauseHud');
-  if (!el) return;
-  el.hidden = !(S.pausedByRetract && (S.aiB || S.aiW));
+  const show = !!(S.pausedByRetract && (S.aiB || S.aiW));
+  if (show === pauseHintOn) return;
+  pauseHintOn = show;
+  drawBoard();
 }
 
 /* The engine speaks from the side to move, so there is ONE authoritative eval
