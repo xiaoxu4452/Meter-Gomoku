@@ -189,7 +189,7 @@ async function fetchWhole(url, from, to, meta) {
     let buf;
     if (!reader) {
       buf = await res.arrayBuffer();
-      postLoad(to, null);
+      postLoad(to, null, declared, declared);
     } else {
       const chunks = [];
       let got = 0;
@@ -198,7 +198,7 @@ async function fetchWhole(url, from, to, meta) {
         if (step.done) break;
         chunks.push(step.value);
         got += step.value.length;
-        postLoad(from + (to - from) * (declared ? Math.min(1, got / declared) : 0), null);
+        postLoad(from + (to - from) * (declared ? Math.min(1, got / declared) : 0), null, got, declared);
       }
       const out = new Uint8Array(got);
       let off = 0;
