@@ -20,6 +20,11 @@ const ENGINE_FILES = {
 };
 const HASH_OPTIONS = [64, 128, 256, 512, 1024];
 const HASH_LIMIT_DEFAULT = 1024;
+/* Input limits: a position has at most 225 stones, so anything longer than this
+   is not a position. Rejecting early protects the regex/paste path and keeps a
+   hostile clipboard from freezing the page. */
+const MAX_CODE_CHARS = 4096;
+const MAX_MOVES = SIZE * SIZE;
 
 const RULES = [
   { id: 0, name: '无禁手', nameEn: 'Freestyle', short: '无禁手', shortEn: 'Free',
@@ -92,6 +97,8 @@ const I18N = {
     balEmpty: '引擎未返回平衡点（可能已分胜负）',
     balWindowIn: '在官方平衡窗口内', balWindowOut: '已超出平衡窗口（最接近均势）',
     tCopied: '局面代码已复制', tManualCopy: '请手动复制', tLoaded: '已载入 {n} 手', tBadCode: '局面代码无法识别',
+    tCodeTooLong: '输入过长（上限 {n} 字符），已拒绝解析',
+    tTooManyMoves: '手数超过棋盘上限（{n}），已拒绝解析',
     tRestartConfirm: '再点一次「重开一局」确认', tRestarted: '已重新开局', tUndo: '已撤回 {p}',
     tAiPaused: '已暂停 AI，落子后恢复',
     tWinB: '黑方获胜', tWinW: '白方获胜', tForbidden: '黑方禁手点，不能落子',
@@ -108,6 +115,7 @@ const I18N = {
     tScanOn: '扫描分析已开启：持续加深，再点一次停止并落子', tScanOff: '扫描分析已关闭：回到固定点数',
     tScanChunk: '单线程模式：扫描按 {n} 秒分片持续加深（浏览器未隔离）',
     tScanStop: '扫描已停止，结果已清除', tScanPlayed: '已停止扫描并落下最优点 {p}',
+    tScanFinishing: '正在取最终结果…',
     tScanNoBest: '扫描已停止：没有可用最优点',
     hashCleared: '置换表已清空',
     tHashClamp: '哈希表超过引擎上限 {n} MB，已自动收敛',
@@ -125,6 +133,7 @@ const I18N = {
     loadTitle: '正在加载引擎', loadFetch: '下载引擎与权重（约 41 MB）…',
     loadModule: '初始化推理模块…', loadStart: '启动搜索线程…', loadDone: '引擎就绪',
     loadCached: '读取本机缓存的引擎文件…', loadNote: 'Rapfi NNUE · WebAssembly',
+    loadEta: '{a} / {b} MB · 约 {s} 秒',
     loadCold: '首次打开：先准备好离线缓存…',
     retry: '重试', altCalc: '用官方计算器',
     loadFail: '引擎加载失败', loadSlow: '下载卡住了',
@@ -186,6 +195,8 @@ const I18N = {
     balEmpty: 'The engine returned no balance point (a win may be decided)',
     balWindowIn: 'inside the official balance window', balWindowOut: 'outside the window (closest to even)',
     tCopied: 'Position code copied', tManualCopy: 'Copy it manually', tLoaded: 'Loaded {n} moves', tBadCode: 'Unrecognised position code',
+    tCodeTooLong: 'Input too long (limit {n} characters); rejected',
+    tTooManyMoves: 'More moves than the board can hold ({n}); rejected',
     tRestartConfirm: 'Press "New game" again to confirm', tRestarted: 'New game started', tUndo: 'Took back {p}',
     tAiPaused: 'AI paused · resumes on your move',
     tWinB: 'Black wins', tWinW: 'White wins', tForbidden: 'Forbidden point for Black',
@@ -203,6 +214,7 @@ const I18N = {
     tScanOn: 'Scan on: deepening until you stop it; click again to stop and play', tScanOff: 'Scan off: back to N points',
     tScanChunk: 'Single-thread mode: the scan deepens in {n}s chunks (browser isolation unavailable)',
     tScanStop: 'Scan stopped; results cleared', tScanPlayed: 'Scan stopped, best point {p} played',
+    tScanFinishing: 'Fetching the final frame…',
     tScanNoBest: 'Scan stopped: no valid best point',
     hashCleared: 'Transposition table cleared',
     tHashClamp: 'Hash clamped to the engine limit of {n} MB',
@@ -220,6 +232,7 @@ const I18N = {
     loadTitle: 'Loading the engine', loadFetch: 'Downloading engine and weights (~41 MB)…',
     loadModule: 'Starting the inference module…', loadStart: 'Starting search threads…', loadDone: 'Engine ready',
     loadCached: 'Reading the cached engine files…', loadNote: 'Rapfi NNUE · WebAssembly',
+    loadEta: '{a} / {b} MB · ~{s} s',
     loadCold: 'First visit: preparing the offline cache…',
     retry: 'Retry', altCalc: 'Official calculator',
     loadFail: 'The engine failed to load', loadSlow: 'The download stalled',
@@ -364,6 +377,8 @@ const S = {
   scanDone: false,          // the current position's scan already produced a final frame
   scanRows: [],             // scan points, in engine rank order, updated in place
   scanBest: null,           // strongest scanned row, played when the key is pressed again
+  scanStopPlay: false,      // stop requested; play the final frame's rank 0 when it lands
+  scanStopGuard: 0,         // fallback if the engine never confirms the stop
   anaCands: [],             // last multi-PV candidate set, used to pad a short frame
   routes: [],               // one PV per multipv rank, in engine order
   marks: [],
@@ -406,6 +421,10 @@ let loaderKey = 'loadFetch';
 let loaderDone = false;
 let loaderError = false;
 let loadTick = Date.now();
+let loaderBytes = 0;
+let loaderTotal = 0;
+let loaderRate = 0;
+let loaderStamp = 0;
 
 function paintLoader() {
   if (!loaderEl) return;
@@ -414,13 +433,31 @@ function paintLoader() {
   if (fill) fill.style.width = Math.max(0, Math.min(100, loaderPct)).toFixed(1) + '%';
   if (pct) pct.textContent = Math.round(loaderPct) + '%';
   const msg = $('loadMsg');
-  if (msg && I18N[LANG][loaderKey]) msg.textContent = T(loaderKey);
+  if (msg && I18N[LANG][loaderKey]) {
+    let text = T(loaderKey);
+    if (loaderTotal > 0) {
+      const mb = (n) => (n / 1048586).toFixed(1);
+      const left = loaderRate > 0 ? Math.max(1, Math.round((loaderTotal - loaderBytes) / loaderRate)) : null;
+      text += ' · ' + T('loadEta', { a: mb(loaderBytes), b: mb(loaderTotal), s: left == null ? '…' : String(left) });
+    }
+    msg.textContent = text;
+  }
 }
 
-function setLoader(pct, key) {
+function setLoader(pct, key, bytes, total) {
+  const now = Date.now();
+  if (bytes != null && total != null && total > 0) {
+    if (loaderStamp && bytes > loaderBytes && now > loaderStamp) {
+      const inst = (bytes - loaderBytes) / ((now - loaderStamp) / 1000);
+      loaderRate = loaderRate ? loaderRate * 0.7 + inst * 0.3 : inst;
+    }
+    loaderBytes = bytes;
+    loaderTotal = total;
+    loaderStamp = now;
+  }
   loaderPct = Math.max(loaderPct, Math.min(100, pct));
-  if (key) loaderKey = key;
-  loadTick = Date.now();
+  if (key) { loaderKey = key; loaderBytes = 0; loaderTotal = 0; loaderRate = 0; loaderStamp = 0; }
+  loadTick = now;
   paintLoader();
 }
 
@@ -1033,7 +1070,16 @@ function buildGrid() {
   for (const m of S.moves) b[m.y][m.x] = m.c;
   return b;
 }
-function coordName(x, yUi) { return LETTERS[x] + String(SIZE - yUi); }
+/* Escape every value that did not originate as a number before it is placed in
+   an innerHTML template. Today all dynamic cells are numeric coordinates, but a
+   single helper keeps that true when a new field is added later. */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function coordName(x, yUi) {
+  if (!(x >= 0 && x < SIZE && yUi >= 0 && yUi < SIZE)) return '—';
+  return LETTERS[x] + String(SIZE - yUi);
+}
 function engineMoves() { return S.moves.map((m) => [m.x, m.y, m.c]); }
 
 function lineThrough(b, x, y, dx, dy, c) {
@@ -1401,7 +1447,7 @@ function onEngineMessage(ev) {
   S.msgRing.push((d.t || '?') + (d.gen != null ? ':' + d.gen : ''));
   if (S.msgRing.length > 40) S.msgRing.shift();
   if (d.t === 'load') {
-    setLoader(d.pct, d.key);
+    setLoader(d.pct, d.key, d.bytes, d.total);
     return;
   }
   if (d.t === 'hb') {
@@ -1536,6 +1582,12 @@ function onEngineMessage(ev) {
       const kind = S.searchKind;
       S.searchKind = null;
       if (d.best && d.candidates && d.candidates.length) applyCandidates(d.candidates, !!d.scan);
+      if (d.t === 'best' && d.scan && S.scanStopPlay) {
+        /* the scan was stopped while a search was running: this frame is the
+           committed final round, so its rank 0 is the point to play */
+        finishScanStop(null);
+        return;
+      }
       /* a scan never self-terminates: the only 'best' frame arrives after STOP
          (scanOn is already false then), so the scheduler immediately re-arms the
          single-thread chunk while a multi-thread search simply keeps running */
@@ -1664,7 +1716,11 @@ function applyScanCandidates(cands) {
       r.x = x;
       r.y = y;
     }
-    r.order = order++;
+    /* The worker already ranked this frame (win rate desc, score desc, stable
+       slot): the page must not invent a second ranking. Using the engine's raw
+       array position here is what let a stale slot look like rank 0. */
+    r.order = Number.isFinite(c.rank) ? c.rank : order;
+    order = Math.max(order, r.order) + 1;
     r.cand = c;
     r.depth = c.depth;
     const pair = candEvalPair(c);
@@ -1684,8 +1740,11 @@ function applyScanCandidates(cands) {
   for (const r of kept) if (!rows.includes(r)) rows.push(r);
   rows.length = Math.min(rows.length, SCAN_MAX);
   S.scanRows = rows;
+  /* exactly one best: the smallest rank in this same frame. If the rank-0 move
+     was filtered out, the next best becomes the best — the marker never stays
+     pinned to a point that is no longer first. */
   let best = null;
-  for (const r of rows) if (r.order === 0) best = r;
+  for (const r of rows) if (!best || r.order < best.order) best = r;
   S.scanBest = best;
   S.marks = rows.map((r) => ({
     kind: 'ana', scan: true, rank: r.order, best: !!best && r === best,
@@ -2403,7 +2462,6 @@ function toggleScan() {
   if (S.winner) { toast(T('tGameOver')); return; }
   if (!S.engineReady) { ensureEngine(); toast(T('tEngineLazy')); }
   if (S.scanOn) {
-    const best = S.scanBest;
     S.scanOn = false;
     S.scanDone = false;
     S.analysis = false;
@@ -2412,19 +2470,20 @@ function toggleScan() {
     S.balanceHeld = false;
     S.balanceMarks = [];
     S.balanceInfo = null;
-    haltSearch();
-    S.scanBest = null;
-    S.scanRows = [];
-    if (best && canPlace(best.x, best.y)) {
-      commitMove(best.x, best.y, { fromAi: false });
-      toast(T('tScanPlayed', { p: coordName(best.x, best.y) }));
-    } else {
-      S.marks = [];
-      clearRouteView();
-      drawBoard();
+    /* The engine's final frame (committed round + bare move) is the only
+       authoritative "best". Waiting for it instead of playing the last painted
+       frame removes the case where a point that had already been overtaken was
+       dropped on the board. No gen bump here, or the frame would be discarded. */
+    if (S.engineBusy && !S.stopSent) {
+      S.scanStopPlay = true;
+      stopKeepResult();
+      clearTimeout(S.scanStopGuard);
+      S.scanStopGuard = setTimeout(() => finishScanStop(null), 1600);
       updateAll();
-      toast(T('tScanNoBest'));
+      toast(T('tScanFinishing'));
+      return;
     }
+    finishScanStop(null);
     return;
   }
   S.scanOn = true;
@@ -2447,6 +2506,26 @@ function toggleScan() {
   toast(S.engineBuild === 'multi'
     ? T('tScanOn')
     : T('tScanChunk', { n: Math.round(scanBudget() / 1000) }));
+}
+
+/* Completes a stopped scan with the frame the engine actually committed last. */
+function finishScanStop(best) {
+  S.scanStopPlay = false;
+  clearTimeout(S.scanStopGuard);
+  S.scanStopGuard = 0;
+  const b = best || S.scanBest;
+  S.scanBest = null;
+  S.scanRows = [];
+  if (b && canPlace(b.x, b.y)) {
+    commitMove(b.x, b.y, { fromAi: false });
+    toast(T('tScanPlayed', { p: coordName(b.x, b.y) }));
+  } else {
+    S.marks = [];
+    clearRouteView();
+    drawBoard();
+    updateAll();
+    toast(T('tScanNoBest'));
+  }
 }
 
 /* the middle key of the step row: compute one move and play it right away */
@@ -2505,6 +2584,7 @@ function parseCode(text) {
     }
   }
   if (!pairs.length) return null;
+  if (pairs.length > MAX_MOVES) return null;
   const used = new Set();
   for (const p of pairs) {
     const key = p[0] + ',' + p[1];
@@ -2515,8 +2595,19 @@ function parseCode(text) {
 }
 
 function applyCode(text) {
-  const moves = parseCode(text);
+  const raw = String(text == null ? '' : text);
+  if (raw.length > MAX_CODE_CHARS) {
+    codeInput.classList.add('bad');
+    setTimeout(() => codeInput.classList.remove('bad'), 400);
+    toast(T('tCodeTooLong', { n: MAX_CODE_CHARS }));
+    return;
+  }
+  const moves = parseCode(raw);
   if (!moves) { codeInput.classList.add('bad'); setTimeout(() => codeInput.classList.remove('bad'), 400); toast(T('tBadCode')); return; }
+  if (moves.length > MAX_MOVES) {
+    toast(T('tTooManyMoves', { n: MAX_MOVES }));
+    return;
+  }
   const before = formatCode();
   haltSearch();
   S.moves = moves;
@@ -2864,15 +2955,15 @@ function renderDebug() {
   const st = S.stats;
   const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
   const assets = (S.assets || []).map((a) =>
-    '<b>' + a.name + '</b> ' + mb(a.bytes) + ' · ' + (a.source === 'cache' ? 'cache' : 'network') +
-    ' · ' + a.ms + ' ms' + (a.sha ? ' · sha ' + a.sha.slice(0, 10) + '…' : '')).join('<br>');
+    '<b>' + esc(a.name) + '</b> ' + mb(a.bytes) + ' · ' + (a.source === 'cache' ? 'cache' : 'network') +
+    ' · ' + a.ms + ' ms' + (a.sha ? ' · sha ' + esc(a.sha.slice(0, 10)) + '…' : '')).join('<br>');
   const ci = S.cacheInfo;
   const cacheTxt = ci
-    ? (ci.before || []).map((c) => c.name + ': ' + c.entries + ' / ' + mb(c.bytes)).join(' · ') +
-      '<br><b>cleanup</b> removed ' + (ci.removed || []).length + ' entry · keep <b>' + ci.keep + '</b>'
+    ? (ci.before || []).map((c) => esc(c.name) + ': ' + c.entries + ' / ' + mb(c.bytes)).join(' · ') +
+      '<br><b>cleanup</b> removed ' + (ci.removed || []).length + ' entry · keep <b>' + esc(ci.keep) + '</b>'
     : '—';
   const cleared = S.hashClearedAt
-    ? new Date(S.hashClearedAt).toLocaleTimeString() + ' · ' + S.hashMsg
+    ? new Date(S.hashClearedAt).toLocaleTimeString() + ' · ' + esc(S.hashMsg)
     : '—';
   dbg.innerHTML =
     '<b>crossOriginIsolated</b> = ' + (isolated() ? 'true' : 'false') +

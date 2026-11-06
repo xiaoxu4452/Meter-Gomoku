@@ -9,8 +9,12 @@ let active = null;          // { id, gen, topN, scan, infinite, stopping, lastBe
 let pending = null;         // newest request queued behind the running one (older ones are dropped)
 let bal = null;             // { id, gen, count, moves, stopping, lastPoints, key }
 let pvIdx = -1;
-let curNumPv = 0;
-let pvs = [];
+let curNumPv = 0;   // PV count of the committed round (what the UI sees)
+let pendNumPv = 0;  // PV count of the round now being parsed
+let pvs = [];       // committed round, one slot per engine root PV
+let pend = [];      // round under construction; never mixed into pvs
+let cur = null;     // candidate block being filled for pvIdx
+let frameId = 0;    // increments on every emitted frame (page can assert pairing)
 let glob = { speed: 0, totaltime: 0, totalnodes: 0 };
 let lastCfg = { threads: 0, hashMB: 0, caution: 0, rule: -1 };
 let stopTimer = 0;
@@ -96,24 +100,27 @@ function post(msg) {
    probed with a one-byte range request, the quickest one wins, and the download
    is split into 4 MB ranges so a single stalled chunk can be retried on another
    route instead of throwing the whole download away. */
+/* All of these answered a 64 KB Range request both through the system proxy and
+   with --noproxy in the release network. jsDelivr was dropped: it returns 403
+   for files above its 20 MB limit, so it could never serve rapfi.data and only
+   added a slow, always-failing probe. */
 const MIRROR_ROOT = [
   'https://ghproxy.net/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
   'https://gh-proxy.com/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
   'https://ghfast.top/https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
-  'https://cdn.jsdelivr.net/gh/xiaoxu4452/Meter-Gomoku@main/calc/engine/',
   'https://raw.githubusercontent.com/xiaoxu4452/Meter-Gomoku/main/calc/engine/',
 ];
 
 let loadPct = -1;
 let loadAt = 0;
-function postLoad(pct, key) {
+function postLoad(pct, key, bytes, total) {
   const p = Math.max(0, Math.min(100, pct));
   const now = Date.now();
   if (p - loadPct < 0.8 && now - loadAt < 140 && p < 100) return;
   if (p < loadPct) return;
   loadPct = p;
   loadAt = now;
-  post({ t: 'load', pct: p, key: key || null });
+  post({ t: 'load', pct: p, key: key || null, bytes: bytes == null ? null : bytes, total: total == null ? null : total });
 }
 
 function isCross(url) {
@@ -302,7 +309,7 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
   } else {
     for (let k = 0; k < n; k++) todo.push(k);
   }
-  if (filled) postLoad(from + (to - from) * (filled / total), null);
+  if (filled) postLoad(from + (to - from) * (filled / total), null, filled, total);
   const cacheWrites = [];
   const pick = () => {
     let best = null;
@@ -343,7 +350,7 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
           const bps = b.length / dt * 1000;
           s.bps = s.bps ? s.bps * 0.6 + bps * 0.4 : bps;
           filled += b.length;
-          postLoad(from + (to - from) * (filled / total), null);
+          postLoad(from + (to - from) * (filled / total), null, filled, total);
           if (cache) {
             cacheWrites.push(cache.put(chunkUrl(name, ver, idx), new Response(b, {
               headers: { 'X-Size': String(b.length) },
@@ -596,11 +603,11 @@ function evalNum(v) {
   return Number.isFinite(n) ? sign * n : null;
 }
 
-function sortPvs(upto) {
-  const list = [];
-  for (let i = 0; i <= upto && i < pvs.length; i++) if (pvs[i]) list.push(pvs[i]);
-  if (list.length < 2) return;
-  list.sort((a, b) => {
+function sortPvs(list, upto) {
+  const held = [];
+  for (let i = 0; i <= upto && i < list.length; i++) if (list[i] && list[i].bestline) held.push(list[i]);
+  if (held.length < 2) return;
+  held.sort((a, b) => {
     const va = evalNum(a.eval);
     const vb = evalNum(b.eval);
     if (va == null && vb == null) return 0;
@@ -609,20 +616,54 @@ function sortPvs(upto) {
     return vb - va;
   });
   let j = 0;
-  for (let i = 0; i <= upto && i < pvs.length; i++) if (pvs[i]) pvs[i] = list[j++];
+  for (let i = 0; i <= upto && i < list.length; i++) if (list[i] && list[i].bestline) list[i] = held[j++];
 }
 
-/* Root candidates of the frame that just finished. Rapfi prints the PVs of an
-   iteration one by one; a slot can be left over from a previous iteration or
-   repeat a root move, so the list is truncated to the current NUMPV and keyed
-   by the first move. Ranks stay 0..n-1 with no holes, which is what the page
-   shows as N distinct markers and N route rows. */
+/* ---- round commit model -------------------------------------------------
+   Rapfi streams a whole iteration as `INFO PV 0` .. `INFO PV n-1`, re-sorting
+   its root list after every PV. The old parser wrote straight into the array
+   the UI read, so a frame could pair a fresh rank 0 with values left over from
+   the previous iteration, and a round with fewer PVs left the old tail behind
+   (duplicate coordinates, wildly stale scores). The desktop host solved this
+   with pending/committed rounds; this is the same model:
+     - `pend` is the only structure written while a round is in flight;
+     - `pvs` is a complete round and is the only structure the UI ever sees;
+     - a bare move commits whatever round is on the wire first, so `cands[0]`
+       and the engine's own final move always describe the same round.  */
+function commitRound() {
+  pvIdx = -1;
+  cur = null;
+  const n = pendNumPv > 0 ? pendNumPv : pend.length;
+  const out = [];
+  for (let i = 0; i < pend.length && i < n; i++) {
+    const p = pend[i];
+    if (p && p.bestline) out.push(p);
+  }
+  if (!out.length) return false;
+  pvs = out;
+  curNumPv = out.length;
+  pend = [];
+  pendNumPv = 0;
+  return true;
+}
+
+/* Ranking of one complete round. The engine orders root moves by score, so
+   slot order is already the engine's order; the tile order the page paints is
+   this explicit comparator instead. It never lets a missing WINRATE or a
+   non-finite score win: a candidate with no usable number always ranks last. */
+function candValue(p) {
+  let wr = typeof p.winrate === 'number' && Number.isFinite(p.winrate) ? p.winrate : null;
+  if (wr != null) return { wr: Math.max(0, Math.min(1, wr > 1.5 ? wr / 100 : wr)), ev: evalNum(p.eval) };
+  const ev = evalNum(p.eval);
+  if (ev == null) return { wr: null, ev: null };
+  const w = 1 / (1 + Math.exp(-Math.max(-9000, Math.min(9000, ev)) / 200));
+  return { wr: Math.max(0, Math.min(1, w)), ev };
+}
+
 function candidates() {
   const out = [];
   const seen = new Set();
-  const n = curNumPv > 0 ? curNumPv : pvs.length;
-  for (let i = 0; i < pvs.length && i < n; i++) {
-    const p = pvs[i];
+  for (const p of pvs) {
     if (!p) continue;
     const line = parseIntegerList(p.bestline || '');
     const move = line[0];
@@ -630,15 +671,32 @@ function candidates() {
     const key = move[0] + ',' + move[1];
     if (seen.has(key)) continue;
     seen.add(key);
+    const v = candValue(p);
     out.push({
-      rank: out.length,
       depth: p.depth || 0,
       eval: p.eval || '',
-      winrate: typeof p.winrate === 'number' ? p.winrate : 0.5,
+      winrate: v.wr,
       line,
       move,
+      slot: out.length,
     });
   }
+  /* deterministic ranking: usable win rate desc, then score desc, then slot
+     (stable) — equal values therefore never swap places between frames */
+  out.sort((a, b) => {
+    const wa = a.winrate, wb = b.winrate;
+    if (wa == null && wb == null) return a.slot - b.slot;
+    if (wa == null) return 1;
+    if (wb == null) return -1;
+    if (wb !== wa) return wb - wa;
+    const ea = evalNum(a.eval), eb = evalNum(b.eval);
+    if (ea == null && eb == null) return a.slot - b.slot;
+    if (ea == null) return 1;
+    if (eb == null) return -1;
+    if (eb !== ea) return eb - ea;
+    return a.slot - b.slot;
+  });
+  out.forEach((c, i) => { c.rank = i; });
   return out;
 }
 
@@ -676,16 +734,20 @@ function emitInfo(final, best) {
   if (!final && active.scan && now - active.lastEmit < 300) return;
   active.lastEmit = now;
   const stats = statsOf();
-  const cands = candidates(); if (!final && active.scan) active.frame = { stats, candidates: cands }; post({
+  const cands = candidates();
+  const top = (cands[0] && cands[0].move) || null;
+  const fid = ++frameId;
+  /* stats and candidates are captured together: the page must never pair one
+     frame's ranking with another frame's numbers */
+  active.frame = { stats, candidates: cands, frameId: fid, best: top };
+  post({
     t: final ? 'best' : 'info',
-    id: active.id,
-    gen: active.gen,
-    scan: !!active.scan,
-    stats,
-    candidates: cands,
-    best: best || (cands[0] && cands[0].move) || active.lastBest || null,
+    id: active.id, gen: active.gen, scan: !!active.scan,
+    stats, candidates: cands, frameId: fid,
+    best: top || best || active.lastBest || null,
+    bestRaw: best || null,
   });
-  if (cands[0] && cands[0].move) active.lastBest = cands[0].move;
+  if (top) active.lastBest = top;
 }
 
 function emitBalanceTick() {
@@ -711,25 +773,34 @@ function handleLine(raw) {
   if (!line) return;
 
   if (line === 'INFO PV DONE') {
-    if (pvIdx >= 0 && pvs[pvIdx]) {
+    const doneIdx = pvIdx;
+    if (doneIdx >= 0 && cur) {
+      pend[doneIdx] = cur;
       /* the engine re-sorted the searched prefix right after printing this line */
-      if (!bal) sortPvs(pvIdx);
-      /* Rapfi completes and prints root PVs one by one inside an iteration, so
-         emitting on every PV would combine a fresh rank 0 with stale lower
-         ranks (and briefly show the same move twice). Emit only when the last
-         PV of the iteration is done: that frame is internally consistent, and
-         the engine's rank order stays stable between refreshes. */
-      if (curNumPv > 0 && pvIdx + 1 >= curNumPv) {
-        if (bal) emitBalanceTick();
-        else emitInfo(false);
-      }
+      if (!bal) sortPvs(pend, doneIdx);
     }
+    cur = null;
     pvIdx = -1;
+    /* Publish only a complete round. Emitting mid-round is exactly what mixed a
+       fresh rank 0 with stale lower ranks; the previous parser also reused the
+       same slot object, so an INFO field missing from this round kept last
+       round's value. */
+    if (doneIdx >= 0 && pendNumPv > 0 && doneIdx + 1 >= pendNumPv) {
+      commitRound();
+      if (bal) emitBalanceTick();
+      else emitInfo(false);
+    }
     return;
   }
   if (line.startsWith('INFO PV ')) {
-    pvIdx = +line.slice(8);
-    if (!pvs[pvIdx]) pvs[pvIdx] = {};
+    const idx = +line.slice(8);
+    if (!Number.isFinite(idx) || idx < 0) return;
+    /* rank 0 means a new iteration started: whatever was on the wire is
+       incomplete and must never be published — drop it, keep the committed round */
+    if (idx === 0) { pend = []; pendNumPv = 0; }
+    pvIdx = idx;
+    cur = {};
+    if (!pend[idx]) pend[idx] = cur;
     return;
   }
   if (line.startsWith('INFO ')) {
@@ -737,7 +808,7 @@ function handleLine(raw) {
     const sp2 = line.indexOf(' ', sp + 1);
     const key = line.slice(sp + 1, sp2 > 0 ? sp2 : undefined);
     const val = sp2 > 0 ? line.slice(sp2 + 1).trim() : '';
-    const p = pvIdx >= 0 ? (pvs[pvIdx] || (pvs[pvIdx] = {})) : null;
+    const p = cur;
     if (key === 'TOTALTIME') glob.totaltime = +val;
     else if (key === 'TOTALNODES') glob.totalnodes = +val;
     else if (key === 'SPEED') glob.speed = +val;
@@ -745,19 +816,33 @@ function handleLine(raw) {
     if (key === 'DEPTH') p.depth = +val;
     else if (key === 'SELDEPTH') p.seldepth = +val;
     else if (key === 'EVAL') p.eval = val;
-    else if (key === 'WINRATE') p.winrate = parseFloat(val);
+    else if (key === 'WINRATE') {
+      const w = parseFloat(val);
+      /* never store NaN: it is a number to typeof but poison for every sort */
+      p.winrate = Number.isFinite(w) ? w : null;
+    }
     else if (key === 'SPEED') p.speed = +val;
     else if (key === 'NODES') p.nodes = +val;
     else if (key === 'TOTALNODES') p.totalnodes = +val;
     else if (key === 'TOTALTIME') p.totaltime = +val;
     else if (key === 'BESTLINE') p.bestline = val;
-    else if (key === 'NUMPV') curNumPv = +val;
+    else if (key === 'NUMPV') {
+      const n = +val;
+      if (Number.isFinite(n) && n >= 0) {
+        pendNumPv = n;
+        /* a shorter round must not keep the previous round's tail */
+        if (pend.length > n) pend.length = n;
+      }
+    }
     return;
   }
 
   // final coordinate line: "x,y" (ONE / normal best) or "x,y x,y ..." (TWO pair)
   if (/^[0-9]+,[0-9]+(?:\s+[0-9]+,[0-9]+)*$/.test(line)) {
     const pts = parseIntegerList(line);
+    /* the engine prints its move after the last (possibly partial) round:
+       commit that round first so cands[0] and best describe the same round */
+    commitRound();
     if (bal) { finishBalance(pts, statsOf()); return; }
     if (active) { finishSearch(pts[0]); return; }
     /* a forced stop was already reported to the page; this line is the engine
@@ -766,6 +851,7 @@ function handleLine(raw) {
     return;
   }
   if (/^SWAP$/i.test(line)) {
+    commitRound();
     if (bal) finishBalance([], null);
     return;
   }
@@ -865,7 +951,8 @@ async function boot(opts) {
     ]);
     assets.catch(() => {});              // avoid an unhandled rejection while parsing
     importScripts(opts.urls.js);
-    postLoad(4, 'loadCached');
+    /* no stage label here: the asset promise decides "cache" vs "download" */
+    postLoad(4, null);
     /* Hand the bytes straight to the runtime instead of wrapping them in blob
        URLs: getPreloadedPackage() keeps Emscripten from fetching the 41 MB a
        second time, and instantiateWasm() compiles the module we already hold.
@@ -934,10 +1021,17 @@ function finishSearch(best, forced) {
        idle before the queued job sends a new position */
     send('STOP');
   }
+  /* The final frame is built from the committed round and the engine's own
+     move, not from a live snapshot: a snapshot up to 300 ms old could show an
+     older ranking while the page played the newest best coordinate. */
   const stats = statsOf();
+  const cands = candidates();
+  const top = (cands[0] && cands[0].move) || null;
   post({
-    t: 'best', id: a.id, gen: a.gen, scan: !!a.scan, stats: (a.scan && a.frame) ? a.frame.stats : stats, candidates: (a.scan && a.frame) ? a.frame.candidates : candidates(),
-    best: best || a.lastBest || null,
+    t: 'best', id: a.id, gen: a.gen, scan: !!a.scan,
+    stats, candidates: cands, frameId: ++frameId,
+    best: top || best || a.lastBest || null,
+    bestRaw: best || null,
     forced: !!forced,
   });
   /* a reset that arrived while this search was running is executed now,
@@ -973,8 +1067,11 @@ function startSearch(job) {
     lastEmit: 0, key: jobKey(job),
   };
   pvs = [];
-  pvIdx = -1;
+  pend = [];
+  pendNumPv = 0;
   curNumPv = 0;
+  pvIdx = -1;
+  cur = null;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
   /* YixinBoard's scan uses expandCandArea: every stone contributes a 7x7 square
      plus 8 directional lines four cells deep (square3_line4). In Rapfi that is
@@ -1085,7 +1182,11 @@ function balance(job) {
   clearTimeout(stopTimer);
   const count = Math.max(1, Math.min(2, job.count | 0));
   pvs = [];
+  pend = [];
+  pendNumPv = 0;
+  curNumPv = 0;
   pvIdx = -1;
+  cur = null;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
   applyConfig(job.threads, job.hashMB, job.caution, job.rule, false);
   applyStrength({ maxDepth: job.maxDepth, maxNodes: job.maxNodes, strength: job.strength, pondering: 0 });

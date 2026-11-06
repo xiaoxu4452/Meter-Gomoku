@@ -6,7 +6,7 @@
    make sure the engine cache survives shell updates. */
 'use strict';
 
-const VERSION = '20261106b';
+const VERSION = '20261106c';
 /* Keep the engine cache name stable across UI releases: worker.js stores the
    weights under this name, and a new shell must not throw 41 MB away. Bumped
    only when the weight entry itself changes. */
@@ -14,7 +14,7 @@ const ENGINE_VERSION = '20261105c';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
 const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
-const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js', './guide.html', './about.html', './docs.html',
+const SHELL = ['./', './index.html', './app.css', './app.js', './theme.js', './worker.js', './guide.html', './about.html', './docs.html',
   './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -38,6 +38,10 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+/* Isolation headers are only ever produced by this worker for URLs on our own
+   origin: the fetch handler returns before calling in for any other origin, so
+   a third-party response can never be tagged with COOP/COEP/CORP and inherit
+   our isolation. No CORS header is ever added. */
 function withHeaders(res, nav) {
   if (!res) return res;
   const h = new Headers(res.headers);

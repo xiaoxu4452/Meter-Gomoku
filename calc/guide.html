@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta id="themeColor" name="theme-color" content="#edf1f6">
 <title>使用说明 · Meter Gomoku Web</title>
+<!-- Docs ship small inline bootstrap scripts (theme/lang/TOC) and never touch
+     user input; external scripts and framing are still blocked here. The
+     calculator page uses the stricter CSP without 'unsafe-inline'. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
 <meta name="description" content="Meter Gomoku Web 完整使用说明：棋盘与落子、功能键、规则、设置、胜率与评分、九种变换、局面代码、快捷键、常见问题与关于。">
 <link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
 <link rel="apple-touch-icon" href="../assets/calc.png">

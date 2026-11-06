@@ -25,20 +25,12 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Meter Gomoku Web">
 <meta name="twitter:image" content="https://xiaoxu4452.github.io/Meter-Gomoku/assets/calc.png">
-<script>
-/* apply the stored theme before first paint (no flash) */
-(function () {
-  var t = '';
-  try { t = localStorage.getItem('mgcalc.theme') || localStorage.getItem('mg.site.theme') || ''; } catch (e) {}
-  if (t !== 'light' && t !== 'dark') {
-    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-  }
-  document.documentElement.setAttribute('data-theme', t);
-  document.documentElement.style.colorScheme = t;
-  var m = document.querySelector('meta[name="theme-color"]');
-  if (m) m.setAttribute('content', t === 'dark' ? '#0a0f15' : '#edf1f6');
-})();
-</script>
+<script src="theme.js"></script>
+<!-- Strict CSP: no external scripts, no inline scripts. WebAssembly needs
+     'wasm-unsafe-eval' (Chrome 97+). The mirror hosts are allowed for connect-src
+     only because worker.js downloads the NNUE weights from them; those are data
+     files, verified by size + SHA-256, and never executed. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://ghproxy.net https://gh-proxy.com https://ghfast.top https://raw.githubusercontent.com; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
