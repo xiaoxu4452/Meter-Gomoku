@@ -260,7 +260,7 @@ async function fetchChunk(route, start, end, limitMs) {
      allowed time follows its current measured speed (2.5x the expected time,
      clamped), after which the chunk moves to a faster route */
   const expect = ((end - start) / Math.max(route.bps || 0, 200 * 1024)) * 1000;
-  const timeout = Math.max(6000, Math.min(limitMs || 24000, expect * 2.5));
+  const timeout = Math.max(4000, Math.min(12000, expect * 2.5));
   const timer = setTimeout(() => ctl.abort(), timeout);
   try {
     const res = await fetch(route.url, reqOpts(route.url, {
@@ -312,11 +312,11 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
   }
   if (filled) postLoad(from + (to - from) * (filled / total), null, filled, total);
   const cacheWrites = [];
-  const pick = () => {
+  const pick = (skip) => {
     let best = null;
     let score = -1;
     for (const s of stats) {
-      if (s.dead) continue;
+      if (s.dead || (skip && skip.has(s.url))) continue;
       const sc = s.bps / (1 + s.inflight * 1.5);
       if (sc > score) { score = sc; best = s; }
     }
@@ -335,8 +335,13 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
       const end = Math.min(total, start + chunk);
       let done = false;
       let tries = 0;
+      /* a chunk that just timed out on one route must retry on another: the
+         route that stalled keeps scoring well until its speed decays, and
+         retrying it first was the reason the direct-connect tail sat at 89%
+         for a dozen seconds. */
+      const skip = new Set();
       while (!done && !dead) {
-        const s = pick();
+        const s = pick(skip);
         if (!s) { dead = new Error('chunk ' + idx + ' failed on every route'); return; }
         s.inflight++;
         const t0 = Date.now();
@@ -361,6 +366,7 @@ async function fetchRanged(routes, meta, from, to, cache, name, ver) {
         } catch (err) {
           s.fails++;
           s.bps = s.bps / 8;
+          skip.add(s.url);
           if (s.fails >= 3) s.dead = true;
         } finally {
           s.inflight--;
