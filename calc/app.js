@@ -886,7 +886,7 @@ function drawMarks() {
       const side = geo.cell * 0.92;
       const x0 = cx - side / 2, y0 = cy - side / 2;
       const p = scanP(mk);
-      const best = mk.rank === 0;
+      const best = !!mk.best;
       const hue = best ? 186 : scanHue(p);
       const dev = Math.min(1, Math.abs(p - 0.5) * 2);
       const sat = best ? 72 : 32 + 52 * dev;
@@ -1625,36 +1625,46 @@ function scheduleDebug() {
      the first move is the fix for the old double-marker bug: a stale PV slot
      may repeat an existing root move, and taking N array entries verbatim then
      painted two markers on one crossing.
-   - scan: the strongest candidates the engine kept in this frame, across the
-     whole board (the worker forces FULL_BOARD for a scan), then capped at
-     SCAN_MAX for readability. Rows are keyed by the root move, refreshed in
-     place, and dropped when the engine prunes the move. */
+   - scan: the candidate list the engine itself produced for this frame. The
+     worker runs a scan at CAUTION_FACTOR 3 (square3_line4, YixinBoard's
+     expandCandArea), and the page adds no geometric filter of its own: if the
+     engine offers 81 points, all 81 are candidates. Rows are keyed by the root
+     move and keep their established order; values update in place and a row
+     leaves only when the engine stops offering that move. */
 
-/* display cap: rank every scanned point by win rate and keep the best 48, so a
-   busy board shows three dozen readable tiles instead of a wall of colour */
-const SCAN_MAX = 48;
+/* display safety bound, not a candidate limit: square3_line4 tops out around
+   eighty points on a normal board, and the engine's list is authoritative */
+const SCAN_MAX = 120;
 
 function candKey(c) { return c && c.move ? c.move[0] + ',' + c.move[1] : ''; }
 
 function applyScanCandidates(cands) {
-  /* A scan is cumulative: early frames carry the shallow evaluations of the
-     whole candidate set, while very deep frames often collapse to a single
-     forced line. Keeping only the newest frame would make dozens of tiles
-     disappear at once, so rows are merged by root move (refreshed in place) and
-     then ranked by strength before the cap. */
+  /* YixinBoard keeps one fixed tile per candidate: the geometric set does not
+     move, only the numbers inside it change. This is reproduced by treating the
+     engine frame as the current candidate set, refreshing rows in place, and
+     never re-sorting the row array — a refresh cannot reshuffle the board. */
   const occupied = new Set(S.moves.map((m) => m.x + ',' + m.y));
-  const rows = S.scanRows.filter((r) => !occupied.has(r.key));
-  const byKey = new Map(rows.map((r) => [r.key, r]));
+  const byKey = new Map(S.scanRows.map((r) => [r.key, r]));
+  const kept = [];
+  const frameKeys = new Set();
   const seen = new Set();
+  let order = 0;
   for (const c of cands) {
     const key = candKey(c);
     if (!key || seen.has(key)) continue;
     const x = c.move[0], y = 14 - c.move[1];
     if (occupied.has(x + ',' + y)) continue;
     seen.add(key);
+    frameKeys.add(key);
     let r = byKey.get(key);
-    if (!r) { r = { key, x, y }; rows.push(r); byKey.set(key, r); }
-    else { r.x = x; r.y = y; }
+    if (!r) {
+      if (S.scanRows.length + kept.length >= SCAN_MAX) continue;
+      r = { key, x, y };
+    } else if (r.x !== x || r.y !== y) {
+      r.x = x;
+      r.y = y;
+    }
+    r.order = order++;
     r.cand = c;
     r.depth = c.depth;
     const pair = candEvalPair(c);
@@ -1662,19 +1672,29 @@ function applyScanCandidates(cands) {
     r.ev = pair.ev;
     r.evTxt = fmtScore(r.ev);
     r.line = c.line;
+    kept.push(r);
+    byKey.set(key, r);
   }
-  const strength = (r) => (r.wr != null ? r.wr : (r.ev != null ? 1 / (1 + Math.exp(-r.ev / 200)) : 0));
-  rows.sort((a, b) => strength(b) - strength(a));
+  /* only points the engine still offers stay; the rest keep their old slot, so
+     nothing jumps when the candidate set is unchanged */
+  const rows = [];
+  for (const r of S.scanRows) {
+    if (frameKeys.has(r.key)) rows.push(r);
+  }
+  for (const r of kept) if (!rows.includes(r)) rows.push(r);
   rows.length = Math.min(rows.length, SCAN_MAX);
-  rows.forEach((r, n) => { r.rank = n; });
   S.scanRows = rows;
-  S.scanBest = rows[0] || null;
-  S.marks = rows.map((r, n) => ({
-    kind: 'ana', scan: true, rank: n, x: r.x, y: r.y, depth: r.depth,
-    wr: r.wr, ev: r.ev, evTxt: r.evTxt,
+  let best = null;
+  for (const r of rows) if (r.order === 0) best = r;
+  S.scanBest = best;
+  S.marks = rows.map((r) => ({
+    kind: 'ana', scan: true, rank: r.order, best: !!best && r === best,
+    x: r.x, y: r.y, depth: r.depth, wr: r.wr, ev: r.ev, evTxt: r.evTxt,
   }));
+  /* the route panel is a ranking, so it may reorder; the board rows do not */
+  const ranked = rows.slice().sort((a, b) => a.order - b.order);
   drawBoard();
-  updateRoutes(rows.map((r) => r.cand), true);
+  updateRoutes(ranked.map((r) => r.cand), true);
 }
 
 function applyCandidates(cands, scan) {

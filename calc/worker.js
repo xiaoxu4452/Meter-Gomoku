@@ -676,8 +676,7 @@ function emitInfo(final, best) {
   if (!final && active.scan && now - active.lastEmit < 300) return;
   active.lastEmit = now;
   const stats = statsOf();
-  const cands = candidates();
-  post({
+  const cands = candidates(); if (!final && active.scan) active.frame = { stats, candidates: cands }; post({
     t: final ? 'best' : 'info',
     id: active.id,
     gen: active.gen,
@@ -937,7 +936,7 @@ function finishSearch(best, forced) {
   }
   const stats = statsOf();
   post({
-    t: 'best', id: a.id, gen: a.gen, scan: !!a.scan, stats, candidates: candidates(),
+    t: 'best', id: a.id, gen: a.gen, scan: !!a.scan, stats: (a.scan && a.frame) ? a.frame.stats : stats, candidates: (a.scan && a.frame) ? a.frame.candidates : candidates(),
     best: best || a.lastBest || null,
     forced: !!forced,
   });
@@ -977,10 +976,12 @@ function startSearch(job) {
   pvIdx = -1;
   curNumPv = 0;
   glob = { speed: 0, totaltime: 0, totalnodes: 0 };
-  /* a scan must see every empty point: CAUTION_FACTOR 5 is FULL_BOARD, while
-     any smaller value trims the candidate geometry and can hide the only winning
-     point on an open board */
-  applyConfig(job.threads, job.hashMB, active.scan ? 5 : job.caution, job.rule, false);
+  /* YixinBoard's scan uses expandCandArea: every stone contributes a 7x7 square
+     plus 8 directional lines four cells deep (square3_line4). In Rapfi that is
+     exactly CAUTION_FACTOR 3 (RANGE_SQUARE3_LINE4 in core/pos.h), so a scan runs
+     at 3 regardless of the user's normal-analysis range; the page never adds a
+     second geometric filter — the engine's candidate list is authoritative. */
+  applyConfig(job.threads, job.hashMB, active.scan ? 3 : job.caution, job.rule, false);
   /* a scan owns every thread, so background pondering stays off for its run */
   applyStrength({
     maxDepth: job.maxDepth, maxNodes: job.maxNodes, strength: job.strength,
@@ -989,7 +990,7 @@ function startSearch(job) {
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
   sendBoard(job.moves);
   /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
-     movesLeft()); the FULL_BOARD range above makes that list the whole board.
+     movesLeft()); the square3_line4 range above makes that list the 7x7+4-line set.
      YXNBEST N is the strict multi-PV path: one engine PV per rank. */
   send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
