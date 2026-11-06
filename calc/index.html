@@ -6,9 +6,17 @@
 <meta name="theme-color" content="#edf1f6">
 <title>Meter Gomoku Web</title>
 <!-- the shared calc.png is reused verbatim for the favicon, the header mark and
-     the share card — never resized or regenerated -->
+     the share card; the manifest icons are resized copies of the same artwork -->
 <link rel="icon" type="image/png" sizes="any" href="../assets/calc.png">
 <link rel="apple-touch-icon" href="../assets/calc.png">
+<!-- installable web app: same artwork as calc.png, resized to the sizes the
+     manifest needs; start_url stays inside the calculator's service-worker
+     scope so the installed window is still cross-origin isolated -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="application-name" content="Meter Gomoku">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Meter Gomoku Web">
 <meta property="og:description" content="Rapfi NNUE 引擎在浏览器本地运行：深度、速度、胜率、分析路线一屏可见。">

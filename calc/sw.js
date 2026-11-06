@@ -6,7 +6,7 @@
    make sure the engine cache survives shell updates. */
 'use strict';
 
-const VERSION = '20261106a';
+const VERSION = '20261106b';
 /* Keep the engine cache name stable across UI releases: worker.js stores the
    weights under this name, and a new shell must not throw 41 MB away. Bumped
    only when the weight entry itself changes. */
@@ -14,7 +14,8 @@ const ENGINE_VERSION = '20261105c';
 const SHELL_CACHE = 'mgcalc-shell-' + VERSION;
 const ENGINE_CACHE = 'mgcalc-engine-' + ENGINE_VERSION;
 const KEEP = [SHELL_CACHE, ENGINE_CACHE];
-const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js', './guide.html', './about.html', './docs.html'];
+const SHELL = ['./', './index.html', './app.css', './app.js', './worker.js', './guide.html', './about.html', './docs.html',
+  './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
@@ -86,7 +87,9 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(networkFirst(req, true));
     return;
   }
-  if (/\.(?:js|css|html)$/.test(url.pathname)) {
+  /* webmanifest and its icons are part of the installable shell: cache-first
+     fallback keeps the installed app's manifest available offline */
+  if (/\.(?:js|css|html|webmanifest|png)$/.test(url.pathname)) {
     e.respondWith(networkFirst(req, false));
   }
 });
