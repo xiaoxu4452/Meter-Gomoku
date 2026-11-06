@@ -138,10 +138,11 @@ function reqOpts(url, extra) {
   return o;
 }
 
-/* 64 KB probe: cheap (about 0.1% of the weight package) but it measures real
-   throughput, not just a round trip. `cap` shortens the timeout for the
-   "is our own host healthy?" check. */
-const PROBE_BYTES = 64 * 1024;
+/* 16 KB probe: about 0.04% of the weight package but still enough to rank
+   routes by real throughput. The old 64 KB probe plus a full "wait for every
+   mirror" made route selection cost ~4 s on a fast link, which the user pays
+   before the first byte of the weights arrives. */
+const PROBE_BYTES = 16 * 1024;
 async function probeRoute(url, cap) {
   const t0 = Date.now();
   const ctl = new AbortController();
@@ -221,7 +222,7 @@ async function fetchWhole(url, from, to, meta) {
    whatever has answered by then is ranked, late answers are ignored. */
 async function rankRoutes(urls, budget) {
   const hits = [];
-  const slots = urls.map((u) => probeRoute(u, 5000).then((r) => { if (r) hits.push(r); return r; }).catch(() => null));
+  const slots = urls.map((u) => probeRoute(u, 2500).then((r) => { if (r) hits.push(r); return r; }).catch(() => null));
   const all = Promise.all(slots);
   if (budget) {
     await Promise.race([all, new Promise((r) => setTimeout(r, budget))]);
@@ -414,7 +415,7 @@ async function downloadFrom(urls, meta, from, to, cache, name, ver) {
     }
     throw last || new Error('download failed');
   }
-  const routes = await rankRoutes(list, 800);
+  const routes = await rankRoutes(list, 3000);
   const ranged = routes.filter((r) => r.ranged && r.total);
   if (ranged.length) {
     try {
