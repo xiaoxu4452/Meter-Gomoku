@@ -66,8 +66,9 @@ const I18N = {
     scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
     scanFmtLabel: '扫描显示格式', scanFmtHint: '方形标记内显示分数或胜率，仅影响扫描',
     scanScore: '分数', scanWr: '胜率',
-    scanPointsLabel: '扫描点数', scanPointsHint: '1/4/8/16 = 引擎只保留前 N 个点（越少每点越深、越准，点集随局面收敛）；全量 = 82 点浅层扫描（YXSEARCHDEFEND）',
+    scanPointsLabel: '扫描点数', scanPointsHint: '智能 = 先铺满引擎候选区（约 82 点），再收敛到随局面变化的 2–52 点（常约 34 点），最后把尾部预算回收给头部几个点深搜；全量 = 一直保持全部候选点（YXSEARCHDEFEND）',
     scanFull: '全量',
+    scanSmart: '智能',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
     tipScan: '扫描分析：候选点持续加深；再点一次停止并落最佳点',
@@ -166,8 +167,9 @@ const I18N = {
     scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
     scanFmtLabel: 'Scan labels', scanFmtHint: 'Show score or win rate inside the scan tiles',
     scanScore: 'Score', scanWr: 'Win rate',
-    scanPointsLabel: 'Scan points', scanPointsHint: '1/4/8/16 = the engine keeps only its top N points (fewer = deeper per point and more accurate; the set converges around the fight); All = 82-point shallow scan (YXSEARCHDEFEND)',
+    scanPointsLabel: 'Scan points', scanPointsHint: 'Smart = cover the engine candidate area (~82), converge to a position-dependent 2–52 points (~34 typical), then recycle the tail budget into a deep head search; All = keep every candidate (YXSEARCHDEFEND)',
     scanFull: 'All',
+    scanSmart: 'Smart',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
     tipScan: 'Scan analysis — candidates keep deepening; click again to stop and play the best point',
@@ -512,11 +514,10 @@ function defaults() {
   return {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
     think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scanFmt: 'score',
-    /* 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points, shallow); 1/4/8/16 =
-       converged scan (YXNBEST N): the engine keeps only its top N root moves
-       and gives each one a full root search, which is how gomoku-calculator
-       produces its compact, position-shaped point set. Fewer points = deeper. */
-    scanPoints: 4,
+    /* -1 = smart scan: wide probe, then a position-dependent converged set,
+       then head refinement. 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points,
+       shallow). Older builds stored 1/4/8/16 here; they migrate to smart. */
+    scanPoints: -1,
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
     maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
@@ -557,7 +558,9 @@ function loadSettings() {
     if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
     if (raw.scanFmt === 'score' || raw.scanFmt === 'wr') d.scanFmt = raw.scanFmt;
-    if (raw.scanPoints === 0 || raw.scanPoints === 1 || raw.scanPoints === 4 || raw.scanPoints === 8 || raw.scanPoints === 16) d.scanPoints = raw.scanPoints;
+    if (raw.scanPoints === 0) d.scanPoints = 0;
+    else if (raw.scanPoints === -1 || raw.scanPoints === 1 || raw.scanPoints === 4 ||
+      raw.scanPoints === 8 || raw.scanPoints === 16) d.scanPoints = -1;
     if (Number.isFinite(raw.maxDepth) && raw.maxDepth >= 8 && raw.maxDepth <= 255) d.maxDepth = raw.maxDepth;
     if (Number.isFinite(raw.maxNodes) && raw.maxNodes >= 0) d.maxNodes = raw.maxNodes;
     if (raw.pondering === true || raw.pondering === false) d.pondering = raw.pondering;
@@ -1999,8 +2002,10 @@ function launch(kind) {
     /* strict multi-PV only pays off while analysing: playing with several lines
        splits the effort and makes the chosen move weaker. */
     topN: kind === 'analysis' && !scan ? S.settings.points : 1,
-    /* converged scan: let the engine keep only its top N root moves */
-    scanTopN: scan ? (S.settings.scanPoints | 0) : 0,
+    /* converged scan: let the engine keep only its top N root moves. Smart
+       scans start wide and let the worker pick N from the candidate list. */
+    scanTopN: scan ? (S.settings.scanPoints > 0 ? (S.settings.scanPoints | 0) : 0) : 0,
+    scanSmart: !!scan && (S.settings.scanPoints | 0) < 0,
     scan,
     count: S.balance,
     maxDepth: S.settings.maxDepth,

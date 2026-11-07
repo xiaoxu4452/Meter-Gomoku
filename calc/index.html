@@ -305,13 +305,10 @@
     <div class="set-row">
       <div class="set-label">
         <b data-i18n="scanPointsLabel">扫描点数</b>
-        <span data-i18n="scanPointsHint">1/4/8/16 = 引擎只保留前 N 个点（越少每点越深、越准，点集随局面收敛）；全量 = 82 点浅层扫描（YXSEARCHDEFEND）</span>
+        <span data-i18n="scanPointsHint">智能 = 先铺满引擎候选区（约 82 点），再收敛到随局面变化的 2–52 点（常约 34 点），最后把尾部预算回收给头部几个点深搜；全量 = 一直保持全部候选点（YXSEARCHDEFEND）</span>
       </div>
-      <div class="seg grid5" id="segScanPoints" role="group" aria-label="扫描点数">
-        <button type="button" data-v="1">1</button>
-        <button type="button" data-v="4">4</button>
-        <button type="button" data-v="8">8</button>
-        <button type="button" data-v="16">16</button>
+      <div class="seg" id="segScanPoints" role="group" aria-label="扫描点数">
+        <button type="button" data-v="-1" data-i18n="scanSmart">智能</button>
         <button type="button" data-v="0" data-i18n="scanFull">全量</button>
       </div>
     </div>
