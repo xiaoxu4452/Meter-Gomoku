@@ -3108,6 +3108,10 @@ function setSetting(key, value, opts) {
       updateAll();
       toast(T('tRuleSet', { n: ruleName(value) }));
     } else if (key === 'threads' || key === 'hashMB') {
+      /* S.engineThreads is what every search job sends to the engine (see the
+         job payload), so a new thread count must be written there as well;
+         dropping to the single-thread build stays pinned at 1. */
+      if (key === 'threads') S.engineThreads = S.engineBuild === 'single' ? 1 : value;
       enginePost({ t: 'config', threads: S.settings.threads, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule });
       toast(key === 'hashMB' ? T('tHashSet', { n: value }) : T('tThreadSet', { n: value }));
     } else if (key === 'think') {
