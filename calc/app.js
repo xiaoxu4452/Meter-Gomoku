@@ -66,7 +66,7 @@ const I18N = {
     scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
     scanFmtLabel: '扫描显示格式', scanFmtHint: '方形标记内显示分数或胜率，仅影响扫描',
     scanScore: '分数', scanWr: '胜率',
-    scanPointsLabel: '扫描点数', scanPointsHint: '全量 = 每个候选都扫描；8/16/32 = 引擎只保留前 N 个点（收敛方式与 gomoku-calculator 一致）',
+    scanPointsLabel: '扫描点数', scanPointsHint: '1/4/8/16 = 引擎只保留前 N 个点（越少每点越深、越准，点集随局面收敛）；全量 = 82 点浅层扫描（YXSEARCHDEFEND）',
     scanFull: '全量',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
@@ -166,7 +166,7 @@ const I18N = {
     scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
     scanFmtLabel: 'Scan labels', scanFmtHint: 'Show score or win rate inside the scan tiles',
     scanScore: 'Score', scanWr: 'Win rate',
-    scanPointsLabel: 'Scan points', scanPointsHint: 'All = scan every candidate; 8/16/32 = the engine keeps only its top N points (same convergence as gomoku-calculator)',
+    scanPointsLabel: 'Scan points', scanPointsHint: '1/4/8/16 = the engine keeps only its top N points (fewer = deeper per point and more accurate; the set converges around the fight); All = 82-point shallow scan (YXSEARCHDEFEND)',
     scanFull: 'All',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
@@ -512,9 +512,11 @@ function defaults() {
   return {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
     think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scanFmt: 'score',
-    /* 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points); 8/16/32 = converged
-       scan (YXNBEST N) where the engine keeps only its top N root moves */
-    scanPoints: 8,
+    /* 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points, shallow); 1/4/8/16 =
+       converged scan (YXNBEST N): the engine keeps only its top N root moves
+       and gives each one a full root search, which is how gomoku-calculator
+       produces its compact, position-shaped point set. Fewer points = deeper. */
+    scanPoints: 4,
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
     maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
@@ -555,7 +557,7 @@ function loadSettings() {
     if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
     if (raw.scanFmt === 'score' || raw.scanFmt === 'wr') d.scanFmt = raw.scanFmt;
-    if (raw.scanPoints === 0 || raw.scanPoints === 8 || raw.scanPoints === 16 || raw.scanPoints === 32) d.scanPoints = raw.scanPoints;
+    if (raw.scanPoints === 0 || raw.scanPoints === 1 || raw.scanPoints === 4 || raw.scanPoints === 8 || raw.scanPoints === 16) d.scanPoints = raw.scanPoints;
     if (Number.isFinite(raw.maxDepth) && raw.maxDepth >= 8 && raw.maxDepth <= 255) d.maxDepth = raw.maxDepth;
     if (Number.isFinite(raw.maxNodes) && raw.maxNodes >= 0) d.maxNodes = raw.maxNodes;
     if (raw.pondering === true || raw.pondering === false) d.pondering = raw.pondering;
