@@ -303,6 +303,19 @@
     </div>
 
     <div class="set-row">
+      <div class="set-label">
+        <b data-i18n="scanPointsLabel">扫描点数</b>
+        <span data-i18n="scanPointsHint">全量 = 每个候选都扫描；8/16/32 = 引擎只保留前 N 个点（收敛方式与 gomoku-calculator 一致）</span>
+      </div>
+      <div class="seg grid4" id="segScanPoints" role="group" aria-label="扫描点数">
+        <button type="button" data-v="0" data-i18n="scanFull">全量</button>
+        <button type="button" data-v="8">8</button>
+        <button type="button" data-v="16">16</button>
+        <button type="button" data-v="32">32</button>
+      </div>
+    </div>
+
+    <div class="set-row">
       <div class="set-label"><b data-i18n="maxDepth">最大深度</b><span data-i18n="maxDepthHint">搜索深度上限；默认 64，通常先撞思考时间而不是深度</span></div>
       <div class="seg four" id="segDepth" role="group" aria-label="最大深度">
         <button type="button" data-v="32">32</button>

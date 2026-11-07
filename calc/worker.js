@@ -74,6 +74,7 @@ function waitEngineIdle(ms) {
 function jobKey(job) {
   const mv = (job.moves || []).map((m) => m[0] + ',' + m[1] + ',' + m[2]).join(';');
   return (job.rule | 0) + '|' + (job.topN | 0) + '|' + (job.scan ? 1 : 0) +
+    '|' + (job.scan ? (job.scanTopN | 0) : 0) +
     '|' + (job.infinite ? 1 : 0) + '|' + (job.scan ? (job.timeMs | 0) : 0) + '|' + mv;
 }
 
@@ -1070,6 +1071,10 @@ function startSearch(job) {
   clearTimeout(scanTimer);
   active = {
     id: job.id, gen: job.gen, topN: Math.max(1, Math.min(8, job.topN | 0)),
+    /* scanTopN > 0 switches the scan from YXSEARCHDEFEND (every candidate) to
+       YXNBEST N: the engine itself keeps only the N best root moves, which is
+       what gomoku-calculator does. 0 keeps the full Yixin coverage. */
+    scanTopN: Math.max(0, Math.min(225, job.scanTopN | 0)),
     scan: !!job.scan, infinite: !!job.infinite, stopping: false, lastBest: null,
     lastEmit: 0, key: jobKey(job),
   };
@@ -1095,8 +1100,10 @@ function startSearch(job) {
   sendBoard(job.moves);
   /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
      movesLeft()); the square3_line4 range above makes that list the 7x7+4-line set.
-     YXNBEST N is the strict multi-PV path: one engine PV per rank. */
-  send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
+     YXNBEST N is the strict multi-PV path: one engine PV per rank. Converged
+     scans use it so the engine, not the page, decides which points survive. */
+  if (active.scan) send(active.scanTopN > 0 ? 'YXNBEST ' + active.scanTopN : 'YXSEARCHDEFEND');
+  else send('YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
      iteration can run long past it), so the single-thread fallback gets an
      explicit wall-clock fence and restarts a fresh chunk. A multi-thread scan

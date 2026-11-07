@@ -66,6 +66,8 @@ const I18N = {
     scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
     scanFmtLabel: '扫描显示格式', scanFmtHint: '方形标记内显示分数或胜率，仅影响扫描',
     scanScore: '分数', scanWr: '胜率',
+    scanPointsLabel: '扫描点数', scanPointsHint: '全量 = 每个候选都扫描；8/16/32 = 引擎只保留前 N 个点（收敛方式与 gomoku-calculator 一致）',
+    scanFull: '全量',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
     tipScan: '扫描分析：候选点持续加深；再点一次停止并落最佳点',
@@ -164,6 +166,8 @@ const I18N = {
     scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
     scanFmtLabel: 'Scan labels', scanFmtHint: 'Show score or win rate inside the scan tiles',
     scanScore: 'Score', scanWr: 'Win rate',
+    scanPointsLabel: 'Scan points', scanPointsHint: 'All = scan every candidate; 8/16/32 = the engine keeps only its top N points (same convergence as gomoku-calculator)',
+    scanFull: 'All',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
     tipScan: 'Scan analysis — candidates keep deepening; click again to stop and play the best point',
@@ -508,6 +512,9 @@ function defaults() {
   return {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
     think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scanFmt: 'score',
+    /* 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points); 8/16/32 = converged
+       scan (YXNBEST N) where the engine keeps only its top N root moves */
+    scanPoints: 8,
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
     maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
@@ -548,6 +555,7 @@ function loadSettings() {
     if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
     if (raw.scanFmt === 'score' || raw.scanFmt === 'wr') d.scanFmt = raw.scanFmt;
+    if (raw.scanPoints === 0 || raw.scanPoints === 8 || raw.scanPoints === 16 || raw.scanPoints === 32) d.scanPoints = raw.scanPoints;
     if (Number.isFinite(raw.maxDepth) && raw.maxDepth >= 8 && raw.maxDepth <= 255) d.maxDepth = raw.maxDepth;
     if (Number.isFinite(raw.maxNodes) && raw.maxNodes >= 0) d.maxNodes = raw.maxNodes;
     if (raw.pondering === true || raw.pondering === false) d.pondering = raw.pondering;
@@ -1989,6 +1997,8 @@ function launch(kind) {
     /* strict multi-PV only pays off while analysing: playing with several lines
        splits the effort and makes the chosen move weaker. */
     topN: kind === 'analysis' && !scan ? S.settings.points : 1,
+    /* converged scan: let the engine keep only its top N root moves */
+    scanTopN: scan ? (S.settings.scanPoints | 0) : 0,
     scan,
     count: S.balance,
     maxDepth: S.settings.maxDepth,
@@ -2993,6 +3003,7 @@ function syncSettingsUI() {
   seg('segDepth', S.settings.maxDepth);
   seg('segNodes', S.settings.maxNodes);
   seg('segScanFmt', S.settings.scanFmt);
+  seg('segScanPoints', S.settings.scanPoints);
   const swPonder = $('swPonder');
   if (swPonder) swPonder.setAttribute('aria-checked', String(!!S.settings.pondering));
   seg('segRule', S.settings.rule);
@@ -3082,7 +3093,7 @@ function setSetting(key, value, opts) {
     haltSearch();
     S.scanDone = false;
     if (key === 'points' || key === 'rule' || key === 'threads' || key === 'hashMB' || key === 'caution' ||
-        key === 'maxDepth' || key === 'maxNodes' || key === 'pondering' || key === 'strength') {
+        key === 'maxDepth' || key === 'maxNodes' || key === 'pondering' || key === 'strength' || key === 'scanPoints') {
       S.marks = [];
       clearRouteView();
     }
@@ -3173,6 +3184,7 @@ function initSettingsEvents() {
   segClick('segDepth', (v) => setSetting('maxDepth', +v));
   segClick('segNodes', (v) => setSetting('maxNodes', +v));
   segClick('segScanFmt', (v) => setSetting('scanFmt', v));
+  segClick('segScanPoints', (v) => setSetting('scanPoints', +v));
   const swPonder = $('swPonder');
   if (swPonder) swPonder.addEventListener('click', () => setSetting('pondering', !S.settings.pondering));
   buildBoardSwatches();
