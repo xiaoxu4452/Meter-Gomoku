@@ -1398,6 +1398,8 @@ function balance(job) {
   const b = { id: job.id, gen: job.gen, count, moves: job.moves, stopping: false, lastPoints: [], timer: 0, key };
   bal = b;
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(500, job.timeMs | 0)));
+  /* clear any head-phase YXBLOCK left by a smart scan before balancing */
+  send('YXBLOCKRESET');
   sendBoard(job.moves);
   send(count >= 2 ? 'YXBALANCETWO 0' : 'YXBALANCEONE 0');
   startHeartbeat();
