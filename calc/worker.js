@@ -19,19 +19,6 @@ let glob = { speed: 0, totaltime: 0, totalnodes: 0 };
 let lastCfg = { threads: 0, hashMB: 0, caution: 0, rule: -1 };
 let stopTimer = 0;
 let scanTimer = 0;
-/* Smart scan schedule (see startScanPhase): a short all-candidate probe picks a
-   position-dependent point count, the converged search spends the main budget on
-   it, and a final head-only search deepens the few moves that can change the
-   ranking. Timers are absolute from the scan start so the phases always fit the
-   time a user actually watches. */
-let wideTimer = 0;
-let convTimer = 0;
-let switchTimer = 0;
-const SCAN_WIDE_MS = 2500;      // all-candidate probe: fixes K and the shape
-const SCAN_CONV_MS = 9000;      // converged phase ends, head refinement begins
-const SCAN_K_RATIO = 0.42;      // K as a share of the engine's candidate list
-const SCAN_HEAD_MAX = 3;        // head moves that get the final deep search
-const SCAN_K_MAX = 52;
 let booting = false;
 let forbidMirrors = false;   // ?src=single: own origin only, for loader benchmarks
 /* Serialisation: every job carries a monotonically increasing seq. A job whose
@@ -87,8 +74,6 @@ function waitEngineIdle(ms) {
 function jobKey(job) {
   const mv = (job.moves || []).map((m) => m[0] + ',' + m[1] + ',' + m[2]).join(';');
   return (job.rule | 0) + '|' + (job.topN | 0) + '|' + (job.scan ? 1 : 0) +
-    '|' + (job.scan ? (job.scanTopN | 0) : 0) +
-    '|' + (job.scan && job.scanSmart ? 1 : 0) +
     '|' + (job.infinite ? 1 : 0) + '|' + (job.scan ? (job.timeMs | 0) : 0) + '|' + mv;
 }
 
@@ -652,30 +637,6 @@ function sortPvs(list, upto) {
      - `pvs` is a complete round and is the only structure the UI ever sees;
      - a bare move commits whatever round is on the wire first, so `cands[0]`
        and the engine's own final move always describe the same round.  */
-function pvMoveKey(p) {
-  const line = parseIntegerList((p && p.bestline) || '');
-  const mv = line[0];
-  return mv ? mv[0] + ',' + mv[1] : null;
-}
-
-/* Head refinement runs with a small multi-PV, so its rounds are shorter than the
-   converged point set. Merging by move keeps every converged point on screen:
-   the head slots receive fresh deep values, the tail keeps its converged values
-   (and therefore visibly lower confidence) instead of disappearing. */
-function mergeHeadRound(base, fresh, k) {
-  const merged = base.slice();
-  for (const p of fresh) {
-    const key = pvMoveKey(p);
-    if (!key) continue;
-    let at = -1;
-    for (let i = 0; i < merged.length; i++) if (pvMoveKey(merged[i]) === key) { at = i; break; }
-    if (at >= 0) merged[at] = p;
-    else if (merged.length < k) merged.push(p);
-    else merged[merged.length - 1] = p;
-  }
-  return merged;
-}
-
 function commitRound() {
   pvIdx = -1;
   cur = null;
@@ -686,24 +647,8 @@ function commitRound() {
     if (p && p.bestline) out.push(p);
   }
   if (!out.length) return false;
-  const a = active;
-  const complete = !pendNumPv || out.length >= pendNumPv;
-  if (a && a.scan && a.phase === 3 && a.basePvs && a.basePvs.length) {
-    /* head search: fresh deep values for the head, converged values for the tail */
-    pvs = mergeHeadRound(a.basePvs, out, Math.min(SCAN_K_MAX, a.k || a.basePvs.length));
-    a.basePvs = pvs;
-  } else if (a && a.scan && !complete) {
-    /* A stopped iteration only prints its already-searched PV prefix. Publishing
-       that bare prefix is what shrank a 34-point scan at STOP time, so partial
-       rounds merge: matching moves take the fresh value, the rest keep theirs. */
-    pvs = mergeHeadRound(pvs, out, Math.max(pvs.length, a.k || 0));
-  } else {
-    /* a complete round is authoritative: this is how the set converges when the
-       engine's ranking changes with depth */
-    pvs = out;
-  }
-  if (a && a.scan && a.k && pvs.length > a.k) pvs = pvs.slice(0, a.k);
-  curNumPv = pvs.length;
+  pvs = out;
+  curNumPv = out.length;
   pend = [];
   pendNumPv = 0;
   return true;
@@ -906,14 +851,7 @@ function handleLine(raw) {
        commit that round first so cands[0] and best describe the same round */
     commitRound();
     if (bal) { finishBalance(pts, statsOf()); return; }
-    if (active) {
-      /* A smart scan changes phase on purpose: this coordinate line is the
-         engine proving it is idle after STOP, so the next multi-PV command can
-         be written safely and the page keeps its scan state. */
-      if (active.switching && !active.stopping) { beginScanPhase(); return; }
-      finishSearch(pts[0]);
-      return;
-    }
+    if (active) { finishSearch(pts[0]); return; }
     /* a forced stop was already reported to the page; this line is the engine
        saying it really finished, so the queued board may now be written */
     if (engineDirty) releaseDirty();
@@ -1084,10 +1022,6 @@ function finishSearch(best, forced) {
   active = null;
   clearTimeout(stopTimer);
   clearTimeout(scanTimer);
-  clearTimeout(wideTimer);
-  clearTimeout(convTimer);
-  clearTimeout(switchTimer);
-  a.switching = null;
   stopHeartbeat();
   if (forced) {
     /* the build did not answer STOP in time — repeat it so the engine is really
@@ -1130,110 +1064,12 @@ function startPending() {
   else startSearch(p.job);
 }
 
-/* Number of points a smart scan keeps. YixinBoard's scan covers the engine's
-   candidate area (square3_line4); we keep a fixed share of that list rather than
-   a fixed N, so the count is a property of the position: ~34 on the usual
-   midgame candidate list (~82), small in a decided fight, capped at 52 when the
-   board is crowded. */
-function scanK() {
-  const seen = new Set();
-  for (const p of pvs) {
-    const key = pvMoveKey(p);
-    if (key) seen.add(key);
-  }
-  if (!seen.size) return 0;
-  return Math.max(2, Math.min(SCAN_K_MAX, Math.round(seen.size * SCAN_K_RATIO)));
-}
-
-/* Stop the current phase and let the final coordinate line prove the engine is
-   idle; beginScanPhase is called from that line. Repeat STOP a couple of times
-   before giving up, exactly like the queue release path. */
-function startScanSwitch(head, n) {
-  const a = active;
-  if (!a || !a.scan || a.stopping || a.switching) return;
-  a.switching = { head: !!head, n: Math.max(2, Math.min(SCAN_K_MAX, n | 0)) };
-  send('STOP');
-  clearTimeout(switchTimer);
-  const retry = (tries) => {
-    switchTimer = setTimeout(() => {
-      if (!active || !active.switching) return;
-      if (tries < 2) { send('STOP'); retry(tries + 1); return; }
-      post({ t: 'stderr', msg: 'scan phase switch got no STOP answer' });
-      finishSearch(active.lastBest, true);
-    }, 4000);
-  };
-  retry(0);
-}
-
-function beginScanPhase() {
-  const a = active;
-  if (!a || !a.switching) return;
-  const sw = a.switching;
-  a.switching = null;
-  clearTimeout(switchTimer);
-  if (sw.head) {
-    /* keep the converged set, but let the head slots carry fresh deep values.
-       YXNBEST alone would deepen the engine's policy-order top N, which is not
-       the same as the points the page ranks first: on the reference position
-       the true best move sat outside the policy top 3 and kept its shallow
-       value. YXBLOCK filters every other converged move out of the root list,
-       so the deep search runs on exactly the value-ranked head. */
-    a.phase = 3;
-    a.basePvs = pvs.slice();
-    a.k = Math.min(a.k || pvs.length, SCAN_K_MAX);
-    const ranked = pvs.slice().sort((x, y) =>
-      (y.winrate == null ? -1 : y.winrate) - (x.winrate == null ? -1 : x.winrate));
-    const head = ranked.slice(0, SCAN_HEAD_MAX).map(pvMoveKey).filter(Boolean);
-    const ids = {};
-    for (const h of head) ids[h] = 1;
-    a.block = pvs.map(pvMoveKey).filter((k) => k && !ids[k]);
-  } else {
-    a.phase = 2;
-    a.k = sw.n;
-    if (pvs.length > sw.n) pvs = pvs.slice(0, sw.n);
-  }
-  a.scanTopN = sw.n;
-  a.lastEmit = 0;
-  pend = [];
-  pendNumPv = 0;
-  pvIdx = -1;
-  cur = null;
-  /* Rapfi's sendActionAndUpdateBoard() plays the finished search's best move on
-     the protocol board before it prints the final coordinate line, and the
-     protocol loop silently drops every command except STOP while `thinking` is
-     still true (gomocup.cpp). A phase switch therefore has to (a) wait out that
-     flag and (b) resend the real position — otherwise the converged search runs
-     on a board with one extra stone, which is exactly the 2-PV, wrong-value
-     phase-2 we measured. A short delay also keeps YXNBEST from racing the
-     thinking flag. */
-  setTimeout(() => {
-    if (!active || active !== a || a.switching || !a.smart) return;
-    sendBoard(a.moves);
-    if (sw.head) {
-      if (a.block && a.block.length) send('YXBLOCK ' + a.block.join(' ') + ' DONE');
-    } else send('YXBLOCKRESET');
-    send('YXNBEST ' + sw.n);
-  }, 40);
-}
-
 function startSearch(job) {
   if (!Mod || engineDirty) return;
   clearTimeout(stopTimer);
   clearTimeout(scanTimer);
-  clearTimeout(wideTimer);
-  clearTimeout(convTimer);
-  clearTimeout(switchTimer);
   active = {
     id: job.id, gen: job.gen, topN: Math.max(1, Math.min(8, job.topN | 0)),
-    /* scanTopN > 0 switches the scan from YXSEARCHDEFEND (every candidate) to
-       YXNBEST N: the engine itself keeps only the N best root moves, which is
-       what gomoku-calculator does. 0 keeps the full Yixin coverage. */
-    scanTopN: Math.max(0, Math.min(225, job.scanTopN | 0)),
-    /* smart scan: probe all candidates, converge to a position-dependent K,
-       then spend the tail budget on the head moves (see beginScanPhase) */
-    smart: !!(job.scanSmart && job.scan),
-    phase: 0, k: 0, basePvs: null, switching: null,
-    moves: (job.moves || []).slice(),
     scan: !!job.scan, infinite: !!job.infinite, stopping: false, lastBest: null,
     lastEmit: 0, key: jobKey(job),
   };
@@ -1256,41 +1092,13 @@ function startSearch(job) {
     pondering: job.pondering && !active.scan ? 1 : 0,
   });
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
-  /* a previous smart scan's head phase may have left YXBLOCK entries behind */
+  /* a previous scan may have left YXBLOCK entries behind */
   send('YXBLOCKRESET');
   sendBoard(job.moves);
   /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
      movesLeft()); the square3_line4 range above makes that list the 7x7+4-line set.
-     YXNBEST N is the strict multi-PV path: one engine PV per rank. Converged
-     scans use it so the engine, not the page, decides which points survive. */
-  if (active.scan) {
-    if (active.smart) {
-      active.phase = 1;
-      send('YXSEARCHDEFEND');
-      /* The probe only has to count the candidate list and measure its shape;
-         K depends on NUMPV, not on how deep the probe gets. If no complete
-         round has arrived yet, wait a little instead of guessing K = 2. */
-      const wideMs = active.infinite
-        ? SCAN_WIDE_MS
-        : Math.max(600, Math.min(SCAN_WIDE_MS, (job.timeMs | 0) * 0.35));
-      let tries = 0;
-      const probe = () => {
-        if (!active || !active.smart || active.phase !== 1 || active.stopping) return;
-        const k = scanK();
-        if (!k && ++tries <= 3) { wideTimer = setTimeout(probe, 800); return; }
-        startScanSwitch(false, k || 2);
-      };
-      wideTimer = setTimeout(probe, wideMs);
-      if (active.infinite) {
-        convTimer = setTimeout(() => {
-          if (!active || !active.smart || active.phase !== 2 || active.stopping) return;
-          if ((active.k || 0) > SCAN_HEAD_MAX) startScanSwitch(true, SCAN_HEAD_MAX);
-        }, Math.max(wideMs + 1500, SCAN_CONV_MS));
-      }
-    } else {
-      send(active.scanTopN > 0 ? 'YXNBEST ' + active.scanTopN : 'YXSEARCHDEFEND');
-    }
-  } else send('YXNBEST ' + active.topN);
+     YXNBEST N is the strict multi-PV path: one engine PV per rank. */
+  send(active.scan ? 'YXSEARCHDEFEND' : 'YXNBEST ' + active.topN);
   /* The engine's own turn clock is not reliable for a 100+ PV search (the
      iteration can run long past it), so the single-thread fallback gets an
      explicit wall-clock fence and restarts a fresh chunk. A multi-thread scan
@@ -1329,10 +1137,6 @@ function search(job) {
 function stopSearch() {
   if (!active || active.stopping) return;
   active.stopping = true;
-  active.switching = null;
-  clearTimeout(wideTimer);
-  clearTimeout(convTimer);
-  clearTimeout(switchTimer);
   send('STOP');
   // Guarantee a bounded stop even if the engine build does not answer STOP;
   // the next job must not wait forever for an answer that never comes. A scan
@@ -1398,7 +1202,7 @@ function balance(job) {
   const b = { id: job.id, gen: job.gen, count, moves: job.moves, stopping: false, lastPoints: [], timer: 0, key };
   bal = b;
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(500, job.timeMs | 0)));
-  /* clear any head-phase YXBLOCK left by a smart scan before balancing */
+  /* clear any YXBLOCK left by a previous scan before balancing */
   send('YXBLOCKRESET');
   sendBoard(job.moves);
   send(count >= 2 ? 'YXBALANCETWO 0' : 'YXBALANCEONE 0');

@@ -66,9 +66,6 @@ const I18N = {
     scanLabel: '扫描分析', scanStop: '停止扫描', scanShort: '扫描',
     scanFmtLabel: '扫描显示格式', scanFmtHint: '方形标记内显示分数或胜率，仅影响扫描',
     scanScore: '分数', scanWr: '胜率',
-    scanPointsLabel: '扫描点数', scanPointsHint: '智能 = 先铺满引擎候选区（约 82 点），再收敛到随局面变化的 2–52 点（常约 34 点），最后把尾部预算回收给头部几个点深搜；全量 = 一直保持全部候选点（YXSEARCHDEFEND）',
-    scanFull: '全量',
-    scanSmart: '智能',
     stScanning: '扫描中', stScanDone: '扫描完成',
     scanPts: '扫描 {n} 点',
     tipScan: '扫描分析：候选点持续加深；再点一次停止并落最佳点',
@@ -167,9 +164,6 @@ const I18N = {
     scanLabel: 'Scan analysis', scanStop: 'Stop scan', scanShort: 'Scan',
     scanFmtLabel: 'Scan labels', scanFmtHint: 'Show score or win rate inside the scan tiles',
     scanScore: 'Score', scanWr: 'Win rate',
-    scanPointsLabel: 'Scan points', scanPointsHint: 'Smart = cover the engine candidate area (~82), converge to a position-dependent 2–52 points (~34 typical), then recycle the tail budget into a deep head search; All = keep every candidate (YXSEARCHDEFEND)',
-    scanFull: 'All',
-    scanSmart: 'Smart',
     stScanning: 'Scanning', stScanDone: 'Scan complete',
     scanPts: 'Scan {n} pts',
     tipScan: 'Scan analysis — candidates keep deepening; click again to stop and play the best point',
@@ -514,10 +508,6 @@ function defaults() {
   return {
     hashMB: 256, points: 1, threads: defaultThreads(), caution: 3, rule: 0, theme: null,
     think: 3000, showNum: true, stone: 'real', balPoints: 1, board: 'classic', scanFmt: 'score',
-    /* -1 = smart scan: wide probe, then a position-dependent converged set,
-       then head refinement. 0 = full Yixin scan (YXSEARCHDEFEND, ~82 points,
-       shallow). Older builds stored 1/4/8/16 here; they migrate to smart. */
-    scanPoints: -1,
     /* strength knobs aligned with gomoku-calculator: no hidden caps */
     maxDepth: 64, maxNodes: 0, strength: 100, pondering: false,
   };
@@ -558,9 +548,6 @@ function loadSettings() {
     if (BOARD_SKINS.some((s) => s.id === raw.board)) d.board = raw.board;
     if (Number.isFinite(raw.balPoints) && raw.balPoints >= 1 && raw.balPoints <= 2) d.balPoints = raw.balPoints;
     if (raw.scanFmt === 'score' || raw.scanFmt === 'wr') d.scanFmt = raw.scanFmt;
-    if (raw.scanPoints === 0) d.scanPoints = 0;
-    else if (raw.scanPoints === -1 || raw.scanPoints === 1 || raw.scanPoints === 4 ||
-      raw.scanPoints === 8 || raw.scanPoints === 16) d.scanPoints = -1;
     if (Number.isFinite(raw.maxDepth) && raw.maxDepth >= 8 && raw.maxDepth <= 255) d.maxDepth = raw.maxDepth;
     if (Number.isFinite(raw.maxNodes) && raw.maxNodes >= 0) d.maxNodes = raw.maxNodes;
     if (raw.pondering === true || raw.pondering === false) d.pondering = raw.pondering;
@@ -1697,10 +1684,6 @@ function scheduleDebug() {
      move and keep their established order; values update in place and a row
      leaves only when the engine stops offering that move. */
 
-/* display safety bound, not a candidate limit: square3_line4 tops out around
-   eighty points on a normal board, and the engine's list is authoritative */
-const SCAN_MAX = 120;
-
 function candKey(c) { return c && c.move ? c.move[0] + ',' + c.move[1] : ''; }
 
 function applyScanCandidates(cands) {
@@ -1723,7 +1706,6 @@ function applyScanCandidates(cands) {
     frameKeys.add(key);
     let r = byKey.get(key);
     if (!r) {
-      if (S.scanRows.length + kept.length >= SCAN_MAX) continue;
       r = { key, x, y };
     } else if (r.x !== x || r.y !== y) {
       r.x = x;
@@ -1751,7 +1733,6 @@ function applyScanCandidates(cands) {
     if (frameKeys.has(r.key)) rows.push(r);
   }
   for (const r of kept) if (!rows.includes(r)) rows.push(r);
-  rows.length = Math.min(rows.length, SCAN_MAX);
   S.scanRows = rows;
   /* exactly one best: the smallest rank in this same frame. If the rank-0 move
      was filtered out, the next best becomes the best — the marker never stays
@@ -2002,10 +1983,6 @@ function launch(kind) {
     /* strict multi-PV only pays off while analysing: playing with several lines
        splits the effort and makes the chosen move weaker. */
     topN: kind === 'analysis' && !scan ? S.settings.points : 1,
-    /* converged scan: let the engine keep only its top N root moves. Smart
-       scans start wide and let the worker pick N from the candidate list. */
-    scanTopN: scan ? (S.settings.scanPoints > 0 ? (S.settings.scanPoints | 0) : 0) : 0,
-    scanSmart: !!scan && (S.settings.scanPoints | 0) < 0,
     scan,
     count: S.balance,
     maxDepth: S.settings.maxDepth,
@@ -3010,7 +2987,6 @@ function syncSettingsUI() {
   seg('segDepth', S.settings.maxDepth);
   seg('segNodes', S.settings.maxNodes);
   seg('segScanFmt', S.settings.scanFmt);
-  seg('segScanPoints', S.settings.scanPoints);
   const swPonder = $('swPonder');
   if (swPonder) swPonder.setAttribute('aria-checked', String(!!S.settings.pondering));
   seg('segRule', S.settings.rule);
@@ -3100,7 +3076,7 @@ function setSetting(key, value, opts) {
     haltSearch();
     S.scanDone = false;
     if (key === 'points' || key === 'rule' || key === 'threads' || key === 'hashMB' || key === 'caution' ||
-        key === 'maxDepth' || key === 'maxNodes' || key === 'pondering' || key === 'strength' || key === 'scanPoints') {
+        key === 'maxDepth' || key === 'maxNodes' || key === 'pondering' || key === 'strength') {
       S.marks = [];
       clearRouteView();
     }
@@ -3191,7 +3167,6 @@ function initSettingsEvents() {
   segClick('segDepth', (v) => setSetting('maxDepth', +v));
   segClick('segNodes', (v) => setSetting('maxNodes', +v));
   segClick('segScanFmt', (v) => setSetting('scanFmt', v));
-  segClick('segScanPoints', (v) => setSetting('scanPoints', +v));
   const swPonder = $('swPonder');
   if (swPonder) swPonder.addEventListener('click', () => setSetting('pondering', !S.settings.pondering));
   buildBoardSwatches();

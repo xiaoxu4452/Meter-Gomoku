@@ -352,7 +352,6 @@ html[data-theme="dark"] .seg button.on{color:#0d1a26}
   border:1px solid var(--line);border-radius:7px;font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--ink);background:var(--bg)}
 .range-wrap input:disabled{opacity:.45}
 .seg.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
-.seg.grid5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}
 /* board colour presets: 15 chips, 5 per row */
 .swatches{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
 .swatch{position:relative;height:34px;min-width:0;padding:0;border:1px solid rgba(20,30,20,.18);border-radius:8px;

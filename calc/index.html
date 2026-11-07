@@ -303,17 +303,6 @@
     </div>
 
     <div class="set-row">
-      <div class="set-label">
-        <b data-i18n="scanPointsLabel">扫描点数</b>
-        <span data-i18n="scanPointsHint">智能 = 先铺满引擎候选区（约 82 点），再收敛到随局面变化的 2–52 点（常约 34 点），最后把尾部预算回收给头部几个点深搜；全量 = 一直保持全部候选点（YXSEARCHDEFEND）</span>
-      </div>
-      <div class="seg" id="segScanPoints" role="group" aria-label="扫描点数">
-        <button type="button" data-v="-1" data-i18n="scanSmart">智能</button>
-        <button type="button" data-v="0" data-i18n="scanFull">全量</button>
-      </div>
-    </div>
-
-    <div class="set-row">
       <div class="set-label"><b data-i18n="maxDepth">最大深度</b><span data-i18n="maxDepthHint">搜索深度上限；默认 64，通常先撞思考时间而不是深度</span></div>
       <div class="seg four" id="segDepth" role="group" aria-label="最大深度">
         <button type="button" data-v="32">32</button>
