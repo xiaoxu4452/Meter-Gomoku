@@ -1172,10 +1172,21 @@ function beginScanPhase() {
   a.switching = null;
   clearTimeout(switchTimer);
   if (sw.head) {
-    /* keep the converged set, but let the head slots carry fresh deep values */
+    /* keep the converged set, but let the head slots carry fresh deep values.
+       YXNBEST alone would deepen the engine's policy-order top N, which is not
+       the same as the points the page ranks first: on the reference position
+       the true best move sat outside the policy top 3 and kept its shallow
+       value. YXBLOCK filters every other converged move out of the root list,
+       so the deep search runs on exactly the value-ranked head. */
     a.phase = 3;
     a.basePvs = pvs.slice();
     a.k = Math.min(a.k || pvs.length, SCAN_K_MAX);
+    const ranked = pvs.slice().sort((x, y) =>
+      (y.winrate == null ? -1 : y.winrate) - (x.winrate == null ? -1 : x.winrate));
+    const head = ranked.slice(0, SCAN_HEAD_MAX).map(pvMoveKey).filter(Boolean);
+    const ids = {};
+    for (const h of head) ids[h] = 1;
+    a.block = pvs.map(pvMoveKey).filter((k) => k && !ids[k]);
   } else {
     a.phase = 2;
     a.k = sw.n;
@@ -1198,6 +1209,9 @@ function beginScanPhase() {
   setTimeout(() => {
     if (!active || active !== a || a.switching || !a.smart) return;
     sendBoard(a.moves);
+    if (sw.head) {
+      if (a.block && a.block.length) send('YXBLOCK ' + a.block.join(' ') + ' DONE');
+    } else send('YXBLOCKRESET');
     send('YXNBEST ' + sw.n);
   }, 40);
 }
@@ -1242,6 +1256,8 @@ function startSearch(job) {
     pondering: job.pondering && !active.scan ? 1 : 0,
   });
   send('INFO TIMEOUT_TURN ' + (job.infinite ? 3600000 : Math.max(300, job.timeMs | 0)));
+  /* a previous smart scan's head phase may have left YXBLOCK entries behind */
+  send('YXBLOCKRESET');
   sendBoard(job.moves);
   /* YXSEARCHDEFEND assigns a root PV to every candidate Rapfi keeps (multiPV =
      movesLeft()); the square3_line4 range above makes that list the 7x7+4-line set.
