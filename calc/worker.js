@@ -445,6 +445,10 @@ const ASSET_META = {
   'rapfi.data': { size: 40306406, sha256: '2fa58b1c9e005a7b39bbddb798097a8f1ff9ceaba4c9339d87ba7d324b9d846d' },
   'rapfi-multi-simd128.wasm': { size: 1137577, sha256: '642c79f0fd929a3679053e1b52701e82f9c1749c797e177e1b14bb025fd5a166' },
   'rapfi-single-simd128.wasm': { size: 1105309, sha256: 'e9ad428a43d6f99c2f5394ddfd05a7e6132408fb85463477a5a9aa173a12c386' },
+  /* Rapfi 0.44.1, built from desktop-connect/rapfi with emsdk 3.1.74 */
+  'rapfi-044.data': { size: 40264694, sha256: 'f40f4c110b5c678683e0eafbd60047ea73922cfc288409d707e558a6dff8a759' },
+  'rapfi-multi-044-simd128.wasm': { size: 1228469, sha256: 'b0be2080d83b144686e01d0e6c4065a8debb1d76f3d158348d1435fdcf83740a' },
+  'rapfi-single-044-simd128.wasm': { size: 1198861, sha256: '1aa6a4e095785a289fdb071a8c8a0abc96476856ae69dddba9575f3a49fef689' },
 };
 
 async function sha256hex(buf) {

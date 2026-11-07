@@ -13,10 +13,21 @@ const ENGINE_CACHE = 'mgcalc-engine-20261105c';
    Cache API can answer first (stale copies are never served) and the browser
    may also keep them as immutable long-lived entries. The JS entry stays plain:
    Emscripten derives its pthread worker URL from it. */
-const ENGINE_VER = 'v=' + ENGINE_VERSION;
+/* Two engine packages live side by side: '044' is built here from the same
+   Rapfi 0.44.1 source as the desktop app, '043' is the previous web build and
+   stays on the server as a runtime fallback. Each package carries its own
+   versioned URL so the Cache API never serves a stale binary. */
+const ENGINE_VER_044 = 'v=044a';
+const ENGINE_VER_043 = 'v=' + ENGINE_VERSION;
 const ENGINE_FILES = {
-  multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm?' + ENGINE_VER, data: 'engine/rapfi.data?' + ENGINE_VER },
-  single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm?' + ENGINE_VER, data: 'engine/rapfi.data?' + ENGINE_VER },
+  '044': {
+    multi: { js: 'engine/rapfi-multi-044-simd128.js', wasm: 'engine/rapfi-multi-044-simd128.wasm?' + ENGINE_VER_044, data: 'engine/rapfi-044.data?' + ENGINE_VER_044 },
+    single: { js: 'engine/rapfi-single-044-simd128.js', wasm: 'engine/rapfi-single-044-simd128.wasm?' + ENGINE_VER_044, data: 'engine/rapfi-044.data?' + ENGINE_VER_044 },
+  },
+  '043': {
+    multi: { js: 'engine/rapfi-multi-simd128.js', wasm: 'engine/rapfi-multi-simd128.wasm?' + ENGINE_VER_043, data: 'engine/rapfi.data?' + ENGINE_VER_043 },
+    single: { js: 'engine/rapfi-single-simd128.js', wasm: 'engine/rapfi-single-simd128.wasm?' + ENGINE_VER_043, data: 'engine/rapfi.data?' + ENGINE_VER_043 },
+  },
 };
 const HASH_OPTIONS = [64, 128, 256, 512, 1024];
 const HASH_LIMIT_DEFAULT = 1024;
@@ -120,6 +131,7 @@ const I18N = {
     hashCleared: '置换表已清空',
     tHashClamp: '哈希表超过引擎上限 {n} MB，已自动收敛',
     tFallback: '多线程不可用，已降级为单线程模式',
+    tEngineOld: '新引擎包加载失败，已回退旧版引擎',
     tEngineRebuilt: '引擎无响应，已自动重启（局面保留）',
     tEngineLoop: '引擎连续异常，已暂停分析',
     toLight: '切换到浅色模式', toDark: '切换到深色模式',
@@ -219,6 +231,7 @@ const I18N = {
     hashCleared: 'Transposition table cleared',
     tHashClamp: 'Hash clamped to the engine limit of {n} MB',
     tFallback: 'Multi-threading unavailable — running single-threaded',
+    tEngineOld: 'New engine package failed to load — using the previous engine',
     tEngineRebuilt: 'The engine stopped responding — restarted, position kept',
     tEngineLoop: 'The engine failed repeatedly — analysis paused',
     toLight: 'Switch to light mode', toDark: 'Switch to dark mode',
@@ -349,6 +362,7 @@ const S = {
   current: null,
   engineReady: false,
   engineBuild: '',
+  enginePkg: '044',          // active engine package; drops to '043' if the new one fails
   engineThreads: 0,
   engineHash: 0,
   hashClearedAt: 0,
@@ -1294,7 +1308,7 @@ function bootEngine() {
   enginePost({
     t: 'init',
     build,
-    urls: ENGINE_FILES[build === 'multi' ? 'multi' : 'single'],
+    urls: ENGINE_FILES[S.enginePkg][build === 'multi' ? 'multi' : 'single'],
     threads: S.engineThreads,
     hashMB: S.settings.hashMB,
     caution: S.settings.caution,
@@ -1355,7 +1369,7 @@ function retrySingle(reason) {
   S.engineBusy = false;
   S.lastEngineMsg = Date.now();
   enginePost({
-    t: 'init', build: 'single', urls: ENGINE_FILES.single,
+    t: 'init', build: 'single', urls: ENGINE_FILES[S.enginePkg].single,
     threads: 1, hashMB: S.settings.hashMB, caution: S.settings.caution, rule: S.settings.rule, cacheName: ENGINE_CACHE,
     maxDepth: S.settings.maxDepth, maxNodes: S.settings.maxNodes, strength: S.settings.strength,
     pondering: !!S.settings.pondering,
@@ -1504,6 +1518,18 @@ function onEngineMessage(ev) {
   if (d.t === 'initfail') {
     S.recovering = false;
     S.engineReady = false;
+    /* the freshly built 0.44 package is preferred, but never at the cost of a
+       broken page: fall back to the previous 0.43 package once, then to its
+       single-thread build */
+    if (S.enginePkg === '044') {
+      S.enginePkg = '043';
+      toast(T('tEngineOld'));
+      try { if (S.worker) S.worker.terminate(); } catch (e) {}
+      S.worker = null;
+      S.engineBusy = false;
+      setTimeout(() => bootEngine(), 0);
+      return;
+    }
     if (S.engineBuild === 'multi' && retrySingle(d.error)) return;
     chip.textContent = T('engineErr');
     chip.className = 'chip err';
